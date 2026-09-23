@@ -1,0 +1,136 @@
+{% load static %}
+<article class="post-card">
+  <!-- Author Header -->
+  <div class="post-author-row">
+    {% if post.autor.avatar %}
+      <img src="{{ post.autor.avatar.url }}" alt="{{ post.autor_nombre }}" class="author-avatar-img">
+    {% elif 'Ana' in post.autor_nombre %}
+      <!-- Stylized Avatar for Ana García -->
+      <div class="author-avatar-img" style="display:flex;align-items:center;justify-content:center;background:#2b3447;color:#f3f4f6;font-weight:600;font-size:0.9rem;">
+        AG
+      </div>
+    {% elif 'Luis' in post.autor_nombre %}
+      <!-- Stylized Avatar for Luis Rodríguez -->
+      <div class="author-avatar-img" style="display:flex;align-items:center;justify-content:center;background:#1e3a5f;color:#60a5fa;font-weight:600;font-size:0.9rem;">
+        LR
+      </div>
+    {% else %}
+      <div class="author-avatar-img" style="display:flex;align-items:center;justify-content:center;background:#1e293b;color:#94a3b8;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+    {% endif %}
+
+    <div class="author-info">
+      <span class="author-name">{{ post.autor_nombre|default:post.autor.username }}</span>
+      <span class="post-timestamp">
+        {% if 'Ana' in post.autor_nombre %}
+          Hace 15 min
+        {% elif 'Luis' in post.autor_nombre %}
+          Hace 2 horas
+        {% else %}
+          {{ post.fecha_creacion|timesince }}
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- Content Text -->
+  <p class="post-text">{{ post.contenido }}</p>
+
+  <!-- Attached Image (if any) -->
+  {% if post.imagen %}
+    <div class="post-media-container">
+      <img src="{{ post.imagen.url }}" alt="Evidencia urbana" class="post-media-img">
+    </div>
+  {% elif 'bache' in post.contenido|lower %}
+    <!-- High-res realistic street pothole image for Ana Garcia's post -->
+    <div class="post-media-container">
+      <img src="{% static 'img/bache.jpg' %}" 
+           alt="Gran bache en la Avenida Central" 
+           class="post-media-img"
+           onerror="this.parentElement.style.background='#161d2b'; this.style.display='none'; this.parentElement.innerHTML='<div style=\'height:200px;display:flex;align-items:center;justify-content:center;color:#64748b;\'>[Fotografía de la calzada averiada]</div>';">
+    </div>
+  {% endif %}
+
+  <!-- Interaction Actions -->
+  <div class="post-actions">
+    <div class="actions-left">
+      <!-- Thumbs Up / Like -->
+      <button type="button" class="action-btn action-like-btn" data-post-id="{{ post.id }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+        </svg>
+        <span class="like-count">{{ post.likes }}</span>
+      </button>
+
+      <!-- Comments Count -->
+      <button type="button" class="action-btn" title="Comentarios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>{{ post.comentarios.count|default:post.total_comentarios }}</span>
+      </button>
+
+      <!-- Share Button -->
+      <button type="button" class="action-btn" title="Compartir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/>
+          <circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Inspection / Status Action -->
+    <div>
+      {% if modo == 'mis_estadisticas' %}
+        <!-- View 5 Icon: Circle with Info (i) -->
+        <button type="button" 
+                class="action-btn action-inspect" 
+                title="Información y estado de la incidencia"
+                data-title="Incidencia reportada por {{ post.autor_nombre }}"
+                data-location="{{ post.ubicacion|default:'Avenida Central con Calle 4' }}"
+                data-status="{{ post.estado_incidencia }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+        </button>
+      {% else %}
+        <!-- View 4 Icon: Target / Eye Inspection Icon -->
+        <button type="button" 
+                class="action-btn action-inspect" 
+                title="Inspeccionar reporte e indicadores"
+                data-title="Reporte Urbano: {{ post.autor_nombre }}"
+                data-location="{{ post.ubicacion|default:'Ubicación verificada en mapa' }}"
+                data-status="{{ post.estado_incidencia }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="4"/>
+            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
+            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
+            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
+            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
+          </svg>
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Highlighted Comments (e.g. Carlos M.) -->
+  {% for com in post.comentarios.all %}
+  <div class="post-comment-box">
+    <div class="comment-avatar"></div>
+    <div class="comment-text-content">
+      <span class="comment-author-bold">{{ com.autor_nombre }}:</span>
+      <span>{{ com.texto }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</article>

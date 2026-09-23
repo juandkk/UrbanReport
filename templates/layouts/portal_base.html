@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/portal.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="portal-wrapper">
+  <!-- Left Sidebar Component -->
+  {% include 'includes/sidebar.html' %}
+
+  <!-- Center Main Content -->
+  <main class="portal-main">
+    {% block portal_content %}{% endblock %}
+  </main>
+
+  <!-- Right Widgets Sidebar Component -->
+  {% include 'includes/widgets.html' %}
+</div>
+
+<!-- Modal for Inspecting Incident -->
+<div class="inspect-modal-backdrop" id="inspectModal">
+  <div class="inspect-modal">
+    <div class="inspect-modal-header">
+      <h3 class="inspect-modal-title" id="modalIncidentTitle">Detalle de la Incidencia</h3>
+      <button type="button" class="close-modal-btn">&times;</button>
+    </div>
+    <div class="inspect-modal-body" style="color: #cbd5e1; font-size: 0.9rem; display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <span style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Ubicación:</span>
+        <p id="modalIncidentLocation" style="font-weight: 500; color: #ffffff;"></p>
+      </div>
+      <div>
+        <span style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Estado Actual:</span>
+        <p><span id="modalIncidentStatus" style="display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: #1e293b; color: #38bdf8;"></span></p>
+      </div>
+      <div>
+        <span style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Canal de Gestión:</span>
+        <p style="color: #94a3b8;">Despachado a Secretaría de Obras y Movilidad Urbana.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for New Post Composer -->
+<div class="inspect-modal-backdrop" id="newPostModal">
+  <div class="inspect-modal">
+    <div class="inspect-modal-header">
+      <h3 class="inspect-modal-title">Publicar en la Comunidad</h3>
+      <button type="button" class="close-post-modal-btn close-modal-btn">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'feed_comunitario' %}?modo={{ modo }}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div style="margin-bottom: 1rem;">
+        <textarea name="contenido" 
+                  rows="4" 
+                  class="auth-input" 
+                  style="height: auto; padding: 12px; resize: vertical;" 
+                  placeholder="¿Qué está pasando en tu comunidad?" 
+                  required></textarea>
+      </div>
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">Adjuntar Imagen / Foto del incidente:</label>
+        <input type="file" name="imagen" accept="image/*" class="auth-input" style="padding-top: 6px;">
+      </div>
+      <button type="submit" class="btn-primary" style="width: 100%;">
+        Compartir Publicación
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/feed.js' %}"></script>
+{% endblock %}

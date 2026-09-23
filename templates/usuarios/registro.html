@@ -1,0 +1,125 @@
+{% extends 'layouts/auth_base.html' %}
+{% load static %}
+
+{% block title %}Registrarse | UrbanReport{% endblock %}
+
+{% block auth_card %}
+<div class="auth-card auth-card-wide">
+  <!-- Tabs Switcher -->
+  <div class="auth-tabs">
+    <a href="{% url 'login' %}" class="auth-tab">Iniciar Sesión</a>
+    <a href="{% url 'registro' %}" class="auth-tab active">Registrarse</a>
+  </div>
+
+  <form method="POST" action="{% url 'registro' %}" class="auth-form">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label class="form-label" for="id_username">Nombre de usuario*</label>
+      <input type="text" 
+             name="username" 
+             id="id_username" 
+             class="auth-input" 
+             placeholder="Nombre de usuario" 
+             required
+             value="{{ form.username.value|default:'' }}">
+      {% if form.username.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.username.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_email">Correo Electrónico*</label>
+      <input type="email" 
+             name="email" 
+             id="id_email" 
+             class="auth-input" 
+             placeholder="ejemplo@correo.com" 
+             required
+             value="{{ form.email.value|default:'' }}">
+      {% if form.email.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.email.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_telefono">Número de teléfono*</label>
+      <input type="text" 
+             name="telefono" 
+             id="id_telefono" 
+             class="auth-input" 
+             placeholder="300 0000000" 
+             required
+             value="{{ form.telefono.value|default:'' }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_direccion">Dirección*</label>
+      <input type="text" 
+             name="direccion" 
+             id="id_direccion" 
+             class="auth-input" 
+             placeholder="KR 0 #00-00" 
+             required
+             value="{{ form.direccion.value|default:'' }}">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="id_barrio_vereda">Barrio o vereda*</label>
+        <input type="text" 
+               name="barrio_vereda" 
+               id="id_barrio_vereda" 
+               class="auth-input" 
+               placeholder="Ej: La Esperanza" 
+               required
+               value="{{ form.barrio_vereda.value|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_numero_finca">Numero de Finca</label>
+        <input type="text" 
+               name="numero_finca" 
+               id="id_numero_finca" 
+               class="auth-input" 
+               placeholder="Ej: 12"
+               value="{{ form.numero_finca.value|default:'' }}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_codigo_postal">Código postal*</label>
+      <input type="text" 
+             name="codigo_postal" 
+             id="id_codigo_postal" 
+             class="auth-input" 
+             placeholder="002000" 
+             required
+             value="{{ form.codigo_postal.value|default:'' }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_password">Contraseña*</label>
+      <input type="password" 
+             name="password" 
+             id="id_password" 
+             class="auth-input" 
+             placeholder="••••••••" 
+             required
+             autocomplete="new-password">
+      {% if form.password.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.password.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0.5rem; height: 44px;">
+      Registrarse
+    </button>
+
+    <p class="auth-footer-text">
+      Al continuar, aceptas nuestros 
+      <a href="#">Términos de Servicio</a> y 
+      <a href="#">Política de Privacidad</a>.
+    </p>
+  </form>
+</div>
+{% endblock %}

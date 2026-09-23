@@ -1,0 +1,49 @@
+{% extends 'layouts/auth_base.html' %}
+{% load static %}
+
+{% block title %}Recuperación de Contraseña | UrbanReport{% endblock %}
+
+{% block auth_card %}
+<div class="auth-card">
+  <div class="recovery-header">
+    <h2 class="recovery-title">Recuperación de contraseña</h2>
+    <p class="recovery-subtitle">
+      Ingresa tu correo electrónico y te enviaremos las instrucciones para restablecer tu cuenta.
+    </p>
+  </div>
+
+  <form method="POST" action="{% url 'recuperar_contrasena' %}" class="auth-form">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label class="form-label" for="id_email">Correo Electrónico</label>
+      <div class="input-wrapper">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        <input type="email" 
+               name="email" 
+               id="id_email" 
+               class="auth-input with-icon" 
+               placeholder="admin@ciudad.gov" 
+               required 
+               autocomplete="email"
+               value="{{ request.POST.email|default:'' }}">
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0.5rem; height: 44px;">
+      <span>Enviar Instrucciones</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <polyline points="12 5 19 12 12 19"></polyline>
+      </svg>
+    </button>
+
+    <a href="{% url 'login' %}" class="back-to-login">
+      <span>&larr; Volver al Inicio de Sesión</span>
+    </a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% load static %}
+<aside class="portal-widgets">
+  <!-- Search Input Widget -->
+  <div class="search-widget">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" class="search-input" placeholder="Buscar un tema...">
+  </div>
+
+  <!-- Trending Topics Widget -->
+  <div class="widget-card">
+    <h3 class="widget-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+        <polyline points="17 6 23 6 23 12"/>
+      </svg>
+      <span>Trending Topics</span>
+    </h3>
+
+    <div class="trending-list">
+      {% for topic in trending_topics %}
+      <div class="trending-item">
+        <span class="trending-category">{{ topic.categoria }}</span>
+        <a href="#" class="trending-tag">{{ topic.hashtag }}</a>
+        <span class="trending-count">{{ topic.detalle }}</span>
+      </div>
+      {% empty %}
+      <div class="trending-item">
+        <span class="trending-category">TRÁFICO</span>
+        <a href="#" class="trending-tag">#CorteAvenidaSur</a>
+        <span class="trending-count">45 reportes en la última hora</span>
+      </div>
+      <div class="trending-item">
+        <span class="trending-category">SERVICIOS</span>
+        <a href="#" class="trending-tag">#FallaElectricaNorte</a>
+        <span class="trending-count">120 reportes</span>
+      </div>
+      <div class="trending-item">
+        <span class="trending-category">COMUNIDAD</span>
+        <a href="#" class="trending-tag">#JornadaLimpiezaParque</a>
+        <span class="trending-count">Evento activo</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recent Activity Widget -->
+  <div class="widget-card">
+    <h3 class="widget-title">
+      <span>Actividad Reciente</span>
+    </h3>
+
+    <div class="activity-list">
+      {% for act in actividades %}
+      <div class="activity-item">
+        <div class="activity-dot {% if act.tipo == 'incidente' %}blue{% else %}gray{% endif %}"></div>
+        <div class="activity-info">
+          <p class="activity-text">{{ act.titulo }}</p>
+          <span class="activity-time">{{ act.tiempo }}</span>
+        </div>
+      </div>
+      {% empty %}
+      <div class="activity-item">
+        <div class="activity-dot blue"></div>
+        <div class="activity-info">
+          <p class="activity-text">Nuevo incidente reportado en Calle 8.</p>
+          <span class="activity-time">Hace 2 min</span>
+        </div>
+      </div>
+      <div class="activity-item">
+        <div class="activity-dot gray"></div>
+        <div class="activity-info">
+          <p class="activity-text">Incidencia #492 marcada como Resuelta.</p>
+          <span class="activity-time">Hace 15 min</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</aside>

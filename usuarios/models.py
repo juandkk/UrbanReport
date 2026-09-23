@@ -13,6 +13,12 @@ class Usuario(AbstractUser):
         choices=Rol.choices,
         default=Rol.CIUDADANO
     )
+    telefono = models.CharField('Número de teléfono', max_length=25, blank=True, null=True)
+    direccion = models.CharField('Dirección', max_length=255, blank=True, null=True)
+    barrio_vereda = models.CharField('Barrio o vereda', max_length=150, blank=True, null=True)
+    numero_finca = models.CharField('Número de finca', max_length=50, blank=True, null=True)
+    codigo_postal = models.CharField('Código postal', max_length=20, blank=True, null=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
     def __str__(self):
-        return self.username
+        return f"{self.username} ({self.get_rol_display()})"
