@@ -50,7 +50,7 @@
       <h3 class="inspect-modal-title">Publicar en la Comunidad</h3>
       <button type="button" class="close-post-modal-btn close-modal-btn">&times;</button>
     </div>
-    <form method="POST" action="{% url 'feed_comunitario' %}?modo={{ modo }}" enctype="multipart/form-data">
+    <form method="POST" action="{% url 'feed_comunitario' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <div style="margin-bottom: 1rem;">
         <textarea name="contenido" 

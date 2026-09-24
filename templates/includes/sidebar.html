@@ -20,9 +20,9 @@
 
     <!-- Navigation List -->
     <ul class="sidebar-nav">
-      <!-- Perfil -->
+      <!-- Perfil (todos los roles) -->
       <li>
-        <a href="#" class="nav-item-link">
+        <a href="#" class="nav-item-link {% if active_menu == 'perfil' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
@@ -31,9 +31,10 @@
         </a>
       </li>
 
-      <!-- Panel -->
+      {% if user.rol == 'ADMINISTRADOR' %}
+      <!-- Panel (solo administrador) -->
       <li>
-        <a href="#" class="nav-item-link">
+        <a href="#" class="nav-item-link {% if active_menu == 'panel' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"/>
             <rect x="14" y="3" width="7" height="7"/>
@@ -43,10 +44,11 @@
           <span>Panel</span>
         </a>
       </li>
+      {% endif %}
 
-      <!-- Feed (Active) -->
+      <!-- Feed (todos los roles) -->
       <li>
-        <a href="{% url 'feed_comunitario' %}?modo={{ modo }}" class="nav-item-link active">
+        <a href="{% url 'feed_comunitario' %}" class="nav-item-link {% if active_menu == 'feed' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -58,9 +60,9 @@
         </a>
       </li>
 
-      <!-- Mapa -->
+      <!-- Mapa (todos los roles) -->
       <li>
-        <a href="#" class="nav-item-link">
+        <a href="#" class="nav-item-link {% if active_menu == 'mapa' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
             <line x1="8" y1="2" x2="8" y2="18"/>
@@ -70,29 +72,41 @@
         </a>
       </li>
 
-      <!-- Estadísticas (Vista 4) / Mis estadísticas (Vista 5) -->
+      {% if user.rol == 'ADMINISTRADOR' %}
+      <!-- Estadísticas (solo administrador) -->
       <li>
-        <a href="{% if modo == 'mis_estadisticas' %}{% url 'feed_comunitario' %}?modo=general{% else %}{% url 'feed_comunitario' %}?modo=mis_estadisticas{% endif %}" 
-           class="nav-item-link" 
-           title="Clic para alternar entre Vista 4 (Estadísticas) y Vista 5 (Mis estadísticas)">
+        <a href="#" class="nav-item-link {% if active_menu == 'estadisticas' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="20" x2="18" y2="10"/>
             <line x1="12" y1="20" x2="12" y2="4"/>
             <line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-          <span>{% if modo == 'mis_estadisticas' %}Mis estadísticas{% else %}Estadísticas{% endif %}</span>
+          <span>Estadisticas</span>
         </a>
       </li>
 
-      <!-- Incidentes -->
+      <!-- Incidentes (solo administrador) -->
       <li>
-        <a href="#" class="nav-item-link">
+        <a href="#" class="nav-item-link {% if active_menu == 'incidentes' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
           <span>Incidentes</span>
         </a>
       </li>
+      {% else %}
+      <!-- Mis estadísticas (solo usuario normal / ciudadano) -->
+      <li>
+        <a href="#" class="nav-item-link {% if active_menu == 'mis_estadisticas' %}active{% endif %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <span>Mis estadisticas</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
 
     <!-- Report Incident Action Button -->
@@ -103,14 +117,6 @@
 
   <!-- Bottom Nav Items -->
   <div class="sidebar-footer">
-    <!-- View Mode Switcher Indicator -->
-    <div class="sidebar-mode-toggle">
-      <span style="color: var(--text-muted);">Modo Vista:</span>
-      <a href="{% if modo == 'mis_estadisticas' %}{% url 'feed_comunitario' %}?modo=general{% else %}{% url 'feed_comunitario' %}?modo=mis_estadisticas{% endif %}">
-        {% if modo == 'mis_estadisticas' %}Vista 5 &rarr; Ver 4{% else %}Vista 4 &rarr; Ver 5{% endif %}
-      </a>
-    </div>
-
     <!-- Ayuda -->
     <a href="#" class="nav-item-link">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

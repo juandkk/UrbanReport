@@ -8,8 +8,7 @@ from usuarios.models import Usuario
 
 @login_required
 def feed_comunitario_view(request):
-    # Determine mode: 'general' (Vista 4: "Estadísticas") or 'mis_estadisticas' (Vista 5: "Mis estadísticas")
-    modo = request.GET.get('modo', 'general')
+
 
     # Seed sample data if empty so UI looks 100% complete and identical to designs
     if not Publicacion.objects.exists():
@@ -46,13 +45,12 @@ def feed_comunitario_view(request):
                 contenido=contenido,
                 imagen=imagen
             )
-            return redirect(f"{request.path}?modo={modo}")
+            return redirect('feed_comunitario')
 
     context = {
         'publicaciones': publicaciones,
         'trending_topics': trending_topics,
         'actividades': actividades,
-        'modo': modo,
         'active_menu': 'feed',
     }
     return render(request, 'feed/feed_comunitario.html', context)
