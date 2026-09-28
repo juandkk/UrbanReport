@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Publicacion, Comentario, TrendingTopic, ActividadReciente
+from .models import Publicacion, Comentario, TrendingTopic, ActividadReciente, Notificacion
+
+
+@admin.register(Notificacion)
+class NotificacionAdmin(admin.ModelAdmin):
+    list_display = ('destinatario', 'tipo', 'categoria', 'actor_nombre', 'leido', 'fecha_creacion')
+    list_filter = ('tipo', 'categoria', 'leido')
+    search_fields = ('destinatario__username', 'actor_nombre')
 
 
 class ComentarioInline(admin.TabularInline):

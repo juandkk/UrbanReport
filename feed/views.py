@@ -14,9 +14,38 @@ import re
 from PIL import Image, UnidentifiedImageError
 from .models import (
     Publicacion, Comentario, TrendingTopic, ActividadReciente,
-    ReaccionPublicacion, ReaccionComentario, ReporteContenido
+    ReaccionPublicacion, ReaccionComentario, ReporteContenido, Notificacion
 )
 from usuarios.models import Usuario
+
+
+def crear_notificacion(destinatario, actor, tipo, publicacion=None, categoria=None, extra=''):
+    """
+    Crea una notificación para 'destinatario' generada por 'actor'.
+    No hace nada si el actor es el mismo destinatario (no te notificas a ti mismo)
+    o si no hay destinatario válido.
+    """
+    if destinatario is None or actor is None or destinatario == actor:
+        return None
+
+    if categoria is None:
+        if tipo == Notificacion.Tipo.CAMBIO_ESTADO:
+            categoria = Notificacion.Categoria.REPORTE
+        elif tipo == Notificacion.Tipo.SEGUIDOR:
+            categoria = Notificacion.Categoria.SOCIAL
+        else:
+            categoria = Notificacion.Categoria.PUBLICACION
+
+    actor_nombre = f"{actor.first_name} {actor.last_name}".strip() or actor.username
+    return Notificacion.objects.create(
+        destinatario=destinatario,
+        actor=actor,
+        actor_nombre=actor_nombre,
+        tipo=tipo,
+        categoria=categoria,
+        publicacion=publicacion,
+        extra=extra[:255],
+    )
 
 
 @login_required
@@ -549,6 +578,11 @@ def reaccionar_publicacion_ajax(request, publicacion_id):
         ReaccionPublicacion.objects.create(publicacion=publicacion, usuario=request.user, tipo=tipo)
         if tipo == ReaccionPublicacion.TipoReaccion.LIKE:
             publicacion.likes += 1
+            # Notificar solo cuando alguien da Me Gusta (no en dislikes)
+            crear_notificacion(
+                destinatario=publicacion.autor, actor=request.user,
+                tipo=Notificacion.Tipo.LIKE, publicacion=publicacion,
+            )
         else:
             publicacion.dislikes += 1
         user_reaction = tipo
@@ -644,6 +678,19 @@ def agregar_comentario_ajax(request, publicacion_id):
         autor_nombre=autor_nombre,
         texto=texto
     )
+
+    # Notificar: si es respuesta, al autor del comentario padre; si no, al autor de la publicación
+    fragmento = texto[:80]
+    if padre and padre.autor:
+        crear_notificacion(
+            destinatario=padre.autor, actor=autor,
+            tipo=Notificacion.Tipo.RESPUESTA, publicacion=publicacion, extra=fragmento,
+        )
+    else:
+        crear_notificacion(
+            destinatario=publicacion.autor, actor=autor,
+            tipo=Notificacion.Tipo.COMENTARIO, publicacion=publicacion, extra=fragmento,
+        )
 
     initials = "".join([part[0].upper() for part in autor_nombre.split()[:2]]) or "UR"
 
@@ -976,6 +1023,13 @@ def cambiar_estado_incidencia_ajax(request, publicacion_id):
     publicacion.estado_incidencia = nuevo_estado
     publicacion.save(update_fields=['estado_incidencia'])
 
+    # Notificar al autor del reporte que su incidencia cambió de estado
+    crear_notificacion(
+        destinatario=publicacion.autor, actor=request.user,
+        tipo=Notificacion.Tipo.CAMBIO_ESTADO, publicacion=publicacion,
+        extra=publicacion.get_estado_incidencia_display(),
+    )
+
     # La actividad se deriva directamente de la publicación (tiempo real y sincronizada)
     actividad = _actividad_desde_publicacion(publicacion)
 
@@ -1211,3 +1265,90 @@ def _ensure_demo_balance():
             )
 
 
+
+
+# ==========================================================================
+# Notificaciones
+# ==========================================================================
+def _seed_notificaciones_demo(usuario):
+    """
+    Siembra unas notificaciones de ejemplo para 'usuario' si no tiene ninguna,
+    de modo que la vista no se vea vacía en la demo. Usa publicaciones reales
+    del usuario si existen; si no, crea notificaciones sin publicación asociada.
+    """
+    if Notificacion.objects.filter(destinatario=usuario).exists():
+        return
+
+    pub = Publicacion.objects.filter(autor=usuario).order_by('-id').first()
+    muestras = [
+        (Notificacion.Tipo.COMENTARIO, 'Ana García', Notificacion.Categoria.PUBLICACION, 'Gran bache, ya lo reporté también 👍'),
+        (Notificacion.Tipo.LIKE, 'Luis Rodríguez', Notificacion.Categoria.PUBLICACION, ''),
+        (Notificacion.Tipo.COMENTARIO, 'Sandra M.', Notificacion.Categoria.PUBLICACION, 'Ojalá lo arreglen pronto, llevo meses reportándolo'),
+        (Notificacion.Tipo.CAMBIO_ESTADO, 'Equipo UrbanReport', Notificacion.Categoria.REPORTE, 'Resuelta'),
+    ]
+    for tipo, nombre, categoria, extra in muestras:
+        Notificacion.objects.create(
+            destinatario=usuario,
+            actor=None,
+            actor_nombre=nombre,
+            tipo=tipo,
+            categoria=categoria,
+            publicacion=pub if categoria == Notificacion.Categoria.PUBLICACION else pub,
+            extra=extra,
+            leido=False,
+        )
+
+
+@login_required
+def notificaciones_view(request):
+    """
+    Vista de Notificaciones del usuario autenticado. Soporta filtro por categoría
+    (todas / publicaciones / reportes) y agrupa por día (hoy / ayer / anteriores).
+    Al entrar, se marcan como leídas.
+    """
+    _seed_notificaciones_demo(request.user)
+
+    filtro = request.GET.get('filtro', 'todas').lower()
+    qs = Notificacion.objects.filter(destinatario=request.user).select_related('actor', 'publicacion')
+
+    if filtro == 'publicaciones':
+        qs = qs.filter(categoria=Notificacion.Categoria.PUBLICACION)
+    elif filtro == 'reportes':
+        qs = qs.filter(categoria=Notificacion.Categoria.REPORTE)
+
+    notificaciones = list(qs)
+
+    # Agrupar por día para la plantilla (Hoy / Ayer / Anteriores)
+    hoy = timezone.localdate()
+    ayer = hoy - timedelta(days=1)
+    for n in notificaciones:
+        fecha_local = timezone.localtime(n.fecha_creacion).date()
+        if fecha_local == hoy:
+            n.grupo_dia = 'Hoy'
+        elif fecha_local == ayer:
+            n.grupo_dia = 'Ayer'
+        else:
+            n.grupo_dia = 'Anteriores'
+
+    context = {
+        'notificaciones': notificaciones,
+        'filtro_activo': filtro,
+        'total_no_leidas': Notificacion.objects.filter(destinatario=request.user, leido=False).count(),
+        'active_menu': 'notificaciones',
+    }
+    return render(request, 'feed/notificaciones.html', context)
+
+
+@login_required
+@require_POST
+def marcar_notificaciones_leidas_ajax(request):
+    """Marca todas las notificaciones del usuario como leídas."""
+    actualizadas = Notificacion.objects.filter(destinatario=request.user, leido=False).update(leido=True)
+    return JsonResponse({'status': 'ok', 'actualizadas': actualizadas, 'total_no_leidas': 0})
+
+
+@login_required
+def api_notificaciones_no_leidas(request):
+    """Devuelve el número de notificaciones no leídas (para el badge de la campana)."""
+    total = Notificacion.objects.filter(destinatario=request.user, leido=False).count()
+    return JsonResponse({'status': 'ok', 'total_no_leidas': total})

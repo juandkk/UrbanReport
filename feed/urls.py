@@ -24,4 +24,7 @@ urlpatterns = [
     path('api/feed-actualizado/', views.api_feed_actualizado, name='api_feed_actualizado'),
     path('api/actividades-recientes/', views.api_actividad_reciente, name='api_actividad_reciente'),
     path('api/trending-topics/', views.api_trending_topics, name='api_trending_topics'),
+    path('notificaciones/', views.notificaciones_view, name='notificaciones'),
+    path('notificaciones/marcar-leidas/', views.marcar_notificaciones_leidas_ajax, name='marcar_notificaciones_leidas'),
+    path('api/notificaciones-no-leidas/', views.api_notificaciones_no_leidas, name='api_notificaciones_no_leidas'),
 ]

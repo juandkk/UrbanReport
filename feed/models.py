@@ -264,3 +264,62 @@ class ReporteContenido(models.Model):
         obj = f"Post #{self.publicacion_id}" if self.publicacion else f"Comentario #{self.comentario_id}"
         return f"Reporte de {self.usuario.username} sobre {obj} ({self.get_motivo_display()})"
 
+
+class Notificacion(models.Model):
+    """
+    Notificación dirigida a un usuario (destinatario) generada por la actividad
+    de otro (actor) sobre su contenido: comentarios, reacciones o cambios de
+    estado de sus reportes.
+    """
+    class Tipo(models.TextChoices):
+        COMENTARIO = 'COMENTARIO', 'Comentó en tu publicación'
+        RESPUESTA = 'RESPUESTA', 'Respondió a tu comentario'
+        LIKE = 'LIKE', 'Le dio Me Gusta a tu publicación'
+        CAMBIO_ESTADO = 'CAMBIO_ESTADO', 'Tu reporte cambió de estado'
+        SEGUIDOR = 'SEGUIDOR', 'Comenzó a seguirte'
+
+    # Categoría para el filtro de la vista: publicaciones, reportes o social
+    class Categoria(models.TextChoices):
+        PUBLICACION = 'PUBLICACION', 'Publicación'
+        REPORTE = 'REPORTE', 'Reporte'
+        SOCIAL = 'SOCIAL', 'Social'
+
+    destinatario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notificaciones'
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notificaciones_generadas'
+    )
+    actor_nombre = models.CharField(max_length=150, blank=True, default='')
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    categoria = models.CharField(
+        max_length=20,
+        choices=Categoria.choices,
+        default=Categoria.PUBLICACION
+    )
+    publicacion = models.ForeignKey(
+        Publicacion,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notificaciones'
+    )
+    # Texto extra: fragmento del comentario, estado nuevo, etc.
+    extra = models.CharField(max_length=255, blank=True, default='')
+    leido = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+
+    def __str__(self):
+        return f"Para {self.destinatario.username}: {self.get_tipo_display()} ({self.actor_nombre})"
+

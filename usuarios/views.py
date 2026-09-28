@@ -203,6 +203,13 @@ def toggle_seguir_ajax(request, username):
     else:
         Seguimiento.objects.create(seguidor=request.user, seguido=objetivo)
         siguiendo = True
+        # Notificar al usuario que ha ganado un nuevo seguidor
+        from feed.views import crear_notificacion
+        from feed.models import Notificacion
+        crear_notificacion(
+            destinatario=objetivo, actor=request.user,
+            tipo=Notificacion.Tipo.SEGUIDOR,
+        )
 
     return JsonResponse({
         'status': 'ok',
