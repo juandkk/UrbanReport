@@ -1,7 +1,82 @@
-venv/
+# ==========================================================================
+# UrbanReport - .gitignore
+# ==========================================================================
+
+# ── Secretos y configuración local ──
+# NUNCA subir credenciales, claves ni variables de entorno.
 .env
+.env.*
+!.env.example
+*.env
+secrets.json
+credentials.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ── Entornos virtuales de Python ──
+venv/
+.venv/
+env/
+ENV/
+.virtualenv/
+
+# ── Bytecode y caches de Python ──
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ── Django ──
+# Base de datos local (SQLite) — contiene datos de usuarios/reportes
 db.sqlite3
-media/
+db.sqlite3-journal
+*.sqlite3
+
+# Archivos estáticos recopilados (se generan con collectstatic)
 staticfiles/
+/static_root/
+
+# Contenido subido por usuarios (evidencias, avatares)
+media/
+
+# Logs
+*.log
+logs/
+
+# ── Testing / cobertura ──
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.cache/
+nosetests.xml
+coverage.xml
+
+# ── Herramientas y linters ──
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ── Editores / IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# ── Sistema operativo ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Archivos temporales ──
+*.tmp
+*.bak
+*.old

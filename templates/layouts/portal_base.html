@@ -2,11 +2,16 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/portal.css' %}">
+<link rel="stylesheet" href="{% static 'css/portal.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/modal_radicar.css' %}?v={% now 'U' %}">
+<!-- Leaflet CSS for Mini Map in Modal -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
 {% endblock %}
 
 {% block content %}
-<div class="portal-wrapper">
+<div class="portal-wrapper" data-user-rol="{{ user.rol }}">
   <!-- Left Sidebar Component -->
   {% include 'includes/sidebar.html' %}
 
@@ -43,35 +48,17 @@
   </div>
 </div>
 
-<!-- Modal for New Post Composer -->
-<div class="inspect-modal-backdrop" id="newPostModal">
-  <div class="inspect-modal">
-    <div class="inspect-modal-header">
-      <h3 class="inspect-modal-title">Publicar en la Comunidad</h3>
-      <button type="button" class="close-post-modal-btn close-modal-btn">&times;</button>
-    </div>
-    <form method="POST" action="{% url 'feed_comunitario' %}" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div style="margin-bottom: 1rem;">
-        <textarea name="contenido" 
-                  rows="4" 
-                  class="auth-input" 
-                  style="height: auto; padding: 12px; resize: vertical;" 
-                  placeholder="¿Qué está pasando en tu comunidad?" 
-                  required></textarea>
-      </div>
-      <div style="margin-bottom: 1.25rem;">
-        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">Adjuntar Imagen / Foto del incidente:</label>
-        <input type="file" name="imagen" accept="image/*" class="auth-input" style="padding-top: 6px;">
-      </div>
-      <button type="submit" class="btn-primary" style="width: 100%;">
-        Compartir Publicación
-      </button>
-    </form>
-  </div>
-</div>
+<!-- Modal Radicar Incidencia -->
+{% include 'includes/modal_radicar_incidencia.html' %}
+<!-- Modal Reportar y Moderar -->
+{% include 'includes/modal_reportar_y_moderar.html' %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/feed.js' %}"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="{% static 'js/feed.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'js/modal_radicar.js' %}?v={% now 'U' %}"></script>
 {% endblock %}

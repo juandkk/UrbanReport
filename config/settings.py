@@ -23,12 +23,24 @@ load_dotenv(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9h04b_9_w6op$s$7_29!umsh5#bihvsa+6qf^h3l=xt=!0sk)c'
+# Se lee de la variable de entorno DJANGO_SECRET_KEY. El valor por defecto es
+# SOLO para desarrollo local; en producción define uno propio en el .env.
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-dev-only-change-me-in-production'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG se activa solo si DJANGO_DEBUG es 'true'/'1' (por defecto, desactivado).
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = ['*']
+# Hosts permitidos, separados por coma en DJANGO_ALLOWED_HOSTS.
+# En desarrollo (DEBUG=True) se permiten localhost por comodidad.
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()
+]
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition

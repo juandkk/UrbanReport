@@ -18,12 +18,36 @@ class Publicacion(models.Model):
     imagen = models.ImageField(upload_to='publicaciones/', blank=True, null=True)
     imagen_url = models.CharField(max_length=500, blank=True, null=True, help_text="URL estática o externa opcional")
     likes = models.PositiveIntegerField(default=0)
+    dislikes = models.PositiveIntegerField(default=0)
+    censurado = models.BooleanField(default=False)
+    motivo_censura = models.CharField(max_length=255, blank=True, default='')
     estado_incidencia = models.CharField(
         max_length=20,
         choices=EstadoIncidencia.choices,
         default=EstadoIncidencia.REPORTADO
     )
+    class Categoria(models.TextChoices):
+        VIAS = 'VIAS', 'Vías'
+        ALUMBRADO = 'ALUMBRADO', 'Alumbrado'
+        PARQUES = 'PARQUES', 'Parques'
+        INFRAESTRUCTURA = 'INFRAESTRUCTURA', 'Infraestructura'
+
+    titulo = models.CharField(max_length=200, blank=True, default='')
+    categoria = models.CharField(
+        max_length=30,
+        choices=Categoria.choices,
+        default=Categoria.VIAS,
+        blank=True
+    )
     ubicacion = models.CharField(max_length=200, blank=True, null=True)
+    latitud = models.DecimalField(
+        max_digits=10, decimal_places=7, blank=True, null=True,
+        help_text="Latitud geográfica del incidente"
+    )
+    longitud = models.DecimalField(
+        max_digits=10, decimal_places=7, blank=True, null=True,
+        help_text="Longitud geográfica del incidente"
+    )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -38,12 +62,29 @@ class Publicacion(models.Model):
     def total_comentarios(self):
         return self.comentarios.count()
 
+    @property
+    def tiempo_relativo(self):
+        from django.utils.timesince import timesince
+        return timesince(self.fecha_creacion).replace(', ', ',').replace(',', ', ')
+
+
+    def comentarios_principales(self):
+        """Retorna solo comentarios raíz (sin padre) para estructurar el hilo."""
+        return self.comentarios.filter(padre__isnull=True).prefetch_related('respuestas')
+
 
 class Comentario(models.Model):
     publicacion = models.ForeignKey(
         Publicacion,
         on_delete=models.CASCADE,
         related_name='comentarios'
+    )
+    padre = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='respuestas'
     )
     autor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -53,6 +94,9 @@ class Comentario(models.Model):
     )
     autor_nombre = models.CharField(max_length=100)
     texto = models.TextField()
+    likes = models.PositiveIntegerField(default=0)
+    dislikes = models.PositiveIntegerField(default=0)
+    censurado = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -61,7 +105,72 @@ class Comentario(models.Model):
         verbose_name_plural = 'Comentarios'
 
     def __str__(self):
-        return f"{self.autor_nombre} en {self.publicacion.id}"
+        if self.padre:
+            return f"Respuesta de {self.autor_nombre} a #{self.padre_id}"
+        return f"{self.autor_nombre} en #{self.publicacion_id}"
+
+    @property
+    def total_respuestas(self):
+        return self.respuestas.count()
+
+    @property
+    def tiempo_relativo(self):
+        from django.utils.timesince import timesince
+        return timesince(self.fecha_creacion).replace(', ', ',').replace(',', ', ')
+
+
+class ReaccionPublicacion(models.Model):
+    class TipoReaccion(models.TextChoices):
+        LIKE = 'LIKE', 'Like'
+        DISLIKE = 'DISLIKE', 'Dislike'
+
+    publicacion = models.ForeignKey(
+        Publicacion,
+        on_delete=models.CASCADE,
+        related_name='reacciones'
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reacciones_publicaciones'
+    )
+    tipo = models.CharField(max_length=10, choices=TipoReaccion.choices)
+    fecha_creacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('publicacion', 'usuario')
+        verbose_name = 'Reacción a Publicación'
+        verbose_name_plural = 'Reacciones a Publicaciones'
+
+    def __str__(self):
+        return f"{self.usuario.username} -> {self.tipo} en Post #{self.publicacion_id}"
+
+
+class ReaccionComentario(models.Model):
+    class TipoReaccion(models.TextChoices):
+        LIKE = 'LIKE', 'Like'
+        DISLIKE = 'DISLIKE', 'Dislike'
+
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        related_name='reacciones'
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reacciones_comentarios'
+    )
+    tipo = models.CharField(max_length=10, choices=TipoReaccion.choices)
+    fecha_creacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('comentario', 'usuario')
+        verbose_name = 'Reacción a Comentario'
+        verbose_name_plural = 'Reacciones a Comentarios'
+
+    def __str__(self):
+        return f"{self.usuario.username} -> {self.tipo} en Comentario #{self.comentario_id}"
 
 
 class TrendingTopic(models.Model):
@@ -97,3 +206,61 @@ class ActividadReciente(models.Model):
 
     def __str__(self):
         return f"{self.titulo} ({self.tiempo})"
+
+
+class ReporteContenido(models.Model):
+    class Motivo(models.TextChoices):
+        SPAM = 'SPAM', 'Spam o publicidad no deseada'
+        OFENSIVO = 'OFENSIVO', 'Contenido ofensivo o acoso'
+        FALSO = 'FALSO', 'Información falsa o engañosa'
+        INAPROPIADO = 'INAPROPIADO', 'Contenido inapropiado para la comunidad'
+        OTRO = 'OTRO', 'Otro motivo'
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reportes_enviados'
+    )
+    publicacion = models.ForeignKey(
+        Publicacion,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='reportes'
+    )
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='reportes'
+    )
+    motivo = models.CharField(
+        max_length=20,
+        choices=Motivo.choices,
+        default=Motivo.INAPROPIADO
+    )
+    descripcion = models.TextField(blank=True, default='')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Reporte de Contenido'
+        verbose_name_plural = 'Reportes de Contenido'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'publicacion'],
+                condition=models.Q(publicacion__isnull=False),
+                name='unique_user_reporte_publicacion'
+            ),
+            models.UniqueConstraint(
+                fields=['usuario', 'comentario'],
+                condition=models.Q(comentario__isnull=False),
+                name='unique_user_reporte_comentario'
+            ),
+        ]
+
+    def __str__(self):
+        obj = f"Post #{self.publicacion_id}" if self.publicacion else f"Comentario #{self.comentario_id}"
+        return f"Reporte de {self.usuario.username} sobre {obj} ({self.get_motivo_display()})"
+

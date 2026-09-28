@@ -1,0 +1,180 @@
+{% load static %}
+<!-- ==========================================================================
+     Modal Radicar Incidencia - UrbanReport
+     Componente interactivo con selección de categoría, evidencia fotográfica y mini-mapa
+     ========================================================================== -->
+<div class="radicar-modal-backdrop" id="radicarModal">
+  <div class="radicar-modal" role="dialog" aria-modal="true" aria-labelledby="radicarModalTitle">
+    <!-- Header -->
+    <div class="radicar-header">
+      <div class="radicar-header-titles">
+        <h2 id="radicarModalTitle">Radicar Incidencia</h2>
+        <p>Complete la información para reportar un problema en la ciudad.</p>
+      </div>
+      <button type="button" class="radicar-close-btn" id="btnCloseRadicar" aria-label="Cerrar modal">&times;</button>
+    </div>
+
+    <!-- Form -->
+    <form id="radicarIncidenciaForm" method="POST" action="{% url 'radicar_incidencia_ajax' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <!-- Hidden Geolocation & Category Inputs -->
+      <input type="hidden" id="radicarCategoria" name="categoria" value="VIAS">
+      <input type="hidden" id="radicarLat" name="latitud" value="">
+      <input type="hidden" id="radicarLng" name="longitud" value="">
+      <input type="hidden" id="radicarUbicacion" name="ubicacion" value="">
+      <!-- Marca si el usuario fijó explícitamente una ubicación (clic/arrastre/búsqueda/GPS) -->
+      <input type="hidden" id="radicarUbicacionFijada" name="ubicacion_fijada" value="0">
+
+      <div class="radicar-body">
+        <!-- 1. Categoría Selector -->
+        <div class="radicar-group">
+          <label class="radicar-label">Categoría</label>
+          <div class="radicar-categories-grid">
+            <!-- Vías -->
+            <div class="radicar-category-card active" data-cat="VIAS">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19L8 5M20 19L16 5"/>
+                <line x1="12" y1="6" x2="12" y2="8"/>
+                <line x1="12" y1="11" x2="12" y2="13"/>
+                <line x1="12" y1="16" x2="12" y2="18"/>
+              </svg>
+              <span>Vías</span>
+            </div>
+
+            <!-- Alumbrado -->
+            <div class="radicar-category-card" data-cat="ALUMBRADO">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18h6M10 22h4"/>
+                <path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/>
+              </svg>
+              <span>Alumbrado</span>
+            </div>
+
+            <!-- Parques -->
+            <div class="radicar-category-card" data-cat="PARQUES">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 19 12 15 12 18 18 6 18 9 12 5 12 12 2"/>
+                <rect x="11" y="18" width="2" height="4"/>
+              </svg>
+              <span>Parques</span>
+            </div>
+
+            <!-- Infraestructura -->
+            <div class="radicar-category-card" data-cat="INFRAESTRUCTURA">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="1"/>
+                <line x1="8" y1="6" x2="8.01" y2="6"/>
+                <line x1="16" y1="6" x2="16.01" y2="6"/>
+                <line x1="8" y1="10" x2="8.01" y2="10"/>
+                <line x1="16" y1="10" x2="16.01" y2="10"/>
+                <line x1="8" y1="14" x2="8.01" y2="14"/>
+                <line x1="16" y1="14" x2="16.01" y2="14"/>
+                <path d="M10 22v-4h4v4"/>
+              </svg>
+              <span>Infraestructura</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Título Breve -->
+        <div class="radicar-group">
+          <label class="radicar-label" for="radicarTitulo">Título Breve</label>
+          <input type="text" 
+                 id="radicarTitulo" 
+                 name="titulo" 
+                 class="radicar-input" 
+                 placeholder="Ej. Hueco peligroso en Av. Principal" 
+                 required 
+                 autocomplete="off">
+        </div>
+
+        <!-- 3. Descripción Detallada -->
+        <div class="radicar-group">
+          <label class="radicar-label" for="radicarContenido">Descripción Detallada</label>
+          <textarea id="radicarContenido" 
+                    name="contenido" 
+                    rows="3" 
+                    class="radicar-textarea" 
+                    placeholder="Proporcione detalles que ayuden a identificar y resolver el problema..." 
+                    required></textarea>
+        </div>
+
+        <!-- 4. Evidencia Fotográfica -->
+        <div class="radicar-group">
+          <label class="radicar-label">Evidencia Fotográfica</label>
+          <div class="radicar-dropzone" id="radicarDropzone">
+            <input type="file" id="radicarImagenInput" name="imagen" accept="image/png,image/jpeg,.png,.jpg,.jpeg" style="display: none;">
+            <div id="dropzonePrompt" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <div class="radicar-dropzone-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              <span class="radicar-dropzone-text">Tomar foto / Subir archivo</span>
+              <span class="radicar-dropzone-hint" style="font-size: 0.72rem; color: var(--text-muted);">Solo PNG o JPG · máx. 8 MB</span>
+            </div>
+            <!-- File preview when selected -->
+            <div class="radicar-file-preview" id="radicarFilePreview">
+              <img id="radicarFileThumb" src="" alt="Vista previa" class="radicar-file-thumb">
+              <span id="radicarFileName" class="radicar-file-name">archivo.jpg</span>
+              <button type="button" id="radicarFileRemove" class="radicar-file-remove" title="Quitar archivo">&times;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Ubicación (Mapa) -->
+        <div class="radicar-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="radicar-label" style="margin-bottom: 0;">Ubicación (Mapa)</label>
+            <button type="button" id="btnMiniLocate" style="background: transparent; border: none; font-size: 0.76rem; color: #60a5fa; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+              <span>Mi ubicación</span>
+            </button>
+          </div>
+          <div class="radicar-map-container">
+            <!-- Search bar overlay -->
+            <div class="radicar-map-search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" id="miniMapSearchInput" class="radicar-map-search-input" placeholder="Buscar dirección...">
+            </div>
+
+            <!-- Leaflet Mini Map Container -->
+            <div id="radicarMiniMap"></div>
+          </div>
+          <div class="radicar-coords-hint">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span>Punto fijado: <strong id="radicarCoordsDisplay">6.2442, -75.5812</strong> (Haz clic o arrastra para mover el punto)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="radicar-footer">
+        <button type="button" class="radicar-btn-cancel" id="btnCancelRadicar">Cancelar</button>
+        <button type="submit" class="radicar-btn-submit" id="btnSubmitRadicar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          <span id="btnSubmitText">Confirmar y Enviar</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Global Toast Notification -->
+<div id="urbanToast" class="urban-toast">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+  <span id="urbanToastMsg">¡Incidencia radicada exitosamente!</span>
+</div>
