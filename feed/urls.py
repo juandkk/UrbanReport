@@ -11,6 +11,7 @@ urlpatterns = [
     path('publicacion/<int:publicacion_id>/reaccionar/', views.reaccionar_publicacion_ajax, name='reaccionar_publicacion_ajax'),
     path('comentario/<int:comentario_id>/reaccionar/', views.reaccionar_comentario_ajax, name='reaccionar_comentario_ajax'),
     path('comentar/<int:publicacion_id>/', views.agregar_comentario_ajax, name='agregar_comentario_ajax'),
+    path('publicacion/<int:publicacion_id>/repost/', views.toggle_repost_ajax, name='toggle_repost_ajax'),
     path('publicacion/<int:publicacion_id>/reportar/', views.reportar_publicacion_ajax, name='reportar_publicacion_ajax'),
     path('comentario/<int:comentario_id>/reportar/', views.reportar_comentario_ajax, name='reportar_comentario_ajax'),
     path('publicacion/<int:publicacion_id>/moderar/', views.moderar_publicacion_ajax, name='moderar_publicacion_ajax'),

@@ -14,7 +14,7 @@ import re
 from PIL import Image, UnidentifiedImageError
 from .models import (
     Publicacion, Comentario, TrendingTopic, ActividadReciente,
-    ReaccionPublicacion, ReaccionComentario, ReporteContenido, Notificacion
+    ReaccionPublicacion, ReaccionComentario, ReporteContenido, Notificacion, Reposteo
 )
 from usuarios.models import Usuario
 
@@ -504,9 +504,14 @@ def feed_comunitario_view(request):
     # Mapear reacciones del usuario actual para colorear botones (Like / Dislike)
     user_post_reactions = {}
     user_comment_reactions = {}
+    user_reposts = set()
     if request.user.is_authenticated:
         for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
             user_post_reactions[r.publicacion_id] = r.tipo
+        user_reposts = set(
+            Reposteo.objects.filter(usuario=request.user, publicacion__in=publicaciones)
+            .values_list('publicacion_id', flat=True)
+        )
         all_comment_ids = []
         for p in publicaciones:
             for c in p.comentarios.all():
@@ -517,6 +522,7 @@ def feed_comunitario_view(request):
 
     for p in publicaciones:
         p.user_reaction = user_post_reactions.get(p.id)
+        p.user_reposteo = p.id in user_reposts
         for c in p.comentarios.all():
             c.user_reaction = user_comment_reactions.get(c.id)
             for rep in c.respuestas.all():
@@ -673,6 +679,28 @@ def reaccionar_comentario_ajax(request, comentario_id):
         'likes': comentario.likes,
         'dislikes': comentario.dislikes,
         'user_reaction': user_reaction
+    })
+
+
+@login_required
+@require_POST
+def toggle_repost_ajax(request, publicacion_id):
+    """Repostea / quita el reposteo de una publicación (toggle, estilo Twitter/X)."""
+    publicacion = get_object_or_404(Publicacion, id=publicacion_id)
+
+    reposteo = Reposteo.objects.filter(usuario=request.user, publicacion=publicacion).first()
+    if reposteo:
+        reposteo.delete()
+        reposteado = False
+    else:
+        Reposteo.objects.create(usuario=request.user, publicacion=publicacion)
+        reposteado = True
+
+    return JsonResponse({
+        'status': 'ok',
+        'reposteado': reposteado,
+        'total_reposteos': publicacion.total_reposteos,
+        'message': '¡Publicación reposteada!' if reposteado else 'Reposteo eliminado.',
     })
 
 
@@ -1114,6 +1142,7 @@ def render_post_card_ajax(request, publicacion_id):
     )
     reaccion = ReaccionPublicacion.objects.filter(publicacion=publicacion, usuario=request.user).first()
     publicacion.user_reaction = reaccion.tipo if reaccion else None
+    publicacion.user_reposteo = Reposteo.objects.filter(publicacion=publicacion, usuario=request.user).exists()
 
     html = render_to_string('includes/post_card.html', {'post': publicacion, 'user': request.user}, request=request)
     return JsonResponse({

@@ -72,6 +72,10 @@ class Publicacion(models.Model):
         """Retorna solo comentarios raíz (sin padre) para estructurar el hilo."""
         return self.comentarios.filter(padre__isnull=True).prefetch_related('respuestas')
 
+    @property
+    def total_reposteos(self):
+        return self.reposteos.count()
+
 
 class Comentario(models.Model):
     publicacion = models.ForeignKey(
@@ -117,6 +121,30 @@ class Comentario(models.Model):
     def tiempo_relativo(self):
         from django.utils.timesince import timesince
         return timesince(self.fecha_creacion).replace(', ', ',').replace(',', ', ')
+
+
+class Reposteo(models.Model):
+    """Un usuario republica (repostea) una publicación. Es una relación, no una copia."""
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reposteos'
+    )
+    publicacion = models.ForeignKey(
+        Publicacion,
+        on_delete=models.CASCADE,
+        related_name='reposteos'
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('usuario', 'publicacion')
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Reposteo'
+        verbose_name_plural = 'Reposteos'
+
+    def __str__(self):
+        return f"{self.usuario.username} reposteó Post #{self.publicacion_id}"
 
 
 class ReaccionPublicacion(models.Model):

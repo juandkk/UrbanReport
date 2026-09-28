@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Publicacion, Comentario, TrendingTopic, ActividadReciente, Notificacion
+from .models import Publicacion, Comentario, TrendingTopic, ActividadReciente, Notificacion, Reposteo
+
+
+@admin.register(Reposteo)
+class ReposteoAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'publicacion', 'fecha_creacion')
+    search_fields = ('usuario__username',)
 
 
 @admin.register(Notificacion)

@@ -44,6 +44,34 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
+  // ── Reposteo (toggle estilo Twitter/X) ──
+  document.addEventListener('click', async (e) => {
+    const repostBtn = e.target.closest('.action-repost-btn');
+    if (!repostBtn) return;
+    e.preventDefault();
+    const postId = repostBtn.dataset.postId;
+    if (!postId || repostBtn.disabled) return;
+    repostBtn.disabled = true;
+    try {
+      const res = await fetch(`/feed/publicacion/${postId}/repost/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        repostBtn.classList.toggle('active', data.reposteado);
+        const count = repostBtn.querySelector('.repost-count');
+        if (count) count.textContent = data.total_reposteos;
+        showToast(data.message);
+      }
+    } catch (err) {
+      console.error('Error al repostear:', err);
+      showToast('Error al repostear', true);
+    } finally {
+      repostBtn.disabled = false;
+    }
+  });
+
   // ── 1. Reacciones en Publicaciones (Like / Dislike) ──
   document.addEventListener('click', async (e) => {
     const reactBtn = e.target.closest('.action-react-btn');

@@ -112,7 +112,7 @@ def perfil_view(request, username=None):
     """
     from django.shortcuts import get_object_or_404
     # Importaciones locales para evitar dependencias circulares entre apps
-    from feed.models import Publicacion, ReaccionPublicacion, ReaccionComentario
+    from feed.models import Publicacion, ReaccionPublicacion, ReaccionComentario, Reposteo
 
     if username:
         usuario = get_object_or_404(Usuario, username=username)
@@ -122,17 +122,53 @@ def perfil_view(request, username=None):
     es_propio_perfil = (usuario == request.user)
     ya_lo_sigo = False if es_propio_perfil else request.user.sigue_a(usuario)
 
-    publicaciones = list(
-        Publicacion.objects.filter(autor=usuario)
-        .order_by('-id')
-        .prefetch_related('comentarios__respuestas', 'comentarios__autor', 'autor')
-    )
+    # Pestaña activa: 'publicaciones' (por defecto) o 'reposteos'
+    tab = request.GET.get('tab', 'publicaciones').lower()
+    if tab not in ('publicaciones', 'reposteos'):
+        tab = 'publicaciones'
 
-    # Mapear las reacciones de QUIEN VE el perfil para colorear los botones (igual que en el feed)
+    _prefetch = ('comentarios__respuestas', 'comentarios__autor', 'autor')
+
+    # Publicaciones propias del usuario del perfil
+    publicaciones_propias = list(
+        Publicacion.objects.filter(autor=usuario).order_by('-id').prefetch_related(*_prefetch)
+    )
+    total_publicaciones = len(publicaciones_propias)
+
+    # Reposteos del usuario del perfil (publicaciones que él reposteó), en orden de reposteo
+    reposteos_qs = Reposteo.objects.filter(usuario=usuario).select_related('publicacion').order_by('-fecha_creacion')
+    total_reposteos = reposteos_qs.count()
+    publicaciones_reposteadas = []
+    for rp in reposteos_qs:
+        pub = rp.publicacion
+        pub.reposteado_por_perfil = True  # marca para mostrar la etiqueta "Reposteó"
+        publicaciones_reposteadas.append(pub)
+    # Prefetch de comentarios/autor para las reposteadas
+    if publicaciones_reposteadas:
+        ids = [p.id for p in publicaciones_reposteadas]
+        cache = {p.id: p for p in Publicacion.objects.filter(id__in=ids).prefetch_related(*_prefetch)}
+        publicaciones_reposteadas = []
+        for rp in reposteos_qs:
+            p = cache.get(rp.publicacion_id)
+            if p:
+                p.reposteado_por_perfil = True
+                publicaciones_reposteadas.append(p)
+
+    # Lista que se mostrará según la pestaña
+    publicaciones = publicaciones_reposteadas if tab == 'reposteos' else publicaciones_propias
+
+    # Mapear las reacciones y reposteos de QUIEN VE el perfil (para colorear botones)
     user_post_reactions = {}
     user_comment_reactions = {}
-    for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
-        user_post_reactions[r.publicacion_id] = r.tipo
+    user_reposts = set()
+    if publicaciones:
+        pub_ids = [p.id for p in publicaciones]
+        for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion_id__in=pub_ids):
+            user_post_reactions[r.publicacion_id] = r.tipo
+        user_reposts = set(
+            Reposteo.objects.filter(usuario=request.user, publicacion_id__in=pub_ids)
+            .values_list('publicacion_id', flat=True)
+        )
 
     all_comment_ids = []
     for p in publicaciones:
@@ -144,15 +180,15 @@ def perfil_view(request, username=None):
 
     for p in publicaciones:
         p.user_reaction = user_post_reactions.get(p.id)
+        p.user_reposteo = p.id in user_reposts
         for c in p.comentarios.all():
             c.user_reaction = user_comment_reactions.get(c.id)
             for rep in c.respuestas.all():
                 rep.user_reaction = user_comment_reactions.get(rep.id)
 
-    # Estadísticas reales derivadas de las publicaciones del usuario
-    total_publicaciones = len(publicaciones)
+    # Estadísticas reales (siempre sobre las publicaciones propias, no la pestaña activa)
     total_resueltas = sum(
-        1 for p in publicaciones
+        1 for p in publicaciones_propias
         if p.estado_incidencia == Publicacion.EstadoIncidencia.RESUELTA
     )
 
@@ -165,7 +201,9 @@ def perfil_view(request, username=None):
         'nombre_completo': nombre_completo,
         'confianza': confianza,
         'publicaciones': publicaciones,
+        'tab_activa': tab,
         'total_publicaciones': total_publicaciones,
+        'total_reposteos': total_reposteos,
         'total_resueltas': total_resueltas,
         'total_seguidores': usuario.total_seguidores,
         'total_seguidos': usuario.total_seguidos,

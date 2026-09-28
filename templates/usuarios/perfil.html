@@ -23,10 +23,10 @@
 </header>
 
 <div class="profile-layout">
-  <!-- Columna principal: Publicaciones -->
+  <!-- Columna principal: Publicaciones / Reposteos -->
   <section class="profile-main-col">
     <div class="profile-posts-toolbar">
-      <h2 class="profile-section-title">{% if es_propio_perfil %}Mis publicaciones{% else %}Publicaciones{% endif %}</h2>
+      <h2 class="profile-section-title">{% if es_propio_perfil %}Mi actividad{% else %}Actividad{% endif %}</h2>
       {% if es_propio_perfil %}
       <button type="button" class="btn-primary profile-new-post-btn"
         onclick="if(window.openRadicarModal){window.openRadicarModal();}">
@@ -40,8 +40,29 @@
       {% endif %}
     </div>
 
+    <!-- Pestañas estilo Twitter/X -->
+    <div class="profile-tabs">
+      <a href="?tab=publicaciones" class="profile-tab {% if tab_activa == 'publicaciones' %}active{% endif %}">
+        {% if es_propio_perfil %}Mis publicaciones{% else %}Publicaciones{% endif %}
+        <span class="profile-tab-count">{{ total_publicaciones }}</span>
+      </a>
+      <a href="?tab=reposteos" class="profile-tab {% if tab_activa == 'reposteos' %}active{% endif %}">
+        Reposteos
+        <span class="profile-tab-count">{{ total_reposteos }}</span>
+      </a>
+    </div>
+
     <div class="feed-posts-stream" id="feed-posts-stream">
       {% for post in publicaciones %}
+      {% if tab_activa == 'reposteos' %}
+      <div class="repost-marker">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        <span>{% if es_propio_perfil %}Reposteaste{% else %}{{ nombre_completo }} reposteó{% endif %}</span>
+      </div>
+      {% endif %}
       {% include 'includes/post_card.html' with post=post %}
       {% empty %}
       <div class="feed-empty-state"
@@ -52,7 +73,11 @@
           <polyline points="14 2 14 8 20 8" />
         </svg>
         <p style="font-size: 0.95rem; margin: 0;">
-          {% if es_propio_perfil %}Aún no tienes publicaciones. ¡Radica tu primer reporte!{% else %}Este usuario aún no tiene publicaciones.{% endif %}
+          {% if tab_activa == 'reposteos' %}
+            {% if es_propio_perfil %}Aún no has reposteado nada.{% else %}Este usuario aún no ha reposteado nada.{% endif %}
+          {% else %}
+            {% if es_propio_perfil %}Aún no tienes publicaciones. ¡Radica tu primer reporte!{% else %}Este usuario aún no tiene publicaciones.{% endif %}
+          {% endif %}
         </p>
       </div>
       {% endfor %}
