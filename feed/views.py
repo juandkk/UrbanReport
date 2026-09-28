@@ -722,6 +722,74 @@ def _es_admin(user):
     return user.is_authenticated and (user.rol == Usuario.Rol.ADMINISTRADOR or user.is_staff or user.is_superuser)
 
 
+def _solo_administrador(view_func):
+    """
+    Decorator que restringe el acceso a usuarios con rol ADMINISTRADOR (o is_staff/superuser).
+    Un ciudadano que intente acceder manualmente a la URL recibirá un 403.
+    """
+    from functools import wraps
+    from django.http import HttpResponseForbidden
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if not _es_admin(request.user):
+            return HttpResponseForbidden(
+                '<h2>403 — Acceso denegado</h2>'
+                '<p>No tienes permisos para acceder al panel de administrador.</p>'
+            )
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+@login_required
+@_solo_administrador
+def panel_administrador_view(request):
+    """
+    Punto de entrada del panel administrador.
+    Reutiliza exactamente la misma lógica y template que feed_comunitario,
+    con active_menu='panel' para resaltar el ítem correcto en el sidebar.
+    El administrador tiene acceso a todas las funciones ciudadanas MÁS
+    las herramientas de moderación activadas por _es_admin().
+    """
+    # Reutilizar toda la lógica del feed comunitario
+    if not Publicacion.objects.exists():
+        _seed_demo_data()
+    _ensure_demo_balance()
+
+    publicaciones = list(Publicacion.objects.all().order_by('-id').prefetch_related(
+        'comentarios__respuestas', 'comentarios__autor', 'autor'
+    ))
+    trending_topics = calcular_trending_topics()
+    actividades = obtener_actividades_recientes_balanceadas()
+
+    user_post_reactions = {}
+    user_comment_reactions = {}
+    for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
+        user_post_reactions[r.publicacion_id] = r.tipo
+    all_comment_ids = [c.id for p in publicaciones for c in p.comentarios.all()]
+    if all_comment_ids:
+        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=all_comment_ids):
+            user_comment_reactions[r.comentario_id] = r.tipo
+
+    for p in publicaciones:
+        p.user_reaction = user_post_reactions.get(p.id)
+        for c in p.comentarios.all():
+            c.user_reaction = user_comment_reactions.get(c.id)
+            for rep in c.respuestas.all():
+                rep.user_reaction = user_comment_reactions.get(rep.id)
+
+    context = {
+        'publicaciones': publicaciones,
+        'trending_topics': trending_topics,
+        'actividades': actividades,
+        'active_menu': 'panel',   # Resalta "Panel" en el sidebar del admin
+    }
+    return render(request, 'feed/feed_comunitario.html', context)
+
 @login_required
 @require_POST
 def moderar_publicacion_ajax(request, publicacion_id):
