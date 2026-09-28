@@ -21,6 +21,8 @@
   <div class="post-author-row"
     style="display: flex; align-items: flex-start; justify-content: space-between; width: 100%;">
     <div style="display: flex; align-items: center; gap: 11px;">
+      {# El avatar enlaza al perfil del autor (si tiene cuenta asociada) #}
+      {% if post.autor %}<a href="{% url 'perfil_usuario' post.autor.username %}" class="author-profile-link" title="Ver perfil de {{ post.autor_nombre|default:post.autor.username }}">{% endif %}
       {% if post.autor.avatar %}
       <img src="{{ post.autor.avatar.url }}" alt="{{ post.autor_nombre }}" class="author-avatar-img" style="margin-top: -3px;">
       {% elif 'Ana' in post.autor_nombre %}
@@ -41,9 +43,16 @@
         {{ post.autor_nombre|slice:":2"|upper|default:"UR" }}
       </div>
       {% endif %}
+      {% if post.autor %}</a>{% endif %}
 
       <div class="author-info" style="display: flex; flex-direction: column; justify-content: center; gap: 2px;">
-        <span class="author-name">{{ post.autor_nombre|default:post.autor.username }}</span>
+        <span class="author-name">
+          {% if post.autor %}
+          <a href="{% url 'perfil_usuario' post.autor.username %}" class="author-name-link">{{ post.autor_nombre|default:post.autor.username }}</a>
+          {% else %}
+          {{ post.autor_nombre }}
+          {% endif %}
+        </span>
         <span class="post-timestamp">
           {% if 'Ana' in post.autor_nombre %}
           Hace 15 min

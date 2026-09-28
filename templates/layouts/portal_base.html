@@ -16,12 +16,14 @@
   {% include 'includes/sidebar.html' %}
 
   <!-- Center Main Content -->
-  <main class="portal-main">
+  <main class="portal-main {% block portal_main_class %}{% endblock %}">
     {% block portal_content %}{% endblock %}
   </main>
 
-  <!-- Right Widgets Sidebar Component -->
+  <!-- Right Widgets Sidebar (sobreescribible por vistas que no lo usen) -->
+  {% block right_widgets %}
   {% include 'includes/widgets.html' %}
+  {% endblock %}
 </div>
 
 <!-- Modal for Inspecting Incident -->

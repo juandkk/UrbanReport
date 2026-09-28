@@ -20,5 +20,99 @@ class Usuario(AbstractUser):
     codigo_postal = models.CharField('Código postal', max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
+    # Usuarios que este usuario sigue (relación dirigida a través de Seguimiento)
+    seguidos = models.ManyToManyField(
+        'self',
+        through='Seguimiento',
+        through_fields=('seguidor', 'seguido'),
+        symmetrical=False,
+        related_name='seguidores',
+    )
+
     def __str__(self):
-        return f"{self.username} ({self.get_rol_display()})"
+        return f"{self.username} ({self.get_rol_display()})"
+
+    @property
+    def total_seguidores(self):
+        """Cuántos usuarios siguen a este usuario."""
+        return self.seguidores.count()
+
+    @property
+    def total_seguidos(self):
+        """A cuántos usuarios sigue este usuario."""
+        return self.seguidos.count()
+
+    def sigue_a(self, otro_usuario):
+        """Devuelve True si este usuario sigue a otro_usuario."""
+        if not otro_usuario:
+            return False
+        return Seguimiento.objects.filter(seguidor=self, seguido=otro_usuario).exists()
+
+    def nivel_confianza(self):
+        """
+        Calcula el nivel de confianza del usuario a partir de su historial de
+        reportes: cuántos ha hecho y qué proporción se ha resuelto. Un mayor
+        volumen de reportes válidos (resueltos) implica más confianza.
+
+        Devuelve un dict con:
+          - 'nivel': etiqueta ('Nuevo' | 'Bajo' | 'Medio' | 'Alto')
+          - 'total': total de reportes hechos
+          - 'resueltos': reportes marcados como resueltos
+          - 'tasa': porcentaje de resolución (0-100)
+        """
+        # Import local para evitar dependencia circular entre apps
+        from feed.models import Publicacion
+
+        reportes = Publicacion.objects.filter(autor=self)
+        total = reportes.count()
+        resueltos = reportes.filter(
+            estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA
+        ).count()
+        tasa = round((resueltos / total) * 100) if total else 0
+
+        if total == 0:
+            nivel = 'Nuevo'
+        elif resueltos >= 5 and tasa >= 60:
+            nivel = 'Alto'
+        elif resueltos >= 2 or tasa >= 40:
+            nivel = 'Medio'
+        else:
+            nivel = 'Bajo'
+
+        return {
+            'nivel': nivel,
+            'total': total,
+            'resueltos': resueltos,
+            'tasa': tasa,
+        }
+
+
+class Seguimiento(models.Model):
+    """Relación dirigida: 'seguidor' sigue a 'seguido'."""
+    seguidor = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name='relaciones_siguiendo',
+    )
+    seguido = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name='relaciones_seguidores',
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Un usuario no puede seguir dos veces al mismo
+        unique_together = ('seguidor', 'seguido')
+        verbose_name = 'Seguimiento'
+        verbose_name_plural = 'Seguimientos'
+        constraints = [
+            # Evita que un usuario se siga a sí mismo
+            models.CheckConstraint(
+                condition=~models.Q(seguidor=models.F('seguido')),
+                name='no_autoseguimiento',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.seguidor.username} sigue a {self.seguido.username}"

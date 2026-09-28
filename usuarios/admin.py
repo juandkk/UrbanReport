@@ -1,6 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario
+from .models import Usuario, Seguimiento
+
+
+@admin.register(Seguimiento)
+class SeguimientoAdmin(admin.ModelAdmin):
+    list_display = ('seguidor', 'seguido', 'fecha_creacion')
+    search_fields = ('seguidor__username', 'seguido__username')
 
 
 @admin.register(Usuario)

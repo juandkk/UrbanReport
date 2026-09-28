@@ -1,0 +1,475 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}{% if es_propio_perfil %}Mi Perfil{% else %}{{ nombre_completo }}{% endif %} | UrbanReport{% endblock %}
+
+{# El perfil tiene su propia columna lateral, así que no mostramos el widget del feed #}
+{% block right_widgets %}{% endblock %}
+
+{# El perfil usa layout ancho de dos columnas, no la columna angosta del feed #}
+{% block portal_main_class %}portal-main-wide{% endblock %}
+
+{% block portal_content %}
+<!-- Cabecera del Perfil -->
+<header class="profile-header">
+  <h1>{% if es_propio_perfil %}Mi Perfil{% else %}Perfil{% endif %}</h1>
+  <p class="profile-subtitle">
+    {% if es_propio_perfil %}
+    Podrás visualizar tus publicaciones, reportes y gestionarlos.
+    {% else %}
+    Podrás visualizar las publicaciones y reportes de este usuario.
+    {% endif %}
+  </p>
+</header>
+
+<div class="profile-layout">
+  <!-- Columna principal: Publicaciones -->
+  <section class="profile-main-col">
+    <div class="profile-posts-toolbar">
+      <h2 class="profile-section-title">{% if es_propio_perfil %}Mis publicaciones{% else %}Publicaciones{% endif %}</h2>
+      {% if es_propio_perfil %}
+      <button type="button" class="btn-primary profile-new-post-btn"
+        onclick="if(window.openRadicarModal){window.openRadicarModal();}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>Nuevo Incidente</span>
+      </button>
+      {% endif %}
+    </div>
+
+    <div class="feed-posts-stream" id="feed-posts-stream">
+      {% for post in publicaciones %}
+      {% include 'includes/post_card.html' with post=post %}
+      {% empty %}
+      <div class="feed-empty-state"
+        style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted); background: rgba(17, 24, 39, 0.5); border: 1px dashed rgba(255, 255, 255, 0.08); border-radius: 12px;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          style="margin-bottom: 12px; opacity: 0.5;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <p style="font-size: 0.95rem; margin: 0;">
+          {% if es_propio_perfil %}Aún no tienes publicaciones. ¡Radica tu primer reporte!{% else %}Este usuario aún no tiene publicaciones.{% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Columna lateral: Tarjeta de perfil -->
+  <aside class="profile-side-col">
+    <div class="profile-card">
+      <!-- Avatar -->
+      <div class="profile-avatar-wrap" id="profile-avatar-wrap">
+        {% if perfil_usuario.avatar %}
+        <img src="{{ perfil_usuario.avatar.url }}" alt="{{ nombre_completo }}" class="profile-avatar-img">
+        {% else %}
+        <div class="profile-avatar-placeholder">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Nombre y rol -->
+      <h3 class="profile-name" id="profile-name-display">{{ nombre_completo }}</h3>
+      <span class="profile-role">{{ perfil_usuario.get_rol_display }}</span>
+
+      <div class="profile-divider"></div>
+
+      <!-- Información -->
+      <div class="profile-info-block">
+        <span class="profile-info-heading">Información</span>
+
+        <div class="profile-info-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span id="profile-location-display">{{ perfil_usuario.barrio_vereda|default:"Sin ubicación registrada" }}</span>
+        </div>
+
+        <div class="profile-info-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span title="Registrado el {{ perfil_usuario.date_joined|date:'d/m/Y H:i' }}">
+            Miembro desde {{ perfil_usuario.date_joined|date:"d M Y, H:i" }}
+          </span>
+        </div>
+
+        <div class="profile-info-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4" />
+            <path d="M12 3l7 4v5c0 4.5-3 8.5-7 9-4-.5-7-4.5-7-9V7z" />
+          </svg>
+          <span class="profile-trust profile-trust-{{ confianza.nivel|lower }}"
+            title="{{ confianza.resueltos }} de {{ confianza.total }} reportes resueltos ({{ confianza.tasa }}%)">
+            Nivel de Confianza: {{ confianza.nivel }}
+          </span>
+        </div>
+      </div>
+
+      <div class="profile-divider"></div>
+
+      <!-- Seguidores / Seguidos (clicables: abren lista estilo Instagram) -->
+      <div class="profile-stats">
+        <button type="button" class="profile-stat profile-stat-clickable" data-list="seguidores"
+          data-url="{% url 'lista_seguidores' perfil_usuario.username %}">
+          <span class="profile-stat-num" id="profile-followers-count">{{ total_seguidores }}</span>
+          <span class="profile-stat-label">Seguidores</span>
+        </button>
+        <button type="button" class="profile-stat profile-stat-clickable" data-list="seguidos"
+          data-url="{% url 'lista_seguidos' perfil_usuario.username %}">
+          <span class="profile-stat-num" id="profile-following-count">{{ total_seguidos }}</span>
+          <span class="profile-stat-label">Seguidos</span>
+        </button>
+      </div>
+
+      <div class="profile-divider"></div>
+
+      <!-- Publicaciones / Resueltas -->
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <span class="profile-stat-num">{{ total_publicaciones }}</span>
+          <span class="profile-stat-label">Publicaciones</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-num">{{ total_resueltas }}</span>
+          <span class="profile-stat-label">Resueltas</span>
+        </div>
+      </div>
+
+      {% if es_propio_perfil %}
+      <!-- En el propio perfil: editar (no tiene sentido seguirse a uno mismo) -->
+      <button type="button" class="btn-primary profile-edit-btn" id="open-edit-profile-btn">
+        <span>Editar perfil</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </button>
+      {% else %}
+      <!-- En el perfil de otro usuario: seguir / dejar de seguir -->
+      <button type="button" class="btn-primary profile-follow-btn {% if ya_lo_sigo %}is-following{% endif %}"
+        id="profile-follow-btn" data-username="{{ perfil_usuario.username }}"
+        data-follow-url="{% url 'toggle_seguir' perfil_usuario.username %}"
+        data-following="{{ ya_lo_sigo|yesno:'1,0' }}">
+        <span class="follow-label">{% if ya_lo_sigo %}Siguiendo{% else %}Seguir{% endif %}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="8.5" cy="7" r="4" />
+          <line x1="20" y1="8" x2="20" y2="14" />
+          <line x1="23" y1="11" x2="17" y2="11" />
+        </svg>
+      </button>
+      {% endif %}
+    </div>
+
+    {% if es_propio_perfil %}
+    <!-- Acceso rápido (solo en el propio perfil) -->
+    <a href="#" class="profile-quick-link">
+      <span>Configuración</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </a>
+    {% endif %}
+  </aside>
+</div>
+
+{% if es_propio_perfil %}
+<!-- ===== Modal: Editar Perfil ===== -->
+<div class="ur-modal-backdrop" id="editProfileModal">
+  <div class="ur-modal">
+    <div class="ur-modal-header">
+      <h3>Editar perfil</h3>
+      <button type="button" class="ur-modal-close" data-close-modal>&times;</button>
+    </div>
+    <form id="editProfileForm" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="ur-modal-body">
+        <!-- Foto de perfil -->
+        <div class="edit-avatar-row">
+          <div class="edit-avatar-preview" id="editAvatarPreview">
+            {% if perfil_usuario.avatar %}
+            <img src="{{ perfil_usuario.avatar.url }}" alt="avatar">
+            {% else %}
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+            {% endif %}
+          </div>
+          <div>
+            <div class="edit-avatar-actions">
+              <label for="editAvatarInput" class="edit-avatar-btn">Cambiar foto</label>
+              <button type="button" class="edit-avatar-remove-btn {% if not perfil_usuario.avatar %}d-none{% endif %}"
+                id="editAvatarRemoveBtn">Eliminar foto</button>
+            </div>
+            <input type="file" id="editAvatarInput" name="avatar" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+            <input type="hidden" id="editAvatarRemoveFlag" name="eliminar_avatar" value="0">
+            <p class="edit-avatar-hint">PNG o JPG · máx. 8 MB</p>
+          </div>
+        </div>
+
+        <!-- Nombre -->
+        <div class="ur-field">
+          <label for="editNombre">Nombre</label>
+          <input type="text" id="editNombre" name="nombre" class="ur-input" maxlength="150"
+            value="{{ nombre_completo }}" placeholder="Tu nombre">
+        </div>
+
+        <!-- Ubicación -->
+        <div class="ur-field">
+          <label for="editUbicacion">Ubicación</label>
+          <select id="editUbicacion" name="ubicacion" class="ur-input">
+            {% for u in ubicaciones %}
+            <option value="{{ u }}" {% if perfil_usuario.barrio_vereda == u %}selected{% endif %}>{{ u }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="ur-modal-footer">
+        <button type="button" class="ur-btn-secondary" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn-primary" id="saveProfileBtn">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- ===== Modal: Lista Seguidores / Seguidos (estilo Instagram) ===== -->
+<div class="ur-modal-backdrop" id="relationListModal">
+  <div class="ur-modal">
+    <div class="ur-modal-header">
+      <h3 id="relationListTitle">Seguidores</h3>
+      <button type="button" class="ur-modal-close" data-close-modal>&times;</button>
+    </div>
+    <div class="ur-modal-body relation-list-body" id="relationListBody">
+      <!-- Se llena dinámicamente por JS -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    function getCookie(name) {
+      var value = null;
+      if (document.cookie) {
+        document.cookie.split(';').forEach(function (c) {
+          var t = c.trim();
+          if (t.indexOf(name + '=') === 0) value = decodeURIComponent(t.substring(name.length + 1));
+        });
+      }
+      return value;
+    }
+    var csrftoken = getCookie('csrftoken');
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    // ── Utilidades de modales genéricos (backdrop .ur-modal-backdrop) ──
+    function openModal(el) { if (el) el.classList.add('active'); }
+    function closeModal(el) { if (el) el.classList.remove('active'); }
+
+    document.addEventListener('click', function (e) {
+      if (e.target.hasAttribute && e.target.hasAttribute('data-close-modal')) {
+        var m = e.target.closest('.ur-modal-backdrop');
+        closeModal(m);
+      }
+      // Cerrar al hacer clic en el fondo
+      if (e.target.classList && e.target.classList.contains('ur-modal-backdrop')) {
+        closeModal(e.target);
+      }
+    });
+
+    // ── Botón Seguir / dejar de seguir (perfil de otro) ──
+    var followBtn = document.getElementById('profile-follow-btn');
+    if (followBtn) {
+      followBtn.addEventListener('click', function () {
+        var url = followBtn.dataset.followUrl;
+        if (!url || followBtn.disabled) return;
+        followBtn.disabled = true;
+        fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'ok') {
+              var label = followBtn.querySelector('.follow-label');
+              if (label) label.textContent = data.siguiendo ? 'Siguiendo' : 'Seguir';
+              followBtn.classList.toggle('is-following', data.siguiendo);
+              var count = document.getElementById('profile-followers-count');
+              if (count) count.textContent = data.total_seguidores;
+            }
+          })
+          .catch(function () {})
+          .finally(function () { followBtn.disabled = false; });
+      });
+    }
+
+    // ── Editar perfil ──
+    var editModal = document.getElementById('editProfileModal');
+    var openEditBtn = document.getElementById('open-edit-profile-btn');
+    if (openEditBtn && editModal) {
+      openEditBtn.addEventListener('click', function () { openModal(editModal); });
+    }
+
+    // SVG por defecto (cuando no hay foto de perfil)
+    var DEFAULT_AVATAR_SVG = '<svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">' +
+      '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>';
+    var CARD_AVATAR_SVG = '<div class="profile-avatar-placeholder"><svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor">' +
+      '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg></div>';
+
+    // Previsualizar avatar seleccionado
+    var avatarInput = document.getElementById('editAvatarInput');
+    var avatarPreview = document.getElementById('editAvatarPreview');
+    var avatarRemoveBtn = document.getElementById('editAvatarRemoveBtn');
+    var avatarRemoveFlag = document.getElementById('editAvatarRemoveFlag');
+
+    if (avatarInput && avatarPreview) {
+      avatarInput.addEventListener('change', function () {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        var okType = ['image/png', 'image/jpeg'].indexOf(file.type) !== -1;
+        if (!okType) { alert('Solo se permiten imágenes PNG o JPG.'); this.value = ''; return; }
+        if (file.size > 8 * 1024 * 1024) { alert('La imagen supera 8 MB.'); this.value = ''; return; }
+        // Subir una foto nueva cancela una eventual eliminación pendiente
+        if (avatarRemoveFlag) avatarRemoveFlag.value = '0';
+        var reader = new FileReader();
+        reader.onload = function (ev) { avatarPreview.innerHTML = '<img src="' + ev.target.result + '" alt="avatar">'; };
+        reader.readAsDataURL(file);
+        if (avatarRemoveBtn) avatarRemoveBtn.classList.remove('d-none');
+      });
+    }
+
+    // Eliminar foto: marca el flag y muestra el SVG por defecto en la previsualización
+    if (avatarRemoveBtn) {
+      avatarRemoveBtn.addEventListener('click', function () {
+        if (avatarRemoveFlag) avatarRemoveFlag.value = '1';
+        if (avatarInput) avatarInput.value = '';
+        if (avatarPreview) avatarPreview.innerHTML = DEFAULT_AVATAR_SVG;
+        avatarRemoveBtn.classList.add('d-none');
+      });
+    }
+
+    var editForm = document.getElementById('editProfileForm');
+    if (editForm) {
+      editForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var saveBtn = document.getElementById('saveProfileBtn');
+        if (saveBtn) saveBtn.disabled = true;
+        fetch('{% url "editar_perfil" %}', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+          body: new FormData(editForm),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'ok') {
+              // Actualizar la tarjeta sin recargar
+              var nameEl = document.getElementById('profile-name-display');
+              if (nameEl) nameEl.textContent = data.nombre;
+              var locEl = document.getElementById('profile-location-display');
+              if (locEl) locEl.textContent = data.ubicacion;
+              var wrap = document.getElementById('profile-avatar-wrap');
+              if (wrap) {
+                if (data.avatar_url) {
+                  wrap.innerHTML = '<img src="' + data.avatar_url + '" alt="avatar" class="profile-avatar-img">';
+                } else {
+                  // Se eliminó la foto: mostrar el SVG por defecto
+                  wrap.innerHTML = CARD_AVATAR_SVG;
+                }
+              }
+              // Reiniciar el flag de eliminación para el próximo uso del modal
+              if (avatarRemoveFlag) avatarRemoveFlag.value = '0';
+              if (avatarRemoveBtn) avatarRemoveBtn.classList.toggle('d-none', !data.tiene_avatar);
+              closeModal(editModal);
+            } else {
+              alert(data.message || 'No se pudo actualizar el perfil.');
+            }
+          })
+          .catch(function () { alert('Error de conexión.'); })
+          .finally(function () { if (saveBtn) saveBtn.disabled = false; });
+      });
+    }
+
+    // ── Listas de Seguidores / Seguidos (estilo Instagram) ──
+    var relModal = document.getElementById('relationListModal');
+    var relTitle = document.getElementById('relationListTitle');
+    var relBody = document.getElementById('relationListBody');
+
+    function renderRelationRow(u) {
+      var avatar = u.avatar_url
+        ? '<img src="' + u.avatar_url + '" alt="" class="relation-avatar-img">'
+        : '<div class="relation-avatar-fallback">' + escapeHtml(u.iniciales) + '</div>';
+      var accion = '';
+      if (!u.es_yo) {
+        accion = '<button type="button" class="relation-follow-btn ' + (u.lo_sigo ? 'is-following' : '') +
+          '" data-url="' + escapeHtml(u.seguir_url) + '">' + (u.lo_sigo ? 'Siguiendo' : 'Seguir') + '</button>';
+      }
+      return '<div class="relation-row">' +
+        '<a class="relation-user" href="' + escapeHtml(u.perfil_url) + '">' +
+        avatar +
+        '<div class="relation-user-info"><span class="relation-user-name">' + escapeHtml(u.nombre) +
+        '</span><span class="relation-user-role">' + escapeHtml(u.rol) + '</span></div></a>' +
+        accion + '</div>';
+    }
+
+    function loadRelationList(url, titulo) {
+      if (!relBody) return;
+      relTitle.textContent = titulo;
+      relBody.innerHTML = '<p class="relation-empty">Cargando…</p>';
+      openModal(relModal);
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.status === 'ok' && data.usuarios.length) {
+            relBody.innerHTML = data.usuarios.map(renderRelationRow).join('');
+          } else {
+            relBody.innerHTML = '<p class="relation-empty">No hay usuarios para mostrar.</p>';
+          }
+        })
+        .catch(function () { relBody.innerHTML = '<p class="relation-empty">Error al cargar.</p>'; });
+    }
+
+    document.querySelectorAll('.profile-stat-clickable').forEach(function (b) {
+      b.addEventListener('click', function () {
+        loadRelationList(b.dataset.url, b.dataset.list === 'seguidos' ? 'Seguidos' : 'Seguidores');
+      });
+    });
+
+    // Toggle seguir/dejar de seguir DENTRO de las listas
+    if (relBody) {
+      relBody.addEventListener('click', function (e) {
+        var b = e.target.closest('.relation-follow-btn');
+        if (!b || b.disabled) return;
+        b.disabled = true;
+        fetch(b.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'ok') {
+              b.textContent = data.siguiendo ? 'Siguiendo' : 'Seguir';
+              b.classList.toggle('is-following', data.siguiendo);
+            }
+          })
+          .catch(function () {})
+          .finally(function () { b.disabled = false; });
+      });
+    }
+  });
+</script>
+{% endblock %}
