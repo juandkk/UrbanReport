@@ -7,6 +7,8 @@ from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm
 
 def login_view(request):
     if request.user.is_authenticated:
+        if request.user.rol == Usuario.Rol.ADMINISTRADOR or request.user.is_staff or request.user.is_superuser:
+            return redirect('panel_administrador')
         return redirect('feed_comunitario')
 
     if request.method == 'POST':
@@ -32,6 +34,9 @@ def login_view(request):
                     request.session.set_expiry(0)
                 else:
                     request.session.set_expiry(1209600)  # 2 semanas
+                # Redirigir según el rol del usuario
+                if user.rol == Usuario.Rol.ADMINISTRADOR or user.is_staff or user.is_superuser:
+                    return redirect('panel_administrador')
                 return redirect('feed_comunitario')
             else:
                 messages.error(request, 'Credenciales incorrectas. Verifica tu correo y contraseña.')

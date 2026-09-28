@@ -15,7 +15,7 @@
         </svg>
         <span>UrbanReport</span>
       </a>
-      <div class="sidebar-subtitle">Portal Ciudadano</div>
+      <div class="sidebar-subtitle">{% if user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}Portal Administrador{% else %}Portal Ciudadano{% endif %}</div>
     </div>
   </div>
 
