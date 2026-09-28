@@ -1,7 +1,7 @@
 {% load static %}
 <aside class="portal-sidebar">
-  <div>
-    <!-- Brand -->
+  <!-- Top Section: Brand -->
+  <div class="sidebar-top">
     <div class="sidebar-brand">
       <a href="{% url 'feed_comunitario' %}" class="sidebar-logo">
         <svg class="brand-icon-svg" viewBox="0 0 24 24" fill="none" style="width: 24px; height: 24px;">
@@ -17,8 +17,10 @@
       </a>
       <div class="sidebar-subtitle">Portal Ciudadano</div>
     </div>
+  </div>
 
-    <!-- Navigation List -->
+  <!-- Center Section: Navigation Links (vertically centered) -->
+  <div class="sidebar-center">
     <ul class="sidebar-nav">
       <!-- Perfil (todos los roles) -->
       <li>
@@ -62,7 +64,7 @@
 
       <!-- Mapa (todos los roles) -->
       <li>
-        <a href="#" class="nav-item-link {% if active_menu == 'mapa' %}active{% endif %}">
+        <a href="{% url 'mapa' %}" class="nav-item-link {% if active_menu == 'mapa' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
             <line x1="8" y1="2" x2="8" y2="18"/>
@@ -108,33 +110,34 @@
       </li>
       {% endif %}
     </ul>
+  </div>
 
-    <!-- Report Incident Action Button -->
-    <button type="button" class="btn-primary sidebar-report-btn" onclick="document.getElementById('newPostModal').classList.add('active')">
+  <!-- Bottom Section: Report Button + Utility Links -->
+  <div class="sidebar-bottom">
+    <button type="button" class="btn-primary sidebar-report-btn" onclick="if(window.openRadicarModal){window.openRadicarModal();}else{document.getElementById('radicarModal').classList.add('active');}">
       Reportar Incidente
     </button>
-  </div>
 
-  <!-- Bottom Nav Items -->
-  <div class="sidebar-footer">
-    <!-- Ayuda -->
-    <a href="#" class="nav-item-link">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span>Ayuda</span>
-    </a>
+    <div class="sidebar-bottom-divider"></div>
 
-    <!-- Cerrar sesión -->
-    <a href="{% url 'logout' %}" class="nav-item-link">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-        <polyline points="16 17 21 12 16 7"/>
-        <line x1="21" y1="12" x2="9" y2="12"/>
-      </svg>
-      <span>Cerrar sesión</span>
-    </a>
+    <div class="sidebar-utility-links">
+      <a href="#" class="nav-item-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>Ayuda</span>
+      </a>
+      <a href="{% url 'logout' %}" class="nav-item-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Cerrar sesión</span>
+      </a>
+    </div>
   </div>
 </aside>
+

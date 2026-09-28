@@ -19,62 +19,53 @@
       <span>Trending Topics</span>
     </h3>
 
-    <div class="trending-list">
+    <div class="trending-list" id="trending-list-container">
       {% for topic in trending_topics %}
-      <div class="trending-item">
+      <div class="trending-item trending-clickable" data-trend-tipo="{{ topic.tipo }}"
+        data-trend-clave="{{ topic.clave }}">
         <span class="trending-category">{{ topic.categoria }}</span>
         <a href="#" class="trending-tag">{{ topic.hashtag }}</a>
         <span class="trending-count">{{ topic.detalle }}</span>
       </div>
       {% empty %}
-      <div class="trending-item">
-        <span class="trending-category">TRÁFICO</span>
-        <a href="#" class="trending-tag">#CorteAvenidaSur</a>
-        <span class="trending-count">45 reportes en la última hora</span>
-      </div>
-      <div class="trending-item">
-        <span class="trending-category">SERVICIOS</span>
-        <a href="#" class="trending-tag">#FallaElectricaNorte</a>
-        <span class="trending-count">120 reportes</span>
-      </div>
-      <div class="trending-item">
-        <span class="trending-category">COMUNIDAD</span>
-        <a href="#" class="trending-tag">#JornadaLimpiezaParque</a>
-        <span class="trending-count">Evento activo</span>
+      <div class="trending-empty-state" id="trending-empty-state">
+        <span class="trending-count" style="color: var(--text-muted);">Aún no hay tendencias. Cuando lleguen reportes, aparecerán aquí.</span>
       </div>
       {% endfor %}
     </div>
+
+    <!-- Aviso de filtro activo por tendencia (se muestra al filtrar) -->
+    <div class="trending-active-filter d-none" id="trending-active-filter">
+      <span id="trending-filter-label"></span>
+      <button type="button" class="trending-clear-filter-btn" id="trending-clear-filter-btn" title="Quitar filtro">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+        Ver todo
+      </button>
+    </div>
   </div>
 
-  <!-- Recent Activity Widget -->
-  <div class="widget-card">
+  <!-- Recent Activity Widget (Capacidad anti-saturación de 6 cupos: 3 no resueltos + 3 resueltos en cola FIFO) -->
+  <div class="widget-card" id="widget-actividad-reciente">
     <h3 class="widget-title">
       <span>Actividad Reciente</span>
     </h3>
 
-    <div class="activity-list">
+    <div class="activity-list" id="activity-list-container">
       {% for act in actividades %}
-      <div class="activity-item">
-        <div class="activity-dot {% if act.tipo == 'incidente' %}blue{% else %}gray{% endif %}"></div>
+      <div class="activity-item" id="activity-item-{{ act.id }}" data-act-id="{{ act.id }}"
+        data-tipo="{{ act.tipo }}" data-pub-id="{{ act.publicacion_id }}">
+        <div class="activity-dot {% if act.tipo == 'resuelta' %}green{% else %}gray{% endif %}"></div>
         <div class="activity-info">
           <p class="activity-text">{{ act.titulo }}</p>
           <span class="activity-time">{{ act.tiempo }}</span>
         </div>
       </div>
       {% empty %}
-      <div class="activity-item">
-        <div class="activity-dot blue"></div>
-        <div class="activity-info">
-          <p class="activity-text">Nuevo incidente reportado en Calle 8.</p>
-          <span class="activity-time">Hace 2 min</span>
-        </div>
-      </div>
-      <div class="activity-item">
-        <div class="activity-dot gray"></div>
-        <div class="activity-info">
-          <p class="activity-text">Incidencia #492 marcada como Resuelta.</p>
-          <span class="activity-time">Hace 15 min</span>
-        </div>
+      <div class="activity-empty-state" id="activity-empty-state">
+        <p class="activity-text" style="color: var(--text-muted);">Aún no hay actividad reciente.</p>
       </div>
       {% endfor %}
     </div>
