@@ -88,16 +88,38 @@
   // Badge de notificaciones no leídas en la campana
   document.addEventListener('DOMContentLoaded', function () {
     var badge = document.getElementById('notif-bell-badge');
-    if (!badge) return;
-    fetch('{% url "api_notificaciones_no_leidas" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.status === 'ok' && data.total_no_leidas > 0) {
-          badge.textContent = data.total_no_leidas > 9 ? '9+' : data.total_no_leidas;
-          badge.style.display = 'flex';
+    if (badge) {
+      fetch('{% url "api_notificaciones_no_leidas" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.status === 'ok' && data.total_no_leidas > 0) {
+            badge.textContent = data.total_no_leidas > 9 ? '9+' : data.total_no_leidas;
+            badge.style.display = 'flex';
+          }
+        })
+        .catch(function () {});
+    }
+
+    // Al llegar desde una notificación (#post-card-N o #comment-card-N),
+    // desplazar hasta el contenido, abrir comentarios si aplica y resaltarlo.
+    var hash = window.location.hash;
+    if (hash && (hash.indexOf('#post-card-') === 0 || hash.indexOf('#comment-card-') === 0)) {
+      setTimeout(function () {
+        var target = document.querySelector(hash);
+        if (!target) return;
+        // Si es un comentario, abrir la sección de comentarios de su publicación
+        if (hash.indexOf('#comment-card-') === 0) {
+          var postCard = target.closest('.post-card');
+          if (postCard) {
+            var section = postCard.querySelector('.post-comments-section');
+            if (section) section.classList.remove('collapsed');
+          }
         }
-      })
-      .catch(function () {});
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('notif-highlight');
+        setTimeout(function () { target.classList.remove('notif-highlight'); }, 2600);
+      }, 400);
+    }
   });
 </script>
 {% endblock %}

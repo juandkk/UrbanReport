@@ -277,6 +277,7 @@ class Notificacion(models.Model):
         LIKE = 'LIKE', 'Le dio Me Gusta a tu publicación'
         CAMBIO_ESTADO = 'CAMBIO_ESTADO', 'Tu reporte cambió de estado'
         SEGUIDOR = 'SEGUIDOR', 'Comenzó a seguirte'
+        REPORTE_CONTENIDO = 'REPORTE_CONTENIDO', 'Reportó contenido para moderación'
 
     # Categoría para el filtro de la vista: publicaciones, reportes o social
     class Categoria(models.TextChoices):
@@ -310,7 +311,14 @@ class Notificacion(models.Model):
         blank=True,
         related_name='notificaciones'
     )
-    # Texto extra: fragmento del comentario, estado nuevo, etc.
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notificaciones'
+    )
+    # Texto extra: fragmento del comentario, estado nuevo, motivo del reporte, etc.
     extra = models.CharField(max_length=255, blank=True, default='')
     leido = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)

@@ -4,7 +4,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.utils.timesince import timesince
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from datetime import timedelta
@@ -19,7 +19,7 @@ from .models import (
 from usuarios.models import Usuario
 
 
-def crear_notificacion(destinatario, actor, tipo, publicacion=None, categoria=None, extra=''):
+def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=None, categoria=None, extra=''):
     """
     Crea una notificación para 'destinatario' generada por 'actor'.
     No hace nada si el actor es el mismo destinatario (no te notificas a ti mismo)
@@ -29,7 +29,7 @@ def crear_notificacion(destinatario, actor, tipo, publicacion=None, categoria=No
         return None
 
     if categoria is None:
-        if tipo == Notificacion.Tipo.CAMBIO_ESTADO:
+        if tipo in (Notificacion.Tipo.CAMBIO_ESTADO, Notificacion.Tipo.REPORTE_CONTENIDO):
             categoria = Notificacion.Categoria.REPORTE
         elif tipo == Notificacion.Tipo.SEGUIDOR:
             categoria = Notificacion.Categoria.SOCIAL
@@ -44,8 +44,31 @@ def crear_notificacion(destinatario, actor, tipo, publicacion=None, categoria=No
         tipo=tipo,
         categoria=categoria,
         publicacion=publicacion,
+        comentario=comentario,
         extra=extra[:255],
     )
+
+
+def notificar_admins_reporte(actor, motivo_display, publicacion=None, comentario=None):
+    """
+    Notifica a TODOS los administradores que un usuario reportó contenido, para que
+    puedan revisarlo y moderar. No notifica al propio actor si fuese admin.
+    """
+    admins = Usuario.objects.filter(
+        Q(rol=Usuario.Rol.ADMINISTRADOR) | Q(is_staff=True) | Q(is_superuser=True)
+    ).distinct()
+    creadas = 0
+    for admin in admins:
+        if admin == actor:
+            continue
+        crear_notificacion(
+            destinatario=admin, actor=actor,
+            tipo=Notificacion.Tipo.REPORTE_CONTENIDO,
+            publicacion=publicacion, comentario=comentario,
+            extra=motivo_display,
+        )
+        creadas += 1
+    return creadas
 
 
 @login_required
@@ -725,11 +748,18 @@ def reportar_publicacion_ajax(request, publicacion_id):
             'message': 'Ya has enviado un reporte para esta publicación previamente.'
         })
 
-    ReporteContenido.objects.create(
+    reporte = ReporteContenido.objects.create(
         usuario=request.user,
         publicacion=publicacion,
         motivo=motivo,
         descripcion=descripcion
+    )
+
+    # Notificar a los administradores para que revisen y moderen
+    notificar_admins_reporte(
+        actor=request.user,
+        motivo_display=reporte.get_motivo_display(),
+        publicacion=publicacion,
     )
 
     return JsonResponse({
@@ -752,11 +782,19 @@ def reportar_comentario_ajax(request, comentario_id):
             'message': 'Ya has enviado un reporte para este comentario previamente.'
         })
 
-    ReporteContenido.objects.create(
+    reporte = ReporteContenido.objects.create(
         usuario=request.user,
         comentario=comentario,
         motivo=motivo,
         descripcion=descripcion
+    )
+
+    # Notificar a los administradores; enlazamos también la publicación contenedora
+    notificar_admins_reporte(
+        actor=request.user,
+        motivo_display=reporte.get_motivo_display(),
+        publicacion=comentario.publicacion,
+        comentario=comentario,
     )
 
     return JsonResponse({

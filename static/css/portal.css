@@ -2909,6 +2909,50 @@
   background-color: rgba(16, 185, 129, 0.15);
   color: var(--status-success);
 }
+.notif-badge-report {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--status-warning);
+}
+
+/* Avatar de notificación de reporte (alerta) */
+.notif-avatar-report {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--status-warning);
+}
+.notif-avatar-report svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Enlace "Ver contenido y moderar" */
+.notif-review-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brand-blue-accent);
+  text-decoration: none;
+  align-self: flex-start;
+}
+.notif-review-link:hover {
+  text-decoration: underline;
+}
+
+/* Resaltado temporal al llegar desde una notificación */
+.notif-highlight {
+  animation: notifHighlight 2.6s ease;
+}
+@keyframes notifHighlight {
+  0%, 60% {
+    box-shadow: 0 0 0 2px var(--brand-blue-accent), 0 0 18px rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
 
 .notif-meta {
   display: flex;

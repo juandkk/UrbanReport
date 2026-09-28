@@ -48,6 +48,13 @@
       <span class="notif-avatar-status">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
       </span>
+      {% elif n.tipo == 'REPORTE_CONTENIDO' %}
+      <span class="notif-avatar-report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </span>
       {% elif n.actor.avatar %}
       {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}">{% endif %}
       <img src="{{ n.actor.avatar.url }}" alt="{{ n.actor_nombre }}" class="notif-avatar-img">
@@ -61,12 +68,22 @@
       <p class="notif-text">
         {% if n.tipo == 'CAMBIO_ESTADO' %}
         Tu reporte {% if n.publicacion %}<strong>#REP-{{ n.publicacion.id }}</strong>{% endif %} cambió de estado
+        {% elif n.tipo == 'REPORTE_CONTENIDO' %}
+        {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %}
+        reportó {% if n.comentario %}un comentario{% else %}una publicación{% endif %} para moderación
         {% else %}
         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %} {{ n.get_tipo_display|lower }}
         {% endif %}
       </p>
 
-      {% if n.extra %}
+      {% if n.tipo == 'REPORTE_CONTENIDO' %}
+        {% if n.extra %}<span class="notif-badge notif-badge-report">Motivo: {{ n.extra }}</span>{% endif %}
+        {% if n.comentario %}
+        <a class="notif-review-link" href="{% url 'feed_comunitario' %}#comment-card-{{ n.comentario.id }}">Ver comentario y moderar →</a>
+        {% elif n.publicacion %}
+        <a class="notif-review-link" href="{% url 'feed_comunitario' %}#post-card-{{ n.publicacion.id }}">Ver publicación y moderar →</a>
+        {% endif %}
+      {% elif n.extra %}
         {% if n.tipo == 'CAMBIO_ESTADO' %}
         <span class="notif-badge notif-badge-resolved">{{ n.extra }}</span>
         {% elif n.tipo == 'LIKE' %}
