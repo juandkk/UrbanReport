@@ -1,0 +1,547 @@
+/* ==========================================================================
+   UrbanReport - Modal Radicar Incidencia
+   Fiel al diseño exacto de la interfaz de radicación con mini-mapa interactivo
+   ========================================================================== */
+
+.radicar-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.radicar-modal-backdrop.active {
+  display: flex;
+}
+
+.radicar-modal {
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 630px;
+  height: 88vh;
+  max-height: 850px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: radicarModalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  margin: auto;
+}
+
+@keyframes radicarModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header - pinned at top */
+.radicar-header {
+  padding: 22px 28px 16px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  background: #0d1117;
+  z-index: 10;
+}
+
+.radicar-header-titles h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.radicar-header-titles p {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.radicar-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.radicar-close-btn:hover {
+  background: #1a2232;
+  color: #ffffff;
+}
+
+/* Form Container - flex column to enable proper body scrolling */
+#radicarIncidenciaForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Scrollable Form Body - smooth vertical scroll */
+.radicar-body {
+  padding: 20px 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+}
+
+.radicar-body::-webkit-scrollbar {
+  width: 8px;
+}
+.radicar-body::-webkit-scrollbar-track {
+  background: #090c12;
+}
+.radicar-body::-webkit-scrollbar-thumb {
+  background: #252e42;
+  border-radius: 4px;
+  border: 2px solid #090c12;
+}
+.radicar-body::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
+
+/* Form Group & Labels */
+.radicar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.radicar-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  letter-spacing: 0.2px;
+}
+
+/* Category Grid */
+.radicar-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.radicar-category-card {
+  background: #141822;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.radicar-category-card svg {
+  width: 22px;
+  height: 22px;
+  color: #94a3b8;
+  transition: color 0.18s ease;
+}
+
+.radicar-category-card span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  transition: color 0.18s ease;
+}
+
+.radicar-category-card:hover {
+  background: #1a2232;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.radicar-category-card:hover svg,
+.radicar-category-card:hover span {
+  color: #ffffff;
+}
+
+.radicar-category-card.active {
+  background: linear-gradient(180deg, #16243d 0%, #111a2d 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6, 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+.radicar-category-card.active svg {
+  color: #60a5fa;
+}
+
+.radicar-category-card.active span {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Inputs & Textareas */
+.radicar-input,
+.radicar-textarea {
+  width: 100%;
+  background: #121620;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 0.88rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.radicar-input {
+  height: 42px;
+  padding: 0 14px;
+}
+
+.radicar-textarea {
+  padding: 10px 14px;
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.45;
+}
+
+.radicar-input::placeholder,
+.radicar-textarea::placeholder {
+  color: #475569;
+}
+
+.radicar-input:focus,
+.radicar-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+/* Evidencia Fotográfica Dropzone */
+.radicar-dropzone {
+  background: #121620;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-align: center;
+}
+
+.radicar-dropzone:hover {
+  border-color: #3b82f6;
+  background: #161c28;
+}
+
+.radicar-dropzone-icon {
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radicar-dropzone-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.radicar-dropzone-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.radicar-file-preview {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #182030;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.radicar-file-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.radicar-file-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.radicar-file-remove {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+}
+
+/* Ubicación (Mapa) Section */
+.radicar-map-container {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0b0e14;
+}
+
+.radicar-map-search-bar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: rgba(14, 18, 26, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 38px;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.radicar-map-search-bar svg {
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.radicar-map-search-input {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+}
+
+.radicar-map-search-input::placeholder {
+  color: #64748b;
+}
+
+#radicarMiniMap {
+  width: 100%;
+  height: 240px;
+  z-index: 10;
+}
+
+/* Custom dark styling for mini-map zoom buttons */
+#radicarMiniMap .leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+}
+
+#radicarMiniMap .leaflet-control-zoom a {
+  background-color: #141822 !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 28px !important;
+  font-size: 16px !important;
+  transition: all 0.15s ease !important;
+}
+
+#radicarMiniMap .leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+
+#radicarMiniMap .leaflet-control-zoom a:hover {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.radicar-coords-hint {
+  font-size: 0.74rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.radicar-coords-hint strong {
+  color: #94a3b8;
+}
+
+/* Sleek Teardrop Pin Marker for Mini Map */
+.radicar-map-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #4338ca 100%);
+  position: absolute;
+  transform: rotate(-45deg);
+  left: 50%;
+  top: 50%;
+  margin: -24px 0 0 -13px;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+  border: 2px solid #ffffff;
+  pointer-events: none;
+}
+
+.radicar-map-pin::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin: 7px 0 0 7px;
+  background: #ffffff;
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Footer Actions - pinned at bottom */
+.radicar-footer {
+  padding: 16px 28px 20px 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  background: #0d1117;
+  z-index: 10;
+}
+
+.radicar-btn-cancel {
+  background: #141822;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.radicar-btn-cancel:hover {
+  background: #1c2230;
+  color: #ffffff;
+}
+
+.radicar-btn-submit {
+  background: #2563eb;
+  border: none;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.radicar-btn-submit:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+}
+
+.radicar-btn-submit:active {
+  transform: translateY(0);
+}
+
+.radicar-btn-submit svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Global Notification Toast */
+.urban-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: #0f172a;
+  border: 1px solid #3b82f6;
+  color: #ffffff;
+  padding: 14px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 3000;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transform: translateY(30px);
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.urban-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .radicar-categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .radicar-modal {
+    max-height: 96vh;
+    border-radius: 12px;
+  }
+  .radicar-header,
+  .radicar-body,
+  .radicar-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
