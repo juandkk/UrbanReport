@@ -1014,8 +1014,10 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="comment-card" id="comment-card-${c.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
-            <div class="comment-avatar-circle">${c.initials || 'UR'}</div>
-            <span class="comment-author-name">${c.autor_nombre}</span>
+            <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
+              <div class="comment-avatar-circle">${c.initials || 'UR'}</div>
+              <span class="comment-author-name">${c.autor_nombre}</span>
+            </a>
           </div>
           <span class="comment-timestamp">${c.tiempo}</span>
         </div>
@@ -1073,8 +1075,10 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="reply-card" id="comment-card-${rep.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
-            <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${rep.initials || 'UR'}</div>
-            <span class="comment-author-name" style="font-size:0.82rem;">${rep.autor_nombre}</span>
+            <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
+              <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${rep.initials || 'UR'}</div>
+              <span class="comment-author-name" style="font-size:0.82rem;">${rep.autor_nombre}</span>
+            </a>
           </div>
           <span class="comment-timestamp">${rep.tiempo}</span>
         </div>

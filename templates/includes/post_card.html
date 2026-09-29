@@ -29,8 +29,8 @@
   <div class="post-author-row"
     style="display: flex; align-items: flex-start; justify-content: space-between; width: 100%;">
     <div style="display: flex; align-items: center; gap: 11px;">
-      {# El avatar enlaza al perfil del autor (si tiene cuenta asociada) #}
-      {% if post.autor %}<a href="{% url 'perfil_usuario' post.autor.username %}" class="author-profile-link" title="Ver perfil de {{ post.autor_nombre|default:post.autor.username }}">{% endif %}
+      {# El avatar enlaza al perfil del autor; si soy yo, va a "Mi Perfil" #}
+      {% if post.autor %}<a href="{% if post.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' post.autor.username %}{% endif %}" class="author-profile-link" title="Ver perfil de {{ post.autor_nombre|default:post.autor.username }}">{% endif %}
       {% if post.autor.avatar %}
       <img src="{{ post.autor.avatar.url }}" alt="{{ post.autor_nombre }}" class="author-avatar-img" style="margin-top: -3px;">
       {% elif 'Ana' in post.autor_nombre %}
@@ -56,7 +56,7 @@
       <div class="author-info" style="display: flex; flex-direction: column; justify-content: center; gap: 2px;">
         <span class="author-name">
           {% if post.autor %}
-          <a href="{% url 'perfil_usuario' post.autor.username %}" class="author-name-link">{{ post.autor_nombre|default:post.autor.username }}</a>
+          <a href="{% if post.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' post.autor.username %}{% endif %}" class="author-name-link">{{ post.autor_nombre|default:post.autor.username }}</a>
           {% else %}
           {{ post.autor_nombre }}
           {% endif %}
@@ -325,8 +325,10 @@
         data-comment-text="{% if not com.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ com.texto|escape }}{% endif %}">
         <div class="comment-header">
           <div class="comment-author-wrap">
+            {% if com.autor %}<a class="comment-author-link" href="{% if com.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' com.autor.username %}{% endif %}" title="Ver perfil de {{ com.autor_nombre }}">{% endif %}
             <div class="comment-avatar-circle">{{ com.autor_nombre|slice:":2"|upper }}</div>
             <span class="comment-author-name">{{ com.autor_nombre }}</span>
+            {% if com.autor %}</a>{% endif %}
           </div>
           <span class="comment-timestamp">{{ com.tiempo_relativo }}</span>
         </div>
@@ -449,8 +451,10 @@
             data-comment-text="{% if not rep.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ rep.texto|escape }}{% endif %}">
             <div class="comment-header">
               <div class="comment-author-wrap">
+                {% if rep.autor %}<a class="comment-author-link" href="{% if rep.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' rep.autor.username %}{% endif %}" title="Ver perfil de {{ rep.autor_nombre }}">{% endif %}
                 <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.autor_nombre|slice:":2"|upper }}</div>
                 <span class="comment-author-name" style="font-size:0.82rem;">{{ rep.autor_nombre }}</span>
+                {% if rep.autor %}</a>{% endif %}
               </div>
               <span class="comment-timestamp">{{ rep.tiempo_relativo }}</span>
             </div>

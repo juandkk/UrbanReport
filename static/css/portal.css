@@ -342,6 +342,24 @@
   text-decoration: none;
 }
 
+/* Enlace al perfil desde el encabezado de un comentario/respuesta */
+.comment-author-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+.comment-author-link:hover {
+  text-decoration: none;
+}
+.comment-author-link:hover .comment-author-name {
+  color: var(--brand-blue-accent);
+}
+.comment-author-link:hover .comment-avatar-circle {
+  opacity: 0.85;
+}
+
 .post-timestamp {
   font-size: 0.78rem;
   color: var(--text-muted);
