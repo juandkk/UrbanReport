@@ -487,6 +487,41 @@ def api_trending_topics(request):
 
 
 @login_required
+def detalle_publicacion_view(request, publicacion_id):
+    """
+    Vista de detalle de una publicación (tipo Facebook): muestra la publicación
+    completa con TODOS sus comentarios. Reutiliza post_card.html en modo 'detalle'.
+    """
+    publicacion = get_object_or_404(
+        Publicacion.objects.prefetch_related('comentarios__respuestas', 'comentarios__autor', 'autor'),
+        id=publicacion_id
+    )
+
+    # Reacciones y reposteo del usuario para colorear los botones (como en el feed)
+    reaccion = ReaccionPublicacion.objects.filter(publicacion=publicacion, usuario=request.user).first()
+    publicacion.user_reaction = reaccion.tipo if reaccion else None
+    publicacion.user_reposteo = Reposteo.objects.filter(publicacion=publicacion, usuario=request.user).exists()
+
+    comment_ids = []
+    for c in publicacion.comentarios.all():
+        comment_ids.append(c.id)
+    user_comment_reactions = {}
+    if comment_ids:
+        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=comment_ids):
+            user_comment_reactions[r.comentario_id] = r.tipo
+    for c in publicacion.comentarios.all():
+        c.user_reaction = user_comment_reactions.get(c.id)
+        for rep in c.respuestas.all():
+            rep.user_reaction = user_comment_reactions.get(rep.id)
+
+    context = {
+        'post': publicacion,
+        'active_menu': 'feed',
+    }
+    return render(request, 'feed/detalle_publicacion.html', context)
+
+
+@login_required
 def feed_comunitario_view(request):
     # Seed sample data if empty so UI looks 100% complete and identical to designs
     if not Publicacion.objects.exists():
@@ -1144,6 +1179,17 @@ def render_post_card_ajax(request, publicacion_id):
     reaccion = ReaccionPublicacion.objects.filter(publicacion=publicacion, usuario=request.user).first()
     publicacion.user_reaction = reaccion.tipo if reaccion else None
     publicacion.user_reposteo = Reposteo.objects.filter(publicacion=publicacion, usuario=request.user).exists()
+
+    # Anotar reacciones y reposteos del usuario en los comentarios/respuestas
+    comment_ids = [c.id for c in publicacion.comentarios.all()]
+    user_comment_reactions = {}
+    if comment_ids:
+        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=comment_ids):
+            user_comment_reactions[r.comentario_id] = r.tipo
+    for c in publicacion.comentarios.all():
+        c.user_reaction = user_comment_reactions.get(c.id)
+        for rep in c.respuestas.all():
+            rep.user_reaction = user_comment_reactions.get(rep.id)
 
     html = render_to_string('includes/post_card.html', {'post': publicacion, 'user': request.user}, request=request)
     return JsonResponse({

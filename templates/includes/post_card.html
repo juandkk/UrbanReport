@@ -102,8 +102,9 @@
   </div>
 
   <!-- Post Body Container (text & media, blurred if censored) -->
-  <div class="post-content-container {% if post.censurado %}is-censored{% endif %}"
-    id="post-content-wrap-{{ post.id }}">
+  <div class="post-content-container {% if post.censurado %}is-censored{% endif %} {% if modo != 'detalle' %}post-clickable{% endif %}"
+    id="post-content-wrap-{{ post.id }}"
+    {% if modo != 'detalle' %}data-detail-url="{% url 'detalle_publicacion' post.id %}"{% endif %}>
     <!-- Post Title Row -->
     <div class="post-title-row {% if not post.titulo %}d-none{% endif %}" id="post-title-row-{{ post.id }}">
       <h3 class="post-title-text" id="post-title-{{ post.id }}">
@@ -302,9 +303,17 @@
       </div>
     </form>
 
+    <!-- En el feed limitamos los comentarios visibles; en el detalle se muestran todos -->
+    {% if modo != 'detalle' and post.total_comentarios > 2 %}
+    <a href="{% url 'detalle_publicacion' post.id %}" class="ver-mas-comentarios">
+      Ver los {{ post.total_comentarios }} comentarios
+    </a>
+    {% endif %}
+
     <!-- Comments List -->
     <div class="comments-list" id="comments-list-{{ post.id }}">
       {% for com in post.comentarios_principales %}
+      {% if modo == 'detalle' or forloop.counter <= 2 %}
       <div class="comment-card" id="comment-card-{{ com.id }}" data-comment-id="{{ com.id }}"
         data-post-id="{{ post.id }}"
         data-post-title="{{ post.titulo|default:post.categoria|escape }}"
@@ -330,7 +339,7 @@
           {% endif %}
         </p>
 
-        <!-- Comment Actions: Like, Dislike, Responder, Moderación/Reporte -->
+        <!-- Comment Actions: acciones principales visibles + menú de 3 puntos -->
         <div class="comment-actions-bar">
           <!-- Comment Like -->
           <button type="button"
@@ -362,54 +371,67 @@
             Responder
           </button>
 
-          {% if user == com.autor or user.id == com.autor_id %}
-          <!-- Opciones del Autor del Comentario: Editar y Eliminar -->
-          <button type="button" class="comment-act-btn btn-action-edit-comment" data-comment-id="{{ com.id }}"
-            data-post-id="{{ post.id }}" title="Editar comentario">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            <span>Editar</span>
-          </button>
-          <button type="button" class="comment-act-btn btn-action-delete-comment text-danger"
-            data-comment-id="{{ com.id }}" data-post-id="{{ post.id }}" data-author="{{ com.autor_nombre }}"
-            title="Eliminar este comentario">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            <span>Eliminar</span>
-          </button>
-          {% endif %}
-
-          {% if user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}
-            {% if user != com.autor and user.id != com.autor_id %}
-            <!-- Moderación Administrador Comentario (Solo si no es su propio comentario) -->
-            <button type="button" class="comment-act-btn btn-action-censor-comment" data-comment-id="{{ com.id }}"
-              title="Censurar o descensurar comentario">
-              <span class="com-censor-btn-text">{% if com.censurado %}Descensurar{% else %}Censurar{% endif %}</span>
+          <!-- Menú de 3 puntos: agrupa editar, eliminar, censurar y reportar -->
+          <div class="comment-menu-wrapper">
+            <button type="button" class="comment-act-btn comment-menu-trigger" data-comment-id="{{ com.id }}"
+              title="Más opciones">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /><circle cx="5" cy="12" r="1.5" />
+              </svg>
             </button>
-            <button type="button" class="comment-act-btn btn-action-delete-comment text-danger"
-              data-comment-id="{{ com.id }}" data-post-id="{{ post.id }}" data-author="{{ com.autor_nombre }}"
-              title="Eliminar permanentemente este comentario">
-              Eliminar (Admin)
-            </button>
-            {% endif %}
-          {% endif %}
+            <div class="comment-menu-dropdown" id="comment-menu-dropdown-{{ com.id }}">
+              {% if user == com.autor or user.id == com.autor_id %}
+              <button type="button" class="comment-menu-item btn-action-edit-comment" data-comment-id="{{ com.id }}"
+                data-post-id="{{ post.id }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Editar</span>
+              </button>
+              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment"
+                data-comment-id="{{ com.id }}" data-post-id="{{ post.id }}" data-author="{{ com.autor_nombre }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Eliminar</span>
+              </button>
+              {% endif %}
 
-          {% if user != com.autor and user.id != com.autor_id and user.rol != 'ADMINISTRADOR' and not user.is_staff and not user.is_superuser %}
-          <!-- Reportar Comentario Usuario Corriente -->
-          <button type="button" class="comment-act-btn btn-action-report-comment" data-comment-id="{{ com.id }}"
-            data-author="{{ com.autor_nombre }}" title="Reportar este comentario">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" style="width:12px;height:12px;">
-              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-              <line x1="4" y1="22" x2="4" y2="15" />
-            </svg>
-            <span>Reportar</span>
-          </button>
-          {% endif %}
+              {% if user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}
+                {% if user != com.autor and user.id != com.autor_id %}
+                <button type="button" class="comment-menu-item btn-action-censor-comment" data-comment-id="{{ com.id }}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                  <span class="com-censor-btn-text">{% if com.censurado %}Descensurar{% else %}Censurar{% endif %}</span>
+                </button>
+                <button type="button" class="comment-menu-item text-danger btn-action-delete-comment"
+                  data-comment-id="{{ com.id }}" data-post-id="{{ post.id }}" data-author="{{ com.autor_nombre }}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>Eliminar (Admin)</span>
+                </button>
+                {% endif %}
+              {% endif %}
+
+              {% if user != com.autor and user.id != com.autor_id and user.rol != 'ADMINISTRADOR' and not user.is_staff and not user.is_superuser %}
+              <button type="button" class="comment-menu-item btn-action-report-comment" data-comment-id="{{ com.id }}"
+                data-author="{{ com.autor_nombre }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+                <span>Reportar</span>
+              </button>
+              {% endif %}
+            </div>
+          </div>
         </div>
 
         <!-- Nested Replies List -->
@@ -442,7 +464,7 @@
               {% endif %}
             </p>
 
-            <!-- Reply Like, Dislike & Moderación/Reporte -->
+            <!-- Reply: acciones principales + menú de 3 puntos -->
             <div class="comment-actions-bar">
               <button type="button"
                 class="comment-act-btn comment-like-btn {% if rep.user_reaction == 'LIKE' %}active{% endif %}"
@@ -464,58 +486,72 @@
                 </svg>
                 <span class="com-dislike-count">{{ rep.dislikes }}</span>
               </button>
-
-              {% if user == rep.autor or user.id == rep.autor_id %}
-              <!-- Opciones del Autor de la Respuesta: Editar y Eliminar -->
-              <button type="button" class="comment-act-btn btn-action-edit-comment" data-comment-id="{{ rep.id }}"
-                data-post-id="{{ post.id }}" title="Editar respuesta">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-                <span>Editar</span>
-              </button>
-              <button type="button" class="comment-act-btn btn-action-delete-comment text-danger"
-                data-comment-id="{{ rep.id }}" data-post-id="{{ post.id }}" data-author="{{ rep.autor_nombre }}"
-                title="Eliminar respuesta">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                <span>Eliminar</span>
-              </button>
-              {% endif %}
-
-              {% if user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}
-                {% if user != rep.autor and user.id != rep.autor_id %}
-                <button type="button" class="comment-act-btn btn-action-censor-comment" data-comment-id="{{ rep.id }}"
-                  title="Censurar o descensurar respuesta">
-                  <span class="com-censor-btn-text">{% if rep.censurado %}Descensurar{% else %}Censurar{% endif %}</span>
+              <div class="comment-menu-wrapper">
+                <button type="button" class="comment-act-btn comment-menu-trigger" data-comment-id="{{ rep.id }}"
+                  title="Más opciones">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /><circle cx="5" cy="12" r="1.5" />
+                  </svg>
                 </button>
-                <button type="button" class="comment-act-btn btn-action-delete-comment text-danger"
-                  data-comment-id="{{ rep.id }}" data-post-id="{{ post.id }}" data-author="{{ rep.autor_nombre }}"
-                  title="Eliminar respuesta">
-                  Eliminar (Admin)
-                </button>
-                {% endif %}
-              {% endif %}
+                <div class="comment-menu-dropdown" id="comment-menu-dropdown-{{ rep.id }}">
+                  {% if user == rep.autor or user.id == rep.autor_id %}
+                  <button type="button" class="comment-menu-item btn-action-edit-comment" data-comment-id="{{ rep.id }}"
+                    data-post-id="{{ post.id }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>Editar</span>
+                  </button>
+                  <button type="button" class="comment-menu-item text-danger btn-action-delete-comment"
+                    data-comment-id="{{ rep.id }}" data-post-id="{{ post.id }}" data-author="{{ rep.autor_nombre }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Eliminar</span>
+                  </button>
+                  {% endif %}
 
-              {% if user != rep.autor and user.id != rep.autor_id and user.rol != 'ADMINISTRADOR' and not user.is_staff and not user.is_superuser %}
-              <button type="button" class="comment-act-btn btn-action-report-comment" data-comment-id="{{ rep.id }}"
-                data-author="{{ rep.autor_nombre }}" title="Reportar respuesta">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  style="width:12px;height:12px;">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                  <line x1="4" y1="22" x2="4" y2="15" />
-                </svg>
-                <span>Reportar</span>
-              </button>
-              {% endif %}
+                  {% if user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}
+                    {% if user != rep.autor and user.id != rep.autor_id %}
+                    <button type="button" class="comment-menu-item btn-action-censor-comment" data-comment-id="{{ rep.id }}">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                      <span class="com-censor-btn-text">{% if rep.censurado %}Descensurar{% else %}Censurar{% endif %}</span>
+                    </button>
+                    <button type="button" class="comment-menu-item text-danger btn-action-delete-comment"
+                      data-comment-id="{{ rep.id }}" data-post-id="{{ post.id }}" data-author="{{ rep.autor_nombre }}">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      <span>Eliminar (Admin)</span>
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {% if user != rep.autor and user.id != rep.autor_id and user.rol != 'ADMINISTRADOR' and not user.is_staff and not user.is_superuser %}
+                  <button type="button" class="comment-menu-item btn-action-report-comment" data-comment-id="{{ rep.id }}"
+                    data-author="{{ rep.autor_nombre }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                      <line x1="4" y1="22" x2="4" y2="15" />
+                    </svg>
+                    <span>Reportar</span>
+                  </button>
+                  {% endif %}
+                </div>
+              </div>
             </div>
           </div>
           {% endfor %}
         </div>
       </div>
+      {% endif %}{# fin límite de comentarios en feed #}
       {% endfor %}
     </div>
   </div>

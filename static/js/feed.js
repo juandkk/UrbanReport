@@ -44,6 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
+  // ── Abrir la publicación en su vista de detalle al hacer clic en el contenido ──
+  document.addEventListener('click', (e) => {
+    const content = e.target.closest('.post-clickable');
+    if (!content) return;
+    // No navegar si el clic fue sobre un elemento interactivo (botones, enlaces, imágenes con su propio manejo)
+    if (e.target.closest('a, button, input, textarea, .post-menu-wrapper')) return;
+    const url = content.dataset.detailUrl;
+    if (url) window.location.href = url;
+  });
+
   // ── Reposteo (toggle estilo Twitter/X) ──
   document.addEventListener('click', async (e) => {
     const repostBtn = e.target.closest('.action-repost-btn');
@@ -69,6 +79,28 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error al repostear', true);
     } finally {
       repostBtn.disabled = false;
+    }
+  });
+
+  // ── Menú de 3 puntos de comentarios (abrir/cerrar) ──
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.comment-menu-trigger');
+    if (trigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      const commentId = trigger.dataset.commentId;
+      const dropdown = document.getElementById(`comment-menu-dropdown-${commentId}`);
+      document.querySelectorAll('.comment-menu-dropdown.show').forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+      });
+      if (dropdown) dropdown.classList.toggle('show');
+      return;
+    }
+    // Cerrar al hacer clic fuera o al elegir una opción del menú
+    if (!e.target.closest('.comment-menu-dropdown')) {
+      document.querySelectorAll('.comment-menu-dropdown.show').forEach(d => d.classList.remove('show'));
+    } else if (e.target.closest('.comment-menu-item')) {
+      document.querySelectorAll('.comment-menu-dropdown.show').forEach(d => d.classList.remove('show'));
     }
   });
 
@@ -132,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', async (e) => {
     const comReactBtn = e.target.closest('.comment-act-btn[data-comment-id]');
     if (!comReactBtn || comReactBtn.classList.contains('comment-reply-trigger') ||
+        comReactBtn.classList.contains('comment-menu-trigger') ||
         comReactBtn.classList.contains('btn-action-censor-comment') ||
         comReactBtn.classList.contains('btn-action-delete-comment') ||
         comReactBtn.classList.contains('btn-action-report-comment')) return;
@@ -655,7 +688,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropdown = document.getElementById(`post-menu-dropdown-${postId}`);
     if (dropdown) dropdown.classList.remove('show');
 
-    navigator.clipboard.writeText(window.location.origin + `/feed/#post-card-${postId}`).then(() => {
+    // Enlace directo a la vista de detalle de la publicación
+    const enlace = window.location.origin + `/feed/publicacion/${postId}/`;
+    navigator.clipboard.writeText(enlace).then(() => {
       showToast('¡Enlace de publicación copiado!');
     }).catch(() => {
       showToast('Enlace copiado al portapapeles');
@@ -1002,21 +1037,30 @@ document.addEventListener('DOMContentLoaded', () => {
             Responder
           </button>
 
-          <!-- Acciones del Autor para el comentario recién creado -->
-          <button type="button" class="comment-act-btn btn-action-edit-comment" data-comment-id="${c.id}" data-post-id="${postId}" title="Editar comentario">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            <span>Editar</span>
-          </button>
-          <button type="button" class="comment-act-btn btn-action-delete-comment text-danger" data-comment-id="${c.id}" data-post-id="${postId}" data-author="${c.autor_nombre}" title="Eliminar este comentario">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            <span>Eliminar</span>
-          </button>
+          <!-- Menú de 3 puntos del comentario recién creado (autor: editar/eliminar) -->
+          <div class="comment-menu-wrapper">
+            <button type="button" class="comment-act-btn comment-menu-trigger" data-comment-id="${c.id}" title="Más opciones">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>
+              </svg>
+            </button>
+            <div class="comment-menu-dropdown" id="comment-menu-dropdown-${c.id}">
+              <button type="button" class="comment-menu-item btn-action-edit-comment" data-comment-id="${c.id}" data-post-id="${postId}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span>Editar</span>
+              </button>
+              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${c.id}" data-post-id="${postId}" data-author="${c.autor_nombre}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                <span>Eliminar</span>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="comment-replies-thread" id="replies-for-${c.id}"></div>
       </div>
@@ -1049,21 +1093,30 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="com-dislike-count">0</span>
           </button>
 
-          <!-- Acciones del Autor para la respuesta recién creada -->
-          <button type="button" class="comment-act-btn btn-action-edit-comment" data-comment-id="${rep.id}" data-post-id="${postId}" title="Editar respuesta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            <span>Editar</span>
-          </button>
-          <button type="button" class="comment-act-btn btn-action-delete-comment text-danger" data-comment-id="${rep.id}" data-post-id="${postId}" data-author="${rep.autor_nombre}" title="Eliminar respuesta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            <span>Eliminar</span>
-          </button>
+          <!-- Menú de 3 puntos de la respuesta recién creada (autor: editar/eliminar) -->
+          <div class="comment-menu-wrapper">
+            <button type="button" class="comment-act-btn comment-menu-trigger" data-comment-id="${rep.id}" title="Más opciones">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>
+              </svg>
+            </button>
+            <div class="comment-menu-dropdown" id="comment-menu-dropdown-${rep.id}">
+              <button type="button" class="comment-menu-item btn-action-edit-comment" data-comment-id="${rep.id}" data-post-id="${postId}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span>Editar</span>
+              </button>
+              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${rep.id}" data-post-id="${postId}" data-author="${rep.autor_nombre}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                <span>Eliminar</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;

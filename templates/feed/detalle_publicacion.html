@@ -1,0 +1,27 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}{{ post.titulo|default:"Publicación" }} | UrbanReport{% endblock %}
+
+{# La vista de detalle usa columna ancha y sin el widget del feed #}
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-detalle{% endblock %}
+
+{% block portal_content %}
+<header class="detalle-header">
+  <a href="{% url 'feed_comunitario' %}" class="notif-back-btn" title="Volver al feed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  </a>
+  <div>
+    <h1>Publicación</h1>
+    <p class="detalle-subtitle">Detalle y comentarios</p>
+  </div>
+</header>
+
+<div class="feed-posts-stream detalle-stream" id="feed-posts-stream">
+  {% include 'includes/post_card.html' with post=post modo='detalle' %}
+</div>
+{% endblock %}
