@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
 from django.utils.timesince import timesince
 from django.utils import timezone
@@ -1169,6 +1170,193 @@ def api_feed_actualizado(request):
         'status': 'ok',
         'sin_resolver_ids': sin_resolver,
         'resueltas_ids': resueltas,
+    })
+
+
+ACCENT_MAP = {
+    'a': '[aáàäâAÁÀÄÂ]', 'á': '[aáàäâAÁÀÄÂ]', 'à': '[aáàäâAÁÀÄÂ]', 'ä': '[aáàäâAÁÀÄÂ]', 'â': '[aáàäâAÁÀÄÂ]',
+    'e': '[eéèëêEÉÈËÊ]', 'é': '[eéèëêEÉÈËÊ]', 'è': '[eéèëêEÉÈËÊ]', 'ë': '[eéèëêEÉÈËÊ]', 'ê': '[eéèëêEÉÈËÊ]',
+    'i': '[iíìïîIÍÌÏÎ]', 'í': '[iíìïîIÍÌÏÎ]', 'ì': '[iíìïîIÍÌÏÎ]', 'ï': '[iíìïîIÍÌÏÎ]', 'î': '[iíìïîIÍÌÏÎ]',
+    'o': '[oóòöôOÓÒÖÔ]', 'ó': '[oóòöôOÓÒÖÔ]', 'ò': '[oóòöôOÓÒÖÔ]', 'ö': '[oóòöôOÓÒÖÔ]', 'ô': '[oóòöôOÓÒÖÔ]',
+    'u': '[uúùüûUÚÙÜÛ]', 'ú': '[uúùüûUÚÙÜÛ]', 'ù': '[uúùüûUÚÙÜÛ]', 'ü': '[uúùüûUÚÙÜÛ]', 'û': '[uúùüûUÚÙÜÛ]',
+    'n': '[nñNÑ]', 'ñ': '[nñNÑ]',
+}
+
+def to_accent_insensitive_regex(term):
+    """
+    Transforma un término en una expresión regular insensible a acentos/tildes en español.
+    Ejemplo: 'reporte' -> 'r[eéèëêEÉÈËÊ]p[oóòöôOÓÒÖÔ]rt[eéèëêEÉÈËÊ]'
+    Permite encontrar 'reporté' al buscar 'reporte', o viceversa.
+    """
+    pattern = []
+    for ch in term:
+        lower_ch = ch.lower()
+        if lower_ch in ACCENT_MAP:
+            pattern.append(ACCENT_MAP[lower_ch])
+        else:
+            pattern.append(re.escape(ch))
+    return "".join(pattern)
+
+
+@login_required
+@require_GET
+def api_buscar_publicaciones(request):
+    """
+    RF-008: Búsqueda de reportes y comentarios de otros usuarios con protocolos de seguridad
+    y coincidencia por similitud (insensible a acentos/tildes).
+    
+    Protocolos de seguridad implementados:
+    1. Sanitización estricta de inputs (longitud máxima, eliminación de tags HTML/scripts y caracteres de control).
+    2. Rate limiting / Throttling preventivo contra ataques de denegación de servicio (DoS/fuerza bruta).
+    3. Consultas seguras y parametrizadas para evitar inyecciones.
+    4. Control de divulgación de información: excluye comentarios y publicaciones censuradas para usuarios estándar.
+    5. Validación por lista blanca de parámetros (tab, personas, ubicación) y formato estricto de fecha ISO.
+    """
+    # ── Protocolo 1: Rate Limiting por usuario / IP (máximo 45 peticiones por minuto) ──
+    client_id = request.user.id or request.META.get('REMOTE_ADDR', 'anonymous')
+    cache_key = f"rate_search_{client_id}"
+    req_count = cache.get(cache_key, 0)
+    if req_count >= 45:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Demasiadas solicitudes de búsqueda. Por favor espera unos segundos.'
+        }, status=429)
+    cache.set(cache_key, req_count + 1, 60)
+
+    # ── Protocolo 2: Sanitización y validación estricta de parámetros ──
+    q_raw = request.GET.get('q', '')
+    # Truncar a máximo 150 caracteres y limpiar caracteres nulos o de control
+    q_clean = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', q_raw)[:150]
+    # Eliminar cualquier intento de inyección de etiquetas HTML/scripts
+    q = re.sub(r'<[^>]*>', '', q_clean).strip()
+
+    # Validación por lista blanca
+    tab = request.GET.get('tab', 'historico').strip().lower()
+    if tab not in ('historico', 'recientes', 'media'):
+        tab = 'historico'
+
+    personas = request.GET.get('personas', 'todas').strip().lower()
+    if personas not in ('todas', 'cercanas'):
+        personas = 'todas'
+
+    ubicacion = request.GET.get('ubicacion', 'cercano').strip().lower()
+    if ubicacion not in ('todas', 'cercano'):
+        ubicacion = 'cercano'
+
+    fecha_raw = request.GET.get('fecha', '').strip()
+    fecha_validada = None
+    if fecha_raw:
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(fecha_raw, '%Y-%m-%d').date()
+            if 2000 <= dt.year <= 2100:
+                fecha_validada = dt
+        except (ValueError, TypeError):
+            fecha_validada = None
+
+    # ── Protocolo 3: Consultas seguras y parametrizadas ──
+    qs = Publicacion.objects.all().prefetch_related(
+        'comentarios__respuestas', 'comentarios__autor', 'autor'
+    )
+
+    es_admin = (
+        request.user.rol == Usuario.Rol.ADMINISTRADOR or
+        request.user.is_staff or
+        request.user.is_superuser
+    )
+
+    if not es_admin:
+        qs = qs.filter(censurado=False)
+
+    comentarios_data = []
+
+    if q:
+        palabras = q.split()
+        post_q_filter = Q()
+        comentarios_q_filter = Q()
+
+        for p in palabras:
+            pat = to_accent_insensitive_regex(p)
+            post_q_filter |= (
+                Q(contenido__iregex=pat) |
+                Q(titulo__iregex=pat) |
+                Q(categoria__iregex=pat) |
+                Q(ubicacion__iregex=pat) |
+                Q(autor_nombre__iregex=pat) |
+                Q(autor__username__iregex=pat)
+            )
+            comentarios_q_filter |= (
+                Q(texto__iregex=pat) |
+                Q(autor_nombre__iregex=pat) |
+                Q(autor__username__iregex=pat)
+            )
+
+        # Filtrar publicaciones cuyo propio contenido coincida
+        qs = qs.filter(post_q_filter).distinct()
+
+        # Búsqueda independiente de comentarios para visualización individual estilo Twitter
+        com_qs = Comentario.objects.select_related('publicacion', 'autor', 'padre').all()
+        if not es_admin:
+            com_qs = com_qs.filter(censurado=False, publicacion__censurado=False)
+        com_qs = com_qs.filter(comentarios_q_filter).order_by('-fecha_creacion')[:35]
+
+        for c in com_qs:
+            comentarios_data.append({
+                'id': c.id,
+                'post_id': c.publicacion_id,
+                'post_title': c.publicacion.titulo or c.publicacion.categoria,
+                'post_author': c.publicacion.autor.username if c.publicacion.autor else c.publicacion.autor_nombre,
+                'comment_author': c.autor_nombre,
+                'comment_username': c.autor.username if c.autor else '',
+                'comment_avatar': c.autor.avatar.url if (c.autor and getattr(c.autor, 'avatar', None)) else '',
+                'comment_text': c.texto,
+                'comment_time': c.tiempo_relativo,
+                'is_reply': bool(c.padre_id),
+                'parent_author': c.padre.autor_nombre if c.padre else '',
+            })
+
+    if fecha_validada:
+        qs = qs.filter(fecha_creacion__date=fecha_validada)
+
+    if tab == 'media':
+        qs = qs.filter(
+            (Q(imagen__isnull=False) & ~Q(imagen='')) |
+            (Q(imagen_url__isnull=False) & ~Q(imagen_url=''))
+        )
+    elif tab == 'recientes':
+        qs = qs.order_by('-fecha_creacion')
+    else:  # 'historico'
+        qs = qs.order_by('-id')
+
+    if personas == 'cercanas':
+        qs = qs.filter(Q(autor=request.user) | Q(latitud__isnull=False))
+
+    publicaciones = list(qs[:50])
+
+    user_post_reactions = {}
+    user_reposts = set()
+    if request.user.is_authenticated:
+        for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
+            user_post_reactions[r.publicacion_id] = r.tipo
+        user_reposts = set(
+            Reposteo.objects.filter(usuario=request.user, publicacion__in=publicaciones)
+            .values_list('publicacion_id', flat=True)
+        )
+    for p in publicaciones:
+        p.user_reaction = user_post_reactions.get(p.id)
+        p.user_reposteo = p.id in user_reposts
+
+    cards_html = []
+    for p in publicaciones:
+        cards_html.append(render_to_string('includes/post_card.html', {'post': p, 'request': request, 'user': request.user}))
+
+    return JsonResponse({
+        'status': 'ok',
+        'count': len(publicaciones),
+        'post_ids': [p.id for p in publicaciones],
+        'html': "".join(cards_html),
+        'comentarios': comentarios_data,
+        'comentarios_count': len(comentarios_data),
     })
 
 

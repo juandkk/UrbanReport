@@ -1,12 +1,79 @@
 {% load static %}
 <aside class="portal-widgets">
-  <!-- Search Input Widget -->
-  <div class="search-widget">
+  <!-- Search Input Widget (modo normal) -->
+  <div class="search-widget" id="widget-search-bar">
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="11" cy="11" r="8"/>
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
-    <input type="text" class="search-input" placeholder="Buscar un tema...">
+    <input type="text" class="search-input" id="widgetSearchInput" placeholder="Buscar un tema o comentario..." autocomplete="off" maxlength="150" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
+
+  <!-- Search Tabs Widget (Modo Búsqueda: Historico, Más recientes, Media) -->
+  <div class="widget-card search-tabs-card d-none" id="widget-search-tabs">
+    <div class="search-tabs-list">
+      <button type="button" class="search-tab-btn active" data-tab="historico">Historico</button>
+      <button type="button" class="search-tab-btn" data-tab="recientes">Más recientes</button>
+      <button type="button" class="search-tab-btn" data-tab="media">Media</button>
+    </div>
+  </div>
+
+  <!-- Filtros de Búsqueda Widget (Modo Búsqueda: PERSONAS, UBICACIÓN, FECHAS) -->
+  <div class="widget-card search-filters-card d-none" id="widget-search-filters">
+    <h3 class="widget-title search-filters-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+      </svg>
+      <span>Filtros de Busqueda</span>
+    </h3>
+
+    <!-- PERSONAS -->
+    <div class="filter-group">
+      <span class="filter-group-heading">PERSONAS</span>
+      <label class="filter-radio-row">
+        <span class="filter-radio-label">Todas las personas</span>
+        <input type="radio" name="filter_personas" value="todas" checked class="filter-radio-native">
+        <span class="filter-radio-custom"></span>
+      </label>
+      <label class="filter-radio-row">
+        <span class="filter-radio-label">Personas cercanas</span>
+        <input type="radio" name="filter_personas" value="cercanas" class="filter-radio-native">
+        <span class="filter-radio-custom"></span>
+      </label>
+    </div>
+
+    <!-- UBICACIÓN -->
+    <div class="filter-group">
+      <span class="filter-group-heading">UBICACIÓN</span>
+      <label class="filter-radio-row">
+        <span class="filter-radio-label">Todas las ubicaciones</span>
+        <input type="radio" name="filter_ubicacion" value="todas" class="filter-radio-native">
+        <span class="filter-radio-custom"></span>
+      </label>
+      <label class="filter-radio-row">
+        <span class="filter-radio-label">Lo más cercano</span>
+        <input type="radio" name="filter_ubicacion" value="cercano" checked class="filter-radio-native">
+        <span class="filter-radio-custom"></span>
+      </label>
+    </div>
+
+    <!-- FECHAS -->
+    <div class="filter-group filter-group-fechas">
+      <span class="filter-group-heading">FECHAS</span>
+      <div class="filter-date-row" id="filterDateTrigger">
+        <span class="filter-date-label" id="filterDateLabel">Buscar por fecha</span>
+        <input type="date" id="filterDateInput" class="filter-date-native" title="Seleccionar fecha">
+        <button type="button" class="filter-date-icon-btn" id="filterDateBtn" title="Abrir selector de fecha">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </button>
+        <button type="button" class="filter-date-clear-btn d-none" id="filterDateClearBtn" title="Quitar filtro de fecha">&times;</button>
+      </div>
+    </div>
   </div>
 
   <!-- Trending Topics Widget -->

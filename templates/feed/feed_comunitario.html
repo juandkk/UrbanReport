@@ -4,68 +4,116 @@
 {% block title %}Feed Comunitario | UrbanReport{% endblock %}
 
 {% block portal_content %}
-<!-- Feed Header -->
-<header class="feed-header">
-  <div class="feed-title-wrap">
-    <h1>Feed Comunitario</h1>
-    <p class="feed-subtitle">Nuevas publicaciones</p>
-  </div>
+<!-- Sección Normal del Feed (se oculta al entrar en modo búsqueda) -->
+<div id="feed-normal-section">
+  <!-- Feed Header -->
+  <header class="feed-header">
+    <div class="feed-title-wrap">
+      <h1>Feed Comunitario</h1>
+      <p class="feed-subtitle">Nuevas publicaciones</p>
+    </div>
 
-  <div class="feed-header-actions">
-    <!-- Notification Bell con badge de no leídas -->
-    <a href="{% url 'notificaciones' %}" class="header-icon-btn" title="Notificaciones" id="notif-bell">
-      <span class="notif-bell-badge" id="notif-bell-badge" style="display:none;"></span>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </svg>
-    </a>
-
-    <!-- Profile Avatar Button -->
-    <a href="{% url 'perfil' %}" class="header-icon-btn" title="Mi Perfil">
-      <div class="header-avatar">
-        {% if user.avatar %}
-        <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="header-avatar-img">
-        {% else %}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
+    <div class="feed-header-actions">
+      <!-- Notification Bell con badge de no leídas -->
+      <a href="{% url 'notificaciones' %}" class="header-icon-btn" title="Notificaciones" id="notif-bell">
+        <span class="notif-bell-badge" id="notif-bell-badge" style="display:none;"></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
-        {% endif %}
-      </div>
-    </a>
+      </a>
+
+      <!-- Profile Avatar Button -->
+      <a href="{% url 'perfil' %}" class="header-icon-btn" title="Mi Perfil">
+        <div class="header-avatar">
+          {% if user.avatar %}
+          <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="header-avatar-img">
+          {% else %}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          {% endif %}
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <!-- Quick Post Composer -->
+  <div class="post-composer-card">
+    <div class="composer-avatar">
+      {% if user.avatar %}
+      <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="composer-avatar-img">
+      {% else %}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      {% endif %}
+    </div>
+
+    <button type="button" class="composer-input-btn" onclick="if(window.openRadicarModal) window.openRadicarModal();">
+      ¿Qué está pasando en tu comunidad?
+    </button>
+
+    <button type="button" class="composer-media-btn" title="Adjuntar foto o imagen"
+      onclick="if(window.openRadicarModal) window.openRadicarModal();">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </button>
   </div>
-</header>
+</div>
 
-<!-- Quick Post Composer -->
-<div class="post-composer-card">
-  <div class="composer-avatar">
-    {% if user.avatar %}
-    <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="composer-avatar-img">
-    {% else %}
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
+<!-- Sección de Modo Búsqueda (se muestra al activar la búsqueda) -->
+<div id="feed-search-section" class="d-none">
+  <!-- Search Header: ← Busqueda -->
+  <header class="search-mode-header">
+    <button type="button" class="search-mode-back-btn" id="searchModeBackBtn" title="Volver al Feed Comunitario">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </button>
+    <h1 class="search-mode-title">Busqueda</h1>
+  </header>
+
+  <!-- Barra de búsqueda extendida de extremo a extremo -->
+  <div class="search-bar-expanded">
+    <svg class="search-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
-    {% endif %}
+    <input type="text" class="search-input-expanded" id="searchExpandedInput" placeholder="Buscar un tema o comentario..." autocomplete="off" maxlength="150" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button type="button" class="search-input-clear-btn d-none" id="searchExpandedClearBtn" title="Limpiar búsqueda">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </div>
-
-  <button type="button" class="composer-input-btn" onclick="if(window.openRadicarModal) window.openRadicarModal();">
-    ¿Qué está pasando en tu comunidad?
-  </button>
-
-  <button type="button" class="composer-media-btn" title="Adjuntar foto o imagen"
-    onclick="if(window.openRadicarModal) window.openRadicarModal();">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </svg>
-  </button>
 </div>
 
 <!-- Feed Posts Stream: Todas las publicaciones recientes -->
 <section class="feed-posts-stream" id="feed-posts-stream">
+  <!-- Contenedor de Comentarios Encontrados (Estilo Twitter/X) -->
+  <div class="search-comments-stream d-none" id="search-comments-stream">
+    <div class="search-results-section-header">
+      <div class="search-results-section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Comentarios encontrados</span>
+      </div>
+      <span class="search-comments-badge" id="searchCommentsCountBadge">0</span>
+    </div>
+    <div class="search-comments-list" id="searchCommentsList">
+      <!-- Tarjetas de comentarios individuales estilo Twitter generadas dinámicamente -->
+    </div>
+  </div>
+
   {% for post in publicaciones %}
   {% include 'includes/post_card.html' with post=post modo=modo %}
   {% empty %}
@@ -79,6 +127,19 @@
       en tu comunidad!</p>
   </div>
   {% endfor %}
+
+  <!-- Search Empty State (aparece si la búsqueda no arroja resultados) -->
+  <div class="search-empty-state d-none" id="search-empty-state">
+    <div class="search-empty-icon-wrap">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </div>
+    <h3 class="search-empty-title">Sin resultados de búsqueda</h3>
+    <p class="search-empty-desc" id="searchEmptyDesc">No se encontraron incidencias que coincidan con tu búsqueda.</p>
+    <button type="button" class="btn-clear-search-all" id="btnClearSearchAll">Restablecer filtros</button>
+  </div>
 </section>
 {% endblock %}
 

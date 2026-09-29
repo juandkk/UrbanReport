@@ -1468,4 +1468,677 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!document.hidden && !activeTrendFilter) refreshTrendingFromServer();
     }, 15000);
   }
+
+  // =========================================================================
+  // ── 9. Módulo de Búsqueda Avanzada y Filtros (RF-008 & Interfaz INT-003) ──
+  // =========================================================================
+  const feedNormalSection = document.getElementById('feed-normal-section');
+  const feedSearchSection = document.getElementById('feed-search-section');
+  const searchModeBackBtn = document.getElementById('searchModeBackBtn');
+  const searchExpandedInput = document.getElementById('searchExpandedInput');
+  const searchExpandedClearBtn = document.getElementById('searchExpandedClearBtn');
+  const widgetSearchBar = document.getElementById('widget-search-bar');
+  const widgetSearchInput = document.getElementById('widgetSearchInput');
+  const widgetTrendingTopics = document.getElementById('widget-trending-topics');
+  const widgetSearchTabs = document.getElementById('widget-search-tabs');
+  const widgetSearchFilters = document.getElementById('widget-search-filters');
+  const searchEmptyState = document.getElementById('search-empty-state');
+  const searchEmptyDesc = document.getElementById('searchEmptyDesc');
+  const btnClearSearchAll = document.getElementById('btnClearSearchAll');
+
+  const filterDateInput = document.getElementById('filterDateInput');
+  const filterDateLabel = document.getElementById('filterDateLabel');
+  const filterDateClearBtn = document.getElementById('filterDateClearBtn');
+  const filterDateBtn = document.getElementById('filterDateBtn');
+
+  // Estado del sistema de búsqueda
+  let isSearchActive = false;
+  let currentSearchQuery = '';
+  let currentSearchTab = 'historico';
+  let currentSearchPersonas = 'todas';
+  let currentSearchUbicacion = 'cercano';
+  let currentSearchDate = '';
+  let serverSearchDebounceTimer = null;
+  let activeSearchAbortController = null;
+
+  // Protocolo de seguridad: sanitización de entrada de búsqueda
+  function sanitizeSearchInput(raw) {
+    if (!raw) return '';
+    // Truncar a longitud máxima segura (150 caracteres)
+    let sanitized = String(raw).slice(0, 150);
+    // Eliminar caracteres nulos y de control ASCII
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    // Eliminar cualquier intento de inyección de etiquetas HTML o scripts
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    return sanitized;
+  }
+
+  // Activa el modo de búsqueda en la interfaz
+  function enterSearchMode(initialQuery = '') {
+    if (!feedSearchSection) return;
+    isSearchActive = true;
+
+    if (feedNormalSection) feedNormalSection.classList.add('d-none');
+    feedSearchSection.classList.remove('d-none');
+
+    if (widgetSearchBar) widgetSearchBar.classList.add('d-none');
+    if (widgetTrendingTopics) widgetTrendingTopics.classList.add('d-none');
+    if (widgetSearchTabs) widgetSearchTabs.classList.remove('d-none');
+    if (widgetSearchFilters) widgetSearchFilters.classList.remove('d-none');
+
+    const cleanInitial = sanitizeSearchInput(initialQuery);
+    if (searchExpandedInput) {
+      searchExpandedInput.value = cleanInitial;
+      currentSearchQuery = cleanInitial;
+    }
+
+    if (searchExpandedClearBtn) {
+      searchExpandedClearBtn.classList.toggle('d-none', !currentSearchQuery);
+    }
+
+    if (searchExpandedInput) {
+      setTimeout(() => searchExpandedInput.focus(), 60);
+    }
+
+    runSearchFilter();
+  }
+
+  // Desactiva el modo de búsqueda y restablece el feed normal
+  function exitSearchMode() {
+    if (!feedSearchSection) return;
+    isSearchActive = false;
+
+    // Cancelar cualquier petición de búsqueda en vuelo
+    if (activeSearchAbortController) {
+      activeSearchAbortController.abort();
+      activeSearchAbortController = null;
+    }
+
+    feedSearchSection.classList.add('d-none');
+    if (feedNormalSection) feedNormalSection.classList.remove('d-none');
+
+    if (widgetSearchTabs) widgetSearchTabs.classList.add('d-none');
+    if (widgetSearchFilters) widgetSearchFilters.classList.add('d-none');
+    if (widgetSearchBar) widgetSearchBar.classList.remove('d-none');
+    if (widgetTrendingTopics) widgetTrendingTopics.classList.remove('d-none');
+
+    if (searchExpandedInput) searchExpandedInput.value = '';
+    if (widgetSearchInput) widgetSearchInput.value = '';
+    currentSearchQuery = '';
+
+    if (filterDateInput) filterDateInput.value = '';
+    if (filterDateLabel) {
+      filterDateLabel.textContent = 'Buscar por fecha';
+      filterDateLabel.classList.remove('has-date');
+    }
+    if (filterDateClearBtn) filterDateClearBtn.classList.add('d-none');
+    currentSearchDate = '';
+
+    if (searchEmptyState) searchEmptyState.classList.add('d-none');
+
+    // Ocultar sección de comentarios encontrados de búsqueda
+    const searchCommentsStream = document.getElementById('search-comments-stream');
+    const searchCommentsList = document.getElementById('searchCommentsList');
+    if (searchCommentsStream) searchCommentsStream.classList.add('d-none');
+    if (searchCommentsList) searchCommentsList.innerHTML = '';
+
+    // Mostrar todas las tarjetas del feed y retirar resaltados en comentarios
+    if (feedStreamContainer) {
+      feedStreamContainer.querySelectorAll('.post-card').forEach(card => {
+        card.style.display = '';
+        card.querySelectorAll('.comment-search-match').forEach(c => c.classList.remove('comment-search-match'));
+      });
+    }
+  }
+
+  // Normalización para búsqueda por similitudes (ignora mayúsculas, minúsculas, tildes y diacríticos)
+  function removeAccents(str) {
+    if (!str) return '';
+    return String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  // Navegación fluida estilo Twitter/X: Al hacer clic en un comentario encontrado,
+  // sale de búsqueda, despliega los comentarios del reporte correspondiente y enfoca el comentario con un pulso
+  function navigateToCommentFromSearch(postId, commentId) {
+    if (!postId) return;
+    exitSearchMode();
+
+    setTimeout(() => {
+      const postCard = document.getElementById(`post-card-${postId}`);
+      if (!postCard) return;
+
+      // Desplegar comentarios si están colapsados
+      const commentsSection = postCard.querySelector('.post-comments-section');
+      if (commentsSection) {
+        commentsSection.classList.remove('collapsed');
+        commentsSection.style.display = 'block';
+      }
+
+      // Si es respuesta anidada, asegurar que el contenedor de respuestas esté visible
+      const targetComment = document.getElementById(`comment-card-${commentId}`);
+      if (targetComment) {
+        const parentThread = targetComment.closest('.comment-replies-thread');
+        if (parentThread) {
+          parentThread.style.display = 'block';
+        }
+
+        // Scroll suave y centrado al comentario específico
+        targetComment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Animación de foco pulsante
+        targetComment.classList.remove('comment-focus-pulse');
+        void targetComment.offsetWidth; // Forzar reflow para reiniciar la animación
+        targetComment.classList.add('comment-focus-pulse');
+        setTimeout(() => {
+          targetComment.classList.remove('comment-focus-pulse');
+        }, 3200);
+
+        // Actualizar URL hash de forma limpia
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', `#comment-card-${commentId}`);
+        }
+      } else {
+        postCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+
+  // Filtrado reactivo en tiempo real de publicaciones Y comentarios
+  function runSearchFilter() {
+    if (!feedStreamContainer) return;
+
+    const rawTerms = currentSearchQuery.trim().split(/\s+/).filter(Boolean);
+    const normalizedTerms = rawTerms.map(t => removeAccents(t));
+    const cards = Array.from(feedStreamContainer.querySelectorAll('.post-card'));
+    
+    const searchCommentsStream = document.getElementById('search-comments-stream');
+    const searchCommentsList = document.getElementById('searchCommentsList');
+    const searchCommentsCountBadge = document.getElementById('searchCommentsCountBadge');
+
+    let visiblePostsCount = 0;
+    const matchingComments = [];
+
+    cards.forEach(card => {
+      let visible = true;
+
+      // 1. Filtro por palabras clave (insensible a tildes / acentos)
+      if (normalizedTerms.length > 0) {
+        const fullPostText = removeAccents(card.dataset.texto || '');
+        const postMatches = normalizedTerms.every(term => fullPostText.includes(term));
+
+        // Inspeccionar comentarios y respuestas del post
+        const commentElements = card.querySelectorAll('.comment-card, .reply-card');
+        commentElements.forEach(cCard => {
+          const cText = removeAccents(cCard.dataset.commentText || '');
+          const cAuthor = removeAccents(cCard.dataset.commentAuthor || '');
+          const commentFull = `${cAuthor} ${cText}`;
+          const cMatches = normalizedTerms.every(term => commentFull.includes(term));
+
+          if (cMatches) {
+            cCard.classList.add('comment-search-match');
+            matchingComments.push({
+              id: cCard.dataset.commentId,
+              postId: cCard.dataset.postId || card.id.replace('post-card-', ''),
+              postTitle: cCard.dataset.postTitle || card.querySelector('.post-title, .badge-categoria')?.textContent?.trim() || 'Incidencia comunitaria',
+              postAuthor: cCard.dataset.postAuthor || card.querySelector('.author-name')?.textContent?.trim() || 'vecino',
+              commentAuthor: cCard.dataset.commentAuthor || 'Vecino',
+              commentUsername: cCard.dataset.commentUsername || '',
+              commentAvatar: cCard.dataset.commentAvatar || '',
+              commentTime: cCard.dataset.commentTime || 'Hace un momento',
+              commentText: cCard.dataset.commentText || '',
+              parentAuthor: cCard.dataset.parentAuthor || '',
+            });
+          } else {
+            cCard.classList.remove('comment-search-match');
+          }
+        });
+
+        // REQUISITO CLAVE:
+        // Si el término solo coincide en un comentario, NO mostrar la publicación completa en el feed.
+        // La tarjeta de publicación completa solo aparece si su PROPIO contenido coincide.
+        if (!postMatches) {
+          visible = false;
+        }
+      } else {
+        // Sin término de búsqueda: limpiar resaltados en comentarios
+        card.querySelectorAll('.comment-search-match').forEach(c => c.classList.remove('comment-search-match'));
+      }
+
+      // 2. Filtro por fecha (RF-008)
+      if (visible && currentSearchDate) {
+        const cardDate = (card.dataset.fecha || '').trim();
+        if (cardDate !== currentSearchDate) visible = false;
+      }
+
+      // 3. Filtro por Pestañas: Media
+      if (visible && currentSearchTab === 'media') {
+        const hasMedia = card.dataset.hasMedia === 'true';
+        if (!hasMedia) visible = false;
+      }
+
+      // 4. Filtro por Personas
+      if (visible && currentSearchPersonas === 'cercanas') {
+        const isOwn = card.dataset.isOwn === 'true';
+        const hasCoords = Boolean(card.dataset.lat && card.dataset.lng);
+        if (!isOwn && !hasCoords) visible = false;
+      }
+
+      // 5. Filtro por Ubicación
+      if (visible && currentSearchUbicacion === 'cercano') {
+        const hasCoords = Boolean(card.dataset.lat && card.dataset.lng);
+        if (!hasCoords && !card.dataset.texto.includes('calle') && !card.dataset.texto.includes('avenida')) {
+          // prioridad
+        }
+      }
+
+      card.style.display = visible ? '' : 'none';
+      if (visible) visiblePostsCount++;
+    });
+
+    // Renderizar tarjetas individuales de comentarios estilo Twitter/X
+    if (searchCommentsStream && searchCommentsList) {
+      if (matchingComments.length > 0 && normalizedTerms.length > 0) {
+        searchCommentsList.innerHTML = matchingComments.map(c => `
+          <div class="search-comment-card" data-post-id="${c.postId}" data-comment-id="${c.id}" role="button" tabindex="0">
+            <div class="search-comment-context">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 17 4 12 9 7"></polyline>
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+              </svg>
+              <span class="search-comment-context-text">
+                En respuesta a <strong class="context-author">@${escapeHtml(c.postAuthor)}</strong>
+                <span class="search-comment-dot">&bull;</span>
+                <span class="context-title">${escapeHtml(c.postTitle)}</span>
+                ${c.parentAuthor ? `<span class="search-comment-dot">&bull;</span> <span style="color:#64748b;">(en hilo de @${escapeHtml(c.parentAuthor)})</span>` : ''}
+              </span>
+            </div>
+            
+            <div class="search-comment-main">
+              <div class="search-comment-avatar">
+                ${c.commentAvatar ? 
+                  `<img src="${c.commentAvatar}" alt="${escapeHtml(c.commentAuthor)}" class="search-comment-avatar-img">` :
+                  `<div class="search-comment-avatar-placeholder">${escapeHtml(c.commentAuthor.slice(0, 2).toUpperCase())}</div>`
+                }
+              </div>
+              <div class="search-comment-body">
+                <div class="search-comment-meta">
+                  <span class="search-comment-author-name">${escapeHtml(c.commentAuthor)}</span>
+                  ${c.commentUsername ? `<span class="search-comment-handle">@${escapeHtml(c.commentUsername)}</span>` : ''}
+                  <span class="search-comment-dot">&bull;</span>
+                  <span class="search-comment-timestamp">${escapeHtml(c.commentTime)}</span>
+                </div>
+                <p class="search-comment-text">${escapeHtml(c.commentText)}</p>
+                <div class="search-comment-footer">
+                  <span class="search-comment-jump-hint">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                    Ver publicación completa
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        if (searchCommentsCountBadge) {
+          searchCommentsCountBadge.textContent = matchingComments.length;
+        }
+        searchCommentsStream.classList.remove('d-none');
+      } else {
+        searchCommentsList.innerHTML = '';
+        searchCommentsStream.classList.add('d-none');
+      }
+    }
+
+    const totalMatches = visiblePostsCount + (normalizedTerms.length > 0 ? matchingComments.length : 0);
+
+    // Ordenamiento por pestañas: 'recientes' (más nuevos primero) vs 'historico'
+    if (currentSearchTab === 'recientes') {
+      const sortedCards = cards.filter(c => c.style.display !== 'none').sort((a, b) => {
+        const tA = parseInt(a.dataset.timestamp || '0', 10);
+        const tB = parseInt(b.dataset.timestamp || '0', 10);
+        return tB - tA;
+      });
+      sortedCards.forEach(c => feedStreamContainer.appendChild(c));
+    }
+
+    // Manejo del estado vacío con prevención XSS estricta
+    if (searchEmptyState) {
+      if (totalMatches === 0) {
+        if (searchEmptyDesc) {
+          if (currentSearchQuery) {
+            // Uso seguro de escapeHtml para evitar XSS
+            searchEmptyDesc.innerHTML = `No se encontraron incidencias ni comentarios para "<strong>${escapeHtml(currentSearchQuery)}</strong>".`;
+          } else if (currentSearchDate) {
+            searchEmptyDesc.textContent = `No hay reportes registrados para la fecha ${currentSearchDate}.`;
+          } else {
+            searchEmptyDesc.textContent = 'No hay publicaciones ni comentarios que cumplan con los filtros seleccionados.';
+          }
+        }
+        searchEmptyState.classList.remove('d-none');
+      } else {
+        searchEmptyState.classList.add('d-none');
+      }
+    }
+
+    // Búsqueda en servidor con debounce y control de concurrencia
+    triggerServerSearch();
+  }
+
+  // Delegación de eventos para clics en tarjetas de comentarios estilo Twitter
+  const searchCommentsListEl = document.getElementById('searchCommentsList');
+  if (searchCommentsListEl) {
+    searchCommentsListEl.addEventListener('click', (e) => {
+      const card = e.target.closest('.search-comment-card');
+      if (!card) return;
+      const postId = card.dataset.postId;
+      const commentId = card.dataset.commentId;
+      navigateToCommentFromSearch(postId, commentId);
+    });
+
+    searchCommentsListEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const card = e.target.closest('.search-comment-card');
+        if (card) {
+          e.preventDefault();
+          navigateToCommentFromSearch(card.dataset.postId, card.dataset.commentId);
+        }
+      }
+    });
+  }
+
+  // Búsqueda en backend con AbortController, rate limiting y debounce
+  function triggerServerSearch() {
+    clearTimeout(serverSearchDebounceTimer);
+    if (!currentSearchQuery && !currentSearchDate && currentSearchTab === 'historico') return;
+
+    serverSearchDebounceTimer = setTimeout(async () => {
+      // Cancelar petición anterior para evitar condiciones de carrera
+      if (activeSearchAbortController) {
+        activeSearchAbortController.abort();
+      }
+      activeSearchAbortController = new AbortController();
+
+      try {
+        const params = new URLSearchParams({
+          q: currentSearchQuery,
+          tab: currentSearchTab,
+          personas: currentSearchPersonas,
+          ubicacion: currentSearchUbicacion,
+          fecha: currentSearchDate,
+        });
+
+        const res = await fetch(`/feed/api/buscar/?${params.toString()}`, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          signal: activeSearchAbortController.signal,
+        });
+
+        // Protocolo de seguridad: Manejo de Rate Limiting 429
+        if (res.status === 429) {
+          const errData = await res.json().catch(() => ({}));
+          if (typeof showToast === 'function') {
+            showToast(errData.message || 'Has alcanzado el límite de búsquedas por minuto. Espera un momento.', true);
+          }
+          return;
+        }
+
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+          const serverPosts = data.count || 0;
+          const serverComments = (data.comentarios && data.comentarios.length) || 0;
+
+          // Si el servidor encontró comentarios que no estaban cargados en el DOM inicial, incorporarlos
+          if (serverComments > 0 && searchCommentsListEl) {
+            const existingCommentIds = new Set(
+              Array.from(searchCommentsListEl.querySelectorAll('.search-comment-card')).map(c => c.dataset.commentId)
+            );
+            const newServerComments = data.comentarios.filter(c => !existingCommentIds.has(String(c.id)));
+            if (newServerComments.length > 0) {
+              const extraCardsHtml = newServerComments.map(c => `
+                <div class="search-comment-card" data-post-id="${c.post_id}" data-comment-id="${c.id}" role="button" tabindex="0">
+                  <div class="search-comment-context">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 17 4 12 9 7"></polyline>
+                      <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                    </svg>
+                    <span class="search-comment-context-text">
+                      En respuesta a <strong class="context-author">@${escapeHtml(c.post_author)}</strong>
+                      <span class="search-comment-dot">&bull;</span>
+                      <span class="context-title">${escapeHtml(c.post_title)}</span>
+                      ${c.parent_author ? `<span class="search-comment-dot">&bull;</span> <span style="color:#64748b;">(en hilo de @${escapeHtml(c.parent_author)})</span>` : ''}
+                    </span>
+                  </div>
+                  
+                  <div class="search-comment-main">
+                    <div class="search-comment-avatar">
+                      ${c.comment_avatar ? 
+                        `<img src="${c.comment_avatar}" alt="${escapeHtml(c.comment_author)}" class="search-comment-avatar-img">` :
+                        `<div class="search-comment-avatar-placeholder">${escapeHtml(c.comment_author.slice(0, 2).toUpperCase())}</div>`
+                      }
+                    </div>
+                    <div class="search-comment-body">
+                      <div class="search-comment-meta">
+                        <span class="search-comment-author-name">${escapeHtml(c.comment_author)}</span>
+                        ${c.comment_username ? `<span class="search-comment-handle">@${escapeHtml(c.comment_username)}</span>` : ''}
+                        <span class="search-comment-dot">&bull;</span>
+                        <span class="search-comment-timestamp">${escapeHtml(c.comment_time)}</span>
+                      </div>
+                      <p class="search-comment-text">${escapeHtml(c.comment_text)}</p>
+                      <div class="search-comment-footer">
+                        <span class="search-comment-jump-hint">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                          </svg>
+                          Ver publicación completa
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `).join('');
+              searchCommentsListEl.insertAdjacentHTML('beforeend', extraCardsHtml);
+              const searchCommentsStream = document.getElementById('search-comments-stream');
+              if (searchCommentsStream) searchCommentsStream.classList.remove('d-none');
+              const searchCommentsCountBadge = document.getElementById('searchCommentsCountBadge');
+              if (searchCommentsCountBadge) {
+                const total = searchCommentsListEl.querySelectorAll('.search-comment-card').length;
+                searchCommentsCountBadge.textContent = total;
+              }
+            }
+          }
+
+          if (serverPosts === 0 && serverComments === 0 && (!feedStreamContainer || feedStreamContainer.querySelectorAll('.post-card[style=""]').length === 0)) {
+            if (searchEmptyState) searchEmptyState.classList.remove('d-none');
+          } else {
+            if (searchEmptyState) searchEmptyState.classList.add('d-none');
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error en búsqueda:', err);
+        }
+      }
+    }, 280);
+  }
+
+  // Eventos para abrir el modo de búsqueda con sanitización
+  if (widgetSearchInput) {
+    widgetSearchInput.addEventListener('focus', () => {
+      enterSearchMode(widgetSearchInput.value);
+    });
+    widgetSearchInput.addEventListener('click', () => {
+      enterSearchMode(widgetSearchInput.value);
+    });
+    widgetSearchInput.addEventListener('input', (e) => {
+      enterSearchMode(e.target.value);
+    });
+  }
+
+  // Evento para volver al feed normal (← Busqueda)
+  if (searchModeBackBtn) {
+    searchModeBackBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      exitSearchMode();
+    });
+  }
+
+  // Input de búsqueda extendida en tiempo real con sanitización
+  if (searchExpandedInput) {
+    searchExpandedInput.addEventListener('input', (e) => {
+      currentSearchQuery = sanitizeSearchInput(e.target.value);
+      if (searchExpandedClearBtn) {
+        searchExpandedClearBtn.classList.toggle('d-none', !currentSearchQuery);
+      }
+      runSearchFilter();
+    });
+
+    searchExpandedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        exitSearchMode();
+      }
+    });
+  }
+
+  // Botón limpiar input de búsqueda
+  if (searchExpandedClearBtn) {
+    searchExpandedClearBtn.addEventListener('click', () => {
+      if (searchExpandedInput) {
+        searchExpandedInput.value = '';
+        currentSearchQuery = '';
+        searchExpandedInput.focus();
+      }
+      searchExpandedClearBtn.classList.add('d-none');
+      runSearchFilter();
+    });
+  }
+
+  // Pestañas (Historico, Más recientes, Media)
+  if (widgetSearchTabs) {
+    widgetSearchTabs.querySelectorAll('.search-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        widgetSearchTabs.querySelectorAll('.search-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSearchTab = btn.dataset.tab || 'historico';
+        runSearchFilter();
+      });
+    });
+  }
+
+  // Filtros de personas (Radios)
+  document.querySelectorAll('input[name="filter_personas"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      currentSearchPersonas = e.target.value;
+      runSearchFilter();
+    });
+  });
+
+  // Filtros de ubicación (Radios)
+  document.querySelectorAll('input[name="filter_ubicacion"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      currentSearchUbicacion = e.target.value;
+      runSearchFilter();
+    });
+  });
+
+  // Selector de fecha (Buscar por fecha)
+  if (filterDateInput) {
+    filterDateInput.addEventListener('change', (e) => {
+      currentSearchDate = e.target.value;
+      if (currentSearchDate) {
+        const parts = currentSearchDate.split('-');
+        if (parts.length === 3) {
+          const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+          const mesNom = meses[parseInt(parts[1], 10) - 1] || parts[1];
+          if (filterDateLabel) {
+            filterDateLabel.textContent = `${parts[2]} ${mesNom} ${parts[0]}`;
+            filterDateLabel.classList.add('has-date');
+          }
+        }
+        if (filterDateClearBtn) filterDateClearBtn.classList.remove('d-none');
+      } else {
+        if (filterDateLabel) {
+          filterDateLabel.textContent = 'Buscar por fecha';
+          filterDateLabel.classList.remove('has-date');
+        }
+        if (filterDateClearBtn) filterDateClearBtn.classList.add('d-none');
+      }
+      runSearchFilter();
+    });
+  }
+
+  if (filterDateClearBtn) {
+    filterDateClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (filterDateInput) filterDateInput.value = '';
+      currentSearchDate = '';
+      if (filterDateLabel) {
+        filterDateLabel.textContent = 'Buscar por fecha';
+        filterDateLabel.classList.remove('has-date');
+      }
+      filterDateClearBtn.classList.add('d-none');
+      runSearchFilter();
+    });
+  }
+
+  if (filterDateBtn && filterDateInput) {
+    filterDateBtn.addEventListener('click', () => {
+      if (typeof filterDateInput.showPicker === 'function') {
+        filterDateInput.showPicker();
+      } else {
+        filterDateInput.click();
+      }
+    });
+  }
+
+  // Botón restablecer todos los filtros en empty state
+  if (btnClearSearchAll) {
+    btnClearSearchAll.addEventListener('click', () => {
+      if (searchExpandedInput) searchExpandedInput.value = '';
+      currentSearchQuery = '';
+      if (searchExpandedClearBtn) searchExpandedClearBtn.classList.add('d-none');
+
+      if (filterDateInput) filterDateInput.value = '';
+      currentSearchDate = '';
+      if (filterDateLabel) {
+        filterDateLabel.textContent = 'Buscar por fecha';
+        filterDateLabel.classList.remove('has-date');
+      }
+      if (filterDateClearBtn) filterDateClearBtn.classList.add('d-none');
+
+      if (widgetSearchTabs) {
+        widgetSearchTabs.querySelectorAll('.search-tab-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.tab === 'historico');
+        });
+      }
+      currentSearchTab = 'historico';
+
+      const radPersTodas = document.querySelector('input[name="filter_personas"][value="todas"]');
+      if (radPersTodas) radPersTodas.checked = true;
+      currentSearchPersonas = 'todas';
+
+      const radUbicCercano = document.querySelector('input[name="filter_ubicacion"][value="cercano"]');
+      if (radUbicCercano) radUbicCercano.checked = true;
+      currentSearchUbicacion = 'cercano';
+
+      runSearchFilter();
+    });
+  }
+
+  // Activar modo búsqueda si la URL contiene ?busqueda=1 o ?q=...
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('busqueda') || urlParams.has('q')) {
+    const qParam = urlParams.get('q') || '';
+    enterSearchMode(qParam);
+  }
 });

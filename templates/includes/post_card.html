@@ -1,7 +1,15 @@
 {% load static %}
 <article class="post-card" id="post-card-{{ post.id }}" data-post-id="{{ post.id }}"
   data-estado="{{ post.estado_incidencia }}" data-categoria="{{ post.categoria }}"
-  data-texto="{{ post.titulo }} {{ post.contenido }}">
+  data-texto="{{ post.titulo }} {{ post.contenido }} {{ post.autor_nombre }} {{ post.autor.username }} {{ post.ubicacion }}"
+  data-comentarios="{% for c in post.comentarios.all %}{% if not c.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ c.autor_nombre }} {{ c.texto }} {% endif %}{% endfor %}"
+  data-autor="{{ post.autor_nombre }} {{ post.autor.username }}"
+  data-fecha="{{ post.fecha_creacion|date:'Y-m-d' }}"
+  data-timestamp="{{ post.fecha_creacion|date:'U' }}"
+  data-has-media="{% if post.imagen or post.imagen_url %}true{% else %}false{% endif %}"
+  data-lat="{{ post.latitud|default:'' }}"
+  data-lng="{{ post.longitud|default:'' }}"
+  data-is-own="{% if post.autor == user %}true{% else %}false{% endif %}">
   <!-- Censored Post Banner (Shown if marked as censored) -->
   <div class="post-censored-banner {% if not post.censurado %}d-none{% endif %}" id="censored-banner-{{ post.id }}">
     <div style="display:flex; align-items:center; gap:8px;">
@@ -297,7 +305,15 @@
     <!-- Comments List -->
     <div class="comments-list" id="comments-list-{{ post.id }}">
       {% for com in post.comentarios_principales %}
-      <div class="comment-card" id="comment-card-{{ com.id }}">
+      <div class="comment-card" id="comment-card-{{ com.id }}" data-comment-id="{{ com.id }}"
+        data-post-id="{{ post.id }}"
+        data-post-title="{{ post.titulo|default:post.categoria|escape }}"
+        data-post-author="{{ post.autor.username|default:post.autor_nombre|escape }}"
+        data-comment-author="{{ com.autor_nombre|escape }}"
+        data-comment-time="{{ com.tiempo_relativo }}"
+        data-comment-username="{% if com.autor %}{{ com.autor.username }}{% endif %}"
+        data-comment-avatar="{% if com.autor and com.autor.avatar %}{{ com.autor.avatar.url }}{% endif %}"
+        data-comment-text="{% if not com.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ com.texto|escape }}{% endif %}">
         <div class="comment-header">
           <div class="comment-author-wrap">
             <div class="comment-avatar-circle">{{ com.autor_nombre|slice:":2"|upper }}</div>
@@ -399,7 +415,16 @@
         <!-- Nested Replies List -->
         <div class="comment-replies-thread" id="replies-for-{{ com.id }}">
           {% for rep in com.respuestas.all %}
-          <div class="reply-card" id="comment-card-{{ rep.id }}">
+          <div class="reply-card" id="comment-card-{{ rep.id }}" data-comment-id="{{ rep.id }}"
+            data-post-id="{{ post.id }}"
+            data-post-title="{{ post.titulo|default:post.categoria|escape }}"
+            data-post-author="{{ post.autor.username|default:post.autor_nombre|escape }}"
+            data-comment-author="{{ rep.autor_nombre|escape }}"
+            data-comment-time="{{ rep.tiempo_relativo }}"
+            data-comment-username="{% if rep.autor %}{{ rep.autor.username }}{% endif %}"
+            data-comment-avatar="{% if rep.autor and rep.autor.avatar %}{{ rep.autor.avatar.url }}{% endif %}"
+            data-parent-author="{{ com.autor_nombre|escape }}"
+            data-comment-text="{% if not rep.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ rep.texto|escape }}{% endif %}">
             <div class="comment-header">
               <div class="comment-author-wrap">
                 <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.autor_nombre|slice:":2"|upper }}</div>
