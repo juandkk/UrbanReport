@@ -4,6 +4,12 @@
 
 {% block title %}Notificaciones | UrbanReport{% endblock %}
 
+{# Barra derecha ligera: solo el buscador, sin Trending/Actividad ni sus pollers.
+   Esto evita la carga lenta (5-10s) que reportaba el usuario en esta vista. #}
+{% block right_widgets %}
+{% include 'includes/widgets_search_only.html' %}
+{% endblock %}
+
 {% block portal_content %}
 <!-- Cabecera -->
 <header class="notif-header">

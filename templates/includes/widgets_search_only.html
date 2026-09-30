@@ -1,0 +1,14 @@
+{% load static %}
+{# Versión ligera de la barra lateral derecha: SOLO el buscador. #}
+{# Se usa en vistas que no necesitan Trending/Actividad (notificaciones, etc.) #}
+{# para evitar los pollers pesados (7s/15s) que hacían cargar lento la página. #}
+<aside class="portal-widgets">
+  <!-- Search Input Widget (redirige al feed al usarlo) -->
+  <div class="search-widget" id="widget-search-bar">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" class="search-input" id="widgetSearchInput" placeholder="Buscar un tema o comentario..." data-feed-url="{% url 'feed_comunitario' %}" autocomplete="off" maxlength="150" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
+</aside>

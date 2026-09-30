@@ -35,12 +35,31 @@ SECRET_KEY = os.getenv(
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
 
 # Hosts permitidos, separados por coma en DJANGO_ALLOWED_HOSTS.
-# En desarrollo (DEBUG=True) se permiten localhost por comodidad.
 ALLOWED_HOSTS = [
     h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()
 ]
-if DEBUG and not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+if DEBUG:
+    # En desarrollo permitimos localhost y, además, la IP local de esta máquina
+    # para poder abrir la app desde otro dispositivo en la misma red WiFi.
+    ALLOWED_HOSTS += ['localhost', '127.0.0.1']
+    try:
+        import socket
+        hostname = socket.gethostname()
+        # IP principal de la máquina (ej. 192.168.1.X)
+        ip_local = socket.gethostbyname(hostname)
+        ALLOWED_HOSTS += [hostname, ip_local]
+        # Todas las IPs asociadas al host (por si hay varias interfaces de red)
+        try:
+            for info in socket.getaddrinfo(hostname, None):
+                ip = info[4][0]
+                if ip not in ALLOWED_HOSTS:
+                    ALLOWED_HOSTS.append(ip)
+        except socket.gaierror:
+            pass
+    except Exception:
+        pass
+    # Quitar duplicados conservando el orden
+    ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 
 # Application definition
@@ -80,6 +99,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'usuarios.context_processors.es_admin',
             ],
         },
     },

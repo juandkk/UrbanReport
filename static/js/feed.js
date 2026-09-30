@@ -690,12 +690,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enlace directo a la vista de detalle de la publicación
     const enlace = window.location.origin + `/feed/publicacion/${postId}/`;
-    navigator.clipboard.writeText(enlace).then(() => {
-      showToast('¡Enlace de publicación copiado!');
-    }).catch(() => {
-      showToast('Enlace copiado al portapapeles');
-    });
+    copiarAlPortapapeles(enlace);
   });
+
+  // Copia texto al portapapeles con fallback para contextos no seguros (HTTP/IP local).
+  // La API navigator.clipboard solo existe en https o localhost; si no, usamos execCommand.
+  function copiarAlPortapapeles(texto) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto)
+        .then(() => showToast('¡Enlace de publicación copiado!'))
+        .catch(() => copiarFallback(texto));
+    } else {
+      copiarFallback(texto);
+    }
+  }
+
+  function copiarFallback(texto) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast(ok ? '¡Enlace de publicación copiado!' : 'No se pudo copiar. Copia manualmente: ' + texto, !ok);
+    } catch (err) {
+      showToast('No se pudo copiar. Copia manualmente: ' + texto, true);
+    }
+  }
 
   // ── 7. Moderación de Publicación: Censurar / Descensurar ──
   document.addEventListener('click', async (e) => {
@@ -2029,17 +2054,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 280);
   }
 
-  // Eventos para abrir el modo de búsqueda con sanitización
+  // Eventos para abrir el modo de búsqueda con sanitización.
+  // Si esta página NO tiene la sección de búsqueda del feed (p. ej. notificaciones,
+  // perfil, mapa), el buscador redirige al feed comunitario con ?q=... para que
+  // allí se active el modo búsqueda al cargar.
   if (widgetSearchInput) {
-    widgetSearchInput.addEventListener('focus', () => {
-      enterSearchMode(widgetSearchInput.value);
-    });
-    widgetSearchInput.addEventListener('click', () => {
-      enterSearchMode(widgetSearchInput.value);
-    });
-    widgetSearchInput.addEventListener('input', (e) => {
-      enterSearchMode(e.target.value);
-    });
+    const irAlFeedConBusqueda = (q) => {
+      const query = (q || '').trim();
+      const base = widgetSearchInput.dataset.feedUrl || '/feed/';
+      const destino = query
+        ? `${base}?q=${encodeURIComponent(query)}`
+        : `${base}?busqueda=1`;
+      window.location.href = destino;
+    };
+
+    if (!feedSearchSection) {
+      // Página sin feed: enfocar/escribir manda al feed a buscar.
+      widgetSearchInput.addEventListener('focus', () => irAlFeedConBusqueda(widgetSearchInput.value));
+      widgetSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          irAlFeedConBusqueda(widgetSearchInput.value);
+        }
+      });
+    } else {
+      widgetSearchInput.addEventListener('focus', () => {
+        enterSearchMode(widgetSearchInput.value);
+      });
+      widgetSearchInput.addEventListener('click', () => {
+        enterSearchMode(widgetSearchInput.value);
+      });
+      widgetSearchInput.addEventListener('input', (e) => {
+        enterSearchMode(e.target.value);
+      });
+    }
   }
 
   // Evento para volver al feed normal (← Busqueda)
