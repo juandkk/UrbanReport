@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.feed_comunitario_view, name='feed_comunitario'),
     path('publicacion/<int:publicacion_id>/', views.detalle_publicacion_view, name='detalle_publicacion'),
     path('panel-administrador/', views.panel_administrador_view, name='panel_administrador'),
+    path('ayuda/', views.ayuda_view, name='ayuda'),
     path('mapa/', views.mapa_view, name='mapa'),
     path('api/incidentes-mapa/', views.api_incidentes_mapa, name='api_incidentes_mapa'),
     path('api/radicar-incidencia/', views.radicar_incidencia_ajax, name='radicar_incidencia_ajax'),

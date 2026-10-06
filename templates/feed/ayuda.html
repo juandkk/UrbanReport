@@ -1,0 +1,340 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Ayuda | UrbanReport{% endblock %}
+
+{% block portal_content %}
+<!-- ===== HEADER ===== -->
+<header class="ayuda-header">
+  <div class="ayuda-title-wrap">
+    <button type="button" class="ayuda-back-btn" onclick="history.back()" title="Volver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <div>
+      <h1 class="ayuda-title">Ayuda y preguntas frecuentes</h1>
+      <p class="ayuda-subtitle">Aquí encontrarás una guía de uso</p>
+    </div>
+  </div>
+
+  <!-- Buscador -->
+  <div class="ayuda-search-wrap">
+    <div class="ayuda-search-box">
+      <svg class="ayuda-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        id="ayudaSearchInput"
+        class="ayuda-search-input"
+        placeholder="¿En qué podemos ayudarte?"
+        autocomplete="off"
+      >
+      <button type="button" id="ayudaSearchClear" class="ayuda-search-clear" style="display:none" title="Limpiar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== RESULTADO DE BÚSQUEDA ===== -->
+<div id="ayudaSearchResult" class="ayuda-search-result" style="display:none"></div>
+
+<!-- ===== TARJETAS GUÍA ===== -->
+<section class="ayuda-cards-row" id="ayudaMainContent">
+
+  <div class="ayuda-guide-card">
+    <div class="ayuda-guide-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h2 class="ayuda-guide-title">Guía del Ciudadano</h2>
+    <p class="ayuda-guide-desc">Aprende a reportar incidentes, hacer seguimiento y usar el mapa...</p>
+  </div>
+
+  <div class="ayuda-guide-card">
+    <div class="ayuda-guide-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+    </div>
+    <h2 class="ayuda-guide-title">Manual del Administrador</h2>
+    <p class="ayuda-guide-desc">Gestión de reportes, asignación de cuadrillas y análisis de estadísticas</p>
+  </div>
+
+</section>
+
+<!-- ===== PREGUNTAS FRECUENTES ===== -->
+<section class="ayuda-faq-section" id="ayudaFaqSection">
+  <h2 class="ayuda-faq-heading">Preguntas Frecuentes</h2>
+
+  <div class="ayuda-accordion" id="ayudaAccordion">
+
+    <div class="ayuda-accordion-item active" data-index="0">
+      <button type="button" class="ayuda-accordion-trigger">
+        <span>¿Cómo radico un nuevo incidente?</span>
+        <svg class="ayuda-accordion-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <polyline points="18 15 12 9 6 15"/>
+        </svg>
+      </button>
+      <div class="ayuda-accordion-body">
+        <p>Para crear un reporte, dirígete a la sección "Mapa" desde el menú principal y selecciona la opción para radicar un incidente. Ingresa el título, selecciona la categoría correspondiente, describe detalladamente la problemática, indica la ubicación y adjunta evidencia fotográfica cuando sea posible. Finalmente, envía el reporte para que pueda ser registrado y gestionado.</p>
+      </div>
+    </div>
+
+    <div class="ayuda-accordion-item" data-index="1">
+      <button type="button" class="ayuda-accordion-trigger">
+        <span>¿Cómo ver el estado de mi reporte?</span>
+        <svg class="ayuda-accordion-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="ayuda-accordion-body" style="display:none">
+        <p>Puedes consultar el estado de tus reportes desde las opciones de seguimiento disponibles en UrbanReport. Cada incidencia puede encontrarse en diferentes estados según su proceso de atención, permitiendo conocer si fue reportada, se encuentra en proceso o ya fue resuelta.</p>
+      </div>
+    </div>
+
+    <div class="ayuda-accordion-item" data-index="2">
+      <button type="button" class="ayuda-accordion-trigger">
+        <span>¿Olvidé mi contraseña, qué hago?</span>
+        <svg class="ayuda-accordion-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="ayuda-accordion-body" style="display:none">
+        <p>Si olvidaste tu contraseña, selecciona la opción "Recuperar contraseña" en la pantalla de inicio de sesión. Ingresa el correo electrónico asociado a tu cuenta y sigue las instrucciones proporcionadas por el sistema para recuperar el acceso.</p>
+      </div>
+    </div>
+
+    <div class="ayuda-accordion-item" data-index="3">
+      <button type="button" class="ayuda-accordion-trigger">
+        <span>¿Qué tipo de incidentes puedo reportar?</span>
+        <svg class="ayuda-accordion-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="ayuda-accordion-body" style="display:none">
+        <p>UrbanReport permite reportar problemáticas que afectan a la comunidad, como problemas relacionados con vías, alumbrado, parques e infraestructura. Al crear un reporte debes seleccionar la categoría que corresponda y proporcionar una descripción clara de la situación.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  'use strict';
+
+  // ── Base de conocimiento para búsqueda inteligente ──────────────────────────
+  const KB = [
+    {
+      pregunta: '¿Cómo radico un nuevo incidente?',
+      respuesta: 'Para crear un reporte, dirígete a la sección "Mapa" desde el menú principal y selecciona la opción para radicar un incidente. Ingresa el título, selecciona la categoría correspondiente, describe detalladamente la problemática, indica la ubicación y adjunta evidencia fotográfica cuando sea posible. Finalmente, envía el reporte para que pueda ser registrado y gestionado.',
+      keywords: ['radicar','reportar','reporte','incidente','problema','denuncia','denunciar','crear','nuevo','mapa','via','calle','bache','alumbrado','parque','infraestructura','foto','evidencia','ubicacion','titulo','categoria','enviar','subir']
+    },
+    {
+      pregunta: '¿Cómo ver el estado de mi reporte?',
+      respuesta: 'Puedes consultar el estado de tus reportes desde las opciones de seguimiento disponibles en UrbanReport. Cada incidencia puede encontrarse en diferentes estados según su proceso de atención, permitiendo conocer si fue reportada, se encuentra en proceso o ya fue resuelta.',
+      keywords: ['estado','seguimiento','reporte','incidencia','ver','consultar','revisar','proceso','resuelto','resuelta','solucionado','solucion','atendido','pendiente','como va','avance','historial','mis reportes','mis incidencias']
+    },
+    {
+      pregunta: '¿Olvidé mi contraseña, qué hago?',
+      respuesta: 'Si olvidaste tu contraseña, selecciona la opción "Recuperar contraseña" en la pantalla de inicio de sesión. Ingresa el correo electrónico asociado a tu cuenta y sigue las instrucciones proporcionadas por el sistema para recuperar el acceso.',
+      keywords: ['contraseña','clave','password','olvide','olvido','olvidé','recuperar','recuperacion','acceso','correo','email','cuenta','entrar','ingresar','login','no puedo','no recuerdo']
+    },
+    {
+      pregunta: '¿Qué tipo de incidentes puedo reportar?',
+      respuesta: 'UrbanReport permite reportar problemáticas que afectan a la comunidad, como problemas relacionados con vías, alumbrado, parques e infraestructura. Al crear un reporte debes seleccionar la categoría que corresponda y proporcionar una descripción clara de la situación.',
+      keywords: ['tipo','categoria','categorias','que puedo','que reportar','vias','alumbrado','parques','infraestructura','calle','luz','lampara','arboles','alcantarilla','problema','comunidad','urban','urbano','barrio']
+    },
+  ];
+
+  // ── Normalización de texto ──────────────────────────────────────────────────
+  function normalizar(texto) {
+    return texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')   // quita tildes
+      .replace(/[¿?¡!.,;:]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ── Motor de búsqueda por puntuación ───────────────────────────────────────
+  function buscar(query) {
+    const q = normalizar(query);
+    if (!q) return null;
+
+    const tokens = q.split(' ').filter(t => t.length > 2);
+
+    let mejorPuntaje = 0;
+    let mejorItem = null;
+
+    KB.forEach(item => {
+      let puntaje = 0;
+
+      // Coincidencia con keywords
+      item.keywords.forEach(kw => {
+        const kwNorm = normalizar(kw);
+        if (q.includes(kwNorm)) puntaje += 3;
+        tokens.forEach(t => {
+          if (kwNorm.includes(t) || t.includes(kwNorm)) puntaje += 1;
+        });
+      });
+
+      // Coincidencia con la pregunta misma
+      const pregNorm = normalizar(item.pregunta);
+      tokens.forEach(t => {
+        if (pregNorm.includes(t)) puntaje += 2;
+      });
+
+      // Coincidencia con la respuesta
+      const respNorm = normalizar(item.respuesta);
+      tokens.forEach(t => {
+        if (respNorm.includes(t)) puntaje += 1;
+      });
+
+      if (puntaje > mejorPuntaje) {
+        mejorPuntaje = puntaje;
+        mejorItem = item;
+      }
+    });
+
+    return mejorPuntaje >= 2 ? mejorItem : null;
+  }
+
+  // ── Resultado de búsqueda ──────────────────────────────────────────────────
+  const resultadoEl = document.getElementById('ayudaSearchResult');
+  const mainContent = document.getElementById('ayudaMainContent');
+  const faqSection  = document.getElementById('ayudaFaqSection');
+
+  function mostrarResultado(item) {
+    if (item) {
+      resultadoEl.innerHTML = `
+        <div class="ayuda-result-card">
+          <div class="ayuda-result-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Respuesta encontrada
+          </div>
+          <p class="ayuda-result-question">${item.pregunta}</p>
+          <p class="ayuda-result-answer">${item.respuesta}</p>
+        </div>`;
+    } else {
+      const sugerencias = KB.map(k => `<li>${k.pregunta}</li>`).join('');
+      resultadoEl.innerHTML = `
+        <div class="ayuda-result-card ayuda-result-empty">
+          <div class="ayuda-result-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Sin resultados exactos
+          </div>
+          <p class="ayuda-result-question">No encontramos una respuesta exacta a tu pregunta.</p>
+          <p class="ayuda-result-answer">Intenta usar términos relacionados con reportes, incidentes, mapa, contraseña, seguimiento o categorías.</p>
+          <div class="ayuda-result-suggestions">
+            <p class="ayuda-result-suggestions-label">Preguntas frecuentes disponibles:</p>
+            <ul>${sugerencias}</ul>
+          </div>
+        </div>`;
+    }
+    resultadoEl.style.display = 'block';
+    mainContent.style.display = 'none';
+    faqSection.style.display  = 'none';
+  }
+
+  function limpiarResultado() {
+    resultadoEl.style.display = 'none';
+    mainContent.style.display = '';
+    faqSection.style.display  = '';
+  }
+
+  // ── Eventos del buscador ───────────────────────────────────────────────────
+  const input    = document.getElementById('ayudaSearchInput');
+  const clearBtn = document.getElementById('ayudaSearchClear');
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const q = this.value.trim();
+      if (!q) return;
+      mostrarResultado(buscar(q));
+    }
+  });
+
+  input.addEventListener('input', function () {
+    clearBtn.style.display = this.value ? 'flex' : 'none';
+    if (!this.value.trim()) limpiarResultado();
+  });
+
+  clearBtn.addEventListener('click', function () {
+    input.value = '';
+    clearBtn.style.display = 'none';
+    limpiarResultado();
+    input.focus();
+  });
+
+  // ── Acordeón ───────────────────────────────────────────────────────────────
+  const accordion = document.getElementById('ayudaAccordion');
+
+  accordion.addEventListener('click', function (e) {
+    const trigger = e.target.closest('.ayuda-accordion-trigger');
+    if (!trigger) return;
+
+    const item  = trigger.closest('.ayuda-accordion-item');
+    const body  = item.querySelector('.ayuda-accordion-body');
+    const arrow = item.querySelector('.ayuda-accordion-arrow');
+    const isOpen = item.classList.contains('active');
+
+    // Cerrar todos los demás
+    accordion.querySelectorAll('.ayuda-accordion-item').forEach(i => {
+      if (i !== item) {
+        i.classList.remove('active');
+        i.querySelector('.ayuda-accordion-body').style.display = 'none';
+        const a = i.querySelector('.ayuda-accordion-arrow');
+        a.style.transform = 'rotate(0deg)';
+      }
+    });
+
+    // Toggle del actual
+    if (isOpen) {
+      item.classList.remove('active');
+      body.style.display = 'none';
+      arrow.style.transform = 'rotate(0deg)';
+    } else {
+      item.classList.add('active');
+      body.style.display = 'block';
+      arrow.style.transform = 'rotate(180deg)';
+    }
+  });
+
+  // Inicializar flechas
+  accordion.querySelectorAll('.ayuda-accordion-item').forEach(item => {
+    const arrow = item.querySelector('.ayuda-accordion-arrow');
+    if (item.classList.contains('active')) {
+      arrow.style.transform = 'rotate(180deg)';
+      item.querySelector('.ayuda-accordion-body').style.display = 'block';
+    } else {
+      arrow.style.transform = 'rotate(0deg)';
+    }
+  });
+
+})();
+</script>
+{% endblock %}

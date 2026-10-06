@@ -895,6 +895,12 @@ def _solo_administrador(view_func):
 
 
 @login_required
+def ayuda_view(request):
+    """Vista de Ayuda y Preguntas Frecuentes. Accesible para CIUDADANO y ADMINISTRADOR."""
+    return render(request, 'feed/ayuda.html', {'active_menu': 'ayuda'})
+
+
+@login_required
 @_solo_administrador
 def panel_administrador_view(request):
     """
