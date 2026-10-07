@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.urls import reverse
 from django.views.decorators.http import require_POST, require_GET
 from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
@@ -705,6 +706,11 @@ def reaccionar_comentario_ajax(request, comentario_id):
         ReaccionComentario.objects.create(comentario=comentario, usuario=request.user, tipo=tipo)
         if tipo == ReaccionComentario.TipoReaccion.LIKE:
             comentario.likes += 1
+            crear_notificacion(
+                destinatario=comentario.autor, actor=request.user,
+                tipo=Notificacion.Tipo.LIKE, publicacion=comentario.publicacion,
+                comentario=comentario, extra=comentario.texto[:80],
+            )
         else:
             comentario.dislikes += 1
         user_reaction = tipo
@@ -771,12 +777,12 @@ def agregar_comentario_ajax(request, publicacion_id):
     if padre and padre.autor:
         crear_notificacion(
             destinatario=padre.autor, actor=autor,
-            tipo=Notificacion.Tipo.RESPUESTA, publicacion=publicacion, extra=fragmento,
+            tipo=Notificacion.Tipo.RESPUESTA, publicacion=publicacion, comentario=comentario, extra=fragmento,
         )
     else:
         crear_notificacion(
             destinatario=publicacion.autor, actor=autor,
-            tipo=Notificacion.Tipo.COMENTARIO, publicacion=publicacion, extra=fragmento,
+            tipo=Notificacion.Tipo.COMENTARIO, publicacion=publicacion, comentario=comentario, extra=fragmento,
         )
 
     initials = "".join([part[0].upper() for part in autor_nombre.split()[:2]]) or "UR"
@@ -1616,7 +1622,7 @@ def notificaciones_view(request):
     _seed_notificaciones_demo(request.user)
 
     filtro = request.GET.get('filtro', 'todas').lower()
-    qs = Notificacion.objects.filter(destinatario=request.user).select_related('actor', 'publicacion')
+    qs = Notificacion.objects.filter(destinatario=request.user).select_related('actor', 'publicacion', 'comentario')
 
     if filtro == 'publicaciones':
         qs = qs.filter(categoria=Notificacion.Categoria.PUBLICACION)
@@ -1644,6 +1650,29 @@ def notificaciones_view(request):
         'active_menu': 'notificaciones',
     }
     return render(request, 'feed/notificaciones.html', context)
+
+
+@login_required
+def abrir_notificacion(request, notificacion_id):
+    """Marca la notificación como leída y redirige a la publicación/comentario asociado."""
+    n = get_object_or_404(
+        Notificacion.objects.select_related('publicacion', 'comentario', 'actor'),
+        id=notificacion_id, destinatario=request.user,
+    )
+    if not n.leido:
+        n.leido = True
+        n.save(update_fields=['leido'])
+
+    if n.publicacion_id:
+        url = reverse('detalle_publicacion', args=[n.publicacion_id])
+        if n.comentario_id:
+            url += f'#comment-card-{n.comentario_id}'
+        else:
+            url += f'#post-card-{n.publicacion_id}'
+        return redirect(url)
+    if n.actor and n.tipo == Notificacion.Tipo.SEGUIDOR:
+        return redirect('perfil_usuario', username=n.actor.username)
+    return redirect('notificaciones')
 
 
 @login_required

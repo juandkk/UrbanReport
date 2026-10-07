@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/trending-topics/', views.api_trending_topics, name='api_trending_topics'),
     path('notificaciones/', views.notificaciones_view, name='notificaciones'),
     path('notificaciones/marcar-leidas/', views.marcar_notificaciones_leidas_ajax, name='marcar_notificaciones_leidas'),
+    path('notificaciones/<int:notificacion_id>/abrir/', views.abrir_notificacion, name='abrir_notificacion'),
     path('api/notificaciones-no-leidas/', views.api_notificaciones_no_leidas, name='api_notificaciones_no_leidas'),
     path('api/buscar/', views.api_buscar_publicaciones, name='api_buscar_publicaciones'),
 ]

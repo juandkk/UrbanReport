@@ -4,11 +4,8 @@
 
 {% block title %}Notificaciones | UrbanReport{% endblock %}
 
-{# Barra derecha ligera: solo el buscador, sin Trending/Actividad ni sus pollers.
-   Esto evita la carga lenta (5-10s) que reportaba el usuario en esta vista. #}
-{% block right_widgets %}
-{% include 'includes/widgets_search_only.html' %}
-{% endblock %}
+{# Sin barra de widgets en esta vista #}
+{% block right_widgets %}{% endblock %}
 
 {% block portal_content %}
 <!-- Cabecera -->
@@ -46,7 +43,7 @@
   <div class="notif-day-header">{{ n.grupo_dia }}</div>
   {% endifchanged %}
 
-  <div class="notif-item {% if not n.leido %}is-new{% endif %}">
+  <div class="notif-item {% if not n.leido %}is-new{% endif %}" data-href="{% url 'abrir_notificacion' n.id %}" style="cursor:pointer">
     <span class="notif-state-label">{% if not n.leido %}Nuevo{% else %}Leído{% endif %}</span>
 
     <div class="notif-avatar">
@@ -78,16 +75,16 @@
         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %}
         reportó {% if n.comentario %}un comentario{% else %}una publicación{% endif %} para moderación
         {% else %}
-        {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %} {{ n.get_tipo_display|lower }}
+         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %} {% if n.tipo == 'LIKE' and n.comentario %}le dio Me Gusta a tu comentario{% else %}{{ n.get_tipo_display|lower }}{% endif %}
         {% endif %}
       </p>
 
       {% if n.tipo == 'REPORTE_CONTENIDO' %}
         {% if n.extra %}<span class="notif-badge notif-badge-report">Motivo: {{ n.extra }}</span>{% endif %}
         {% if n.comentario %}
-        <a class="notif-review-link" href="{% url 'feed_comunitario' %}#comment-card-{{ n.comentario.id }}">Ver comentario y moderar →</a>
+        <a class="notif-review-link" href="{% url 'abrir_notificacion' n.id %}">Ver comentario y moderar →</a>
         {% elif n.publicacion %}
-        <a class="notif-review-link" href="{% url 'feed_comunitario' %}#post-card-{{ n.publicacion.id }}">Ver publicación y moderar →</a>
+        <a class="notif-review-link" href="{% url 'abrir_notificacion' n.id %}">Ver publicación y moderar →</a>
         {% endif %}
       {% elif n.extra %}
         {% if n.tipo == 'CAMBIO_ESTADO' %}
@@ -133,6 +130,13 @@
       }
       return v;
     }
+
+    document.querySelectorAll('.notif-item[data-href]').forEach(function (item) {
+      item.addEventListener('click', function (e) {
+        if (e.target.closest('a')) return; // los enlaces internos mantienen su destino
+        window.location.href = item.getAttribute('data-href');
+      });
+    });
 
     var btn = document.getElementById('markAllReadBtn');
     if (btn) {

@@ -25,3 +25,42 @@
   {% include 'includes/post_card.html' with post=post modo='detalle' %}
 </div>
 {% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var hash = window.location.hash;
+    if (!hash || (hash.indexOf('#post-card-') !== 0 && hash.indexOf('#comment-card-') !== 0)) return;
+    setTimeout(function () {
+      var target = document.querySelector(hash);
+      if (!target) return;
+      if (hash.indexOf('#comment-card-') === 0) {
+        var postCard = target.closest('.post-card');
+        var section = postCard && postCard.querySelector('.post-comments-section');
+        if (section) section.classList.remove('collapsed');
+        // Modo enfocado: ocultar la publicación y los demás comentarios, dejando solo este
+        var node = target;
+        while (node && node !== postCard) {
+          var parent = node.parentElement;
+          if (!parent) break;
+          Array.prototype.forEach.call(parent.children, function (sib) {
+            if (sib !== node) sib.style.display = 'none';
+          });
+          node = parent;
+        }
+        var header = document.querySelector('.detalle-header > div');
+        if (header) {
+          var h1 = header.querySelector('h1');
+          if (h1) h1.textContent = 'Comentario';
+          var sub = header.querySelector('.detalle-subtitle');
+          if (sub) sub.innerHTML = '<a href="{% url 'detalle_publicacion' post.id %}" style="color:inherit;text-decoration:underline">Ver publicación completa</a>';
+        }
+      }
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('notif-highlight');
+      setTimeout(function () { target.classList.remove('notif-highlight'); }, 2600);
+    }, 400);
+  });
+</script>
+{% endblock %}
