@@ -311,15 +311,21 @@
 }
 
 .social-btn {
-  width: 42px;
+  flex: 1;
   height: 42px;
-  border-radius: 50%;
+  padding: 0 14px;
+  border-radius: 10px;
   border: 1px solid var(--border-subtle);
   background: #0e1117;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   cursor: pointer;
+  text-decoration: none;
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 600;
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -329,6 +335,8 @@
   background-color: #141924;
 }
 
+.social-btn-text { line-height: 1; }
+
 .social-btn.facebook {
   background-color: #1877F2;
   border-color: #1877F2;
@@ -337,6 +345,31 @@
 
 .social-btn.facebook:hover {
   background-color: #1565d8;
+}
+
+/* Botón de proveedor no configurado: visible pero inactivo */
+.social-btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Separador "o continúa con" */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin: 18px 0 4px;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
 }
 
 /* Legal Terms text */

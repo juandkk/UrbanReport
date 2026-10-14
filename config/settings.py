@@ -71,6 +71,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Requerido por allauth
+    'django.contrib.sites',
+    # Autenticación social (RF-015: SSO con Google/Facebook via OAuth 2.0)
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.facebook',
     'usuarios',
     'feed',
 ]
@@ -85,6 +93,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Requerido por allauth para procesar la respuesta de los proveedores
+    'allauth.account.middleware.AccountMiddleware',
+]
+
+# allauth necesita django.contrib.sites
+SITE_ID = 1
+
+# Backends de autenticación: el de Django (usuario/contraseña) + el de allauth (social)
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -100,6 +119,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'usuarios.context_processors.es_admin',
+                'usuarios.context_processors.sso_flags',
             ],
         },
     },
@@ -246,6 +266,56 @@ else:
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'feed_comunitario'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# ---------------------------------------------------------------------------
+# Autenticación social (RF-015: SSO con Google / Facebook vía OAuth 2.0)
+# ---------------------------------------------------------------------------
+# A dónde volver tras iniciar/cerrar sesión con un proveedor social.
+ACCOUNT_LOGIN_REDIRECT_URL = 'feed_comunitario'
+# allauth no usa username para la cuenta social; mapeamos email como identificador.
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+# Si el email del proveedor social coincide con una cuenta existente, se conecta
+# a ella en vez de fallar (evita choques por email duplicado).
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+# No pedimos verificación de email para el login social (el proveedor ya lo verificó).
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Credenciales de los proveedores, leídas del .env. Si están vacías, el botón
+# correspondiente aparece deshabilitado (el proveedor no funcionará).
+GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '')
+GOOGLE_OAUTH_SECRET = os.getenv('GOOGLE_OAUTH_SECRET', '')
+FACEBOOK_OAUTH_CLIENT_ID = os.getenv('FACEBOOK_OAUTH_CLIENT_ID', '')
+FACEBOOK_OAUTH_SECRET = os.getenv('FACEBOOK_OAUTH_SECRET', '')
+
+# Flags para la plantilla de login (saber si cada proveedor está configurado)
+GOOGLE_SSO_HABILITADO = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_SECRET)
+FACEBOOK_SSO_HABILITADO = bool(FACEBOOK_OAUTH_CLIENT_ID and FACEBOOK_OAUTH_SECRET)
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': GOOGLE_OAUTH_CLIENT_ID,
+            'secret': GOOGLE_OAUTH_SECRET,
+            'key': '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    },
+    'facebook': {
+        'APP': {
+            'client_id': FACEBOOK_OAUTH_CLIENT_ID,
+            'secret': FACEBOOK_OAUTH_SECRET,
+            'key': '',
+        },
+        'METHOD': 'oauth2',
+        'SCOPE': ['email', 'public_profile'],
+    },
+}
 
 
 # ── CSRF / Cookies (desarrollo) ──

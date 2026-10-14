@@ -10,6 +10,8 @@ from django.shortcuts import redirect
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', lambda request: redirect('feed_comunitario'), name='home'),
+    # Autenticación social (RF-015): rutas de allauth (incluye /accounts/google/login/ etc.)
+    path('accounts/', include('allauth.urls')),
     path('usuarios/', include('usuarios.urls')),
     path('feed/', include('feed.urls')),
     path('', include('usuarios.urls')),
