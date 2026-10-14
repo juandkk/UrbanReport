@@ -59,6 +59,17 @@ class Publicacion(models.Model):
         return f"{self.autor_nombre or self.autor.username}: {self.contenido[:40]}..."
 
     @property
+    def nombre_autor(self):
+        """
+        Nombre a mostrar del autor SIEMPRE actualizado: se toma del usuario
+        relacionado (first_name/last_name o username). Solo cae a la copia
+        `autor_nombre` si la publicación no tiene autor (datos de demo).
+        """
+        if self.autor_id and self.autor:
+            return f"{self.autor.first_name} {self.autor.last_name}".strip() or self.autor.username
+        return self.autor_nombre
+
+    @property
     def total_comentarios(self):
         return self.comentarios.count()
 
@@ -112,6 +123,13 @@ class Comentario(models.Model):
         if self.padre:
             return f"Respuesta de {self.autor_nombre} a #{self.padre_id}"
         return f"{self.autor_nombre} en #{self.publicacion_id}"
+
+    @property
+    def nombre_autor(self):
+        """Nombre a mostrar del autor del comentario, siempre actualizado."""
+        if self.autor_id and self.autor:
+            return f"{self.autor.first_name} {self.autor.last_name}".strip() or self.autor.username
+        return self.autor_nombre
 
     @property
     def total_respuestas(self):

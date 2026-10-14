@@ -146,19 +146,38 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-  // Badge de notificaciones no leídas en la campana
+  // Badge de notificaciones no leídas en la campana (actualización en vivo)
   document.addEventListener('DOMContentLoaded', function () {
     var badge = document.getElementById('notif-bell-badge');
-    if (badge) {
+
+    // Consulta el conteo de no leídas y actualiza el badge.
+    function actualizarBadgeNotificaciones() {
+      if (!badge) return;
       fetch('{% url "api_notificaciones_no_leidas" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.status === 'ok' && data.total_no_leidas > 0) {
             badge.textContent = data.total_no_leidas > 9 ? '9+' : data.total_no_leidas;
             badge.style.display = 'flex';
+          } else {
+            // Sin pendientes: ocultar el badge (por si se marcaron como leídas).
+            badge.style.display = 'none';
           }
         })
         .catch(function () {});
+    }
+
+    if (badge) {
+      // Primera consulta inmediata y luego sondeo cada 15s para que las
+      // notificaciones aparezcan "en tiempo real" sin recargar la página.
+      actualizarBadgeNotificaciones();
+      setInterval(function () {
+        if (!document.hidden) actualizarBadgeNotificaciones();
+      }, 15000);
+      // Al volver a enfocar la pestaña, refrescar de inmediato.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) actualizarBadgeNotificaciones();
+      });
     }
 
     // Al llegar desde una notificación (#post-card-N o #comment-card-N),
