@@ -410,3 +410,12 @@
     padding: 1.75rem 1.5rem;
   }
 }
+
+/* Texto de ayuda bajo los campos del formulario (requisitos de validación) */
+.form-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  line-height: 1.3;
+}

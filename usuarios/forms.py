@@ -99,10 +99,25 @@ class RegistroForm(forms.ModelForm):
         }
 
     def clean_email(self):
-        email = self.cleaned_data.get('email')
+        email = (self.cleaned_data.get('email') or '').strip()
+        # El correo debe terminar en .com (requisito del sistema)
+        if not email.lower().endswith('.com'):
+            raise ValidationError('El correo electrónico debe terminar en «.com».')
         if Usuario.objects.filter(email__iexact=email).exists():
             raise ValidationError('Este correo electrónico ya está registrado.')
         return email
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password') or ''
+        # Mínimo 8 caracteres
+        if len(password) < 8:
+            raise ValidationError('La contraseña debe tener al menos 8 caracteres.')
+        # Alfanumérica: al menos una letra y al menos un número
+        if not any(c.isalpha() for c in password):
+            raise ValidationError('La contraseña debe incluir al menos una letra.')
+        if not any(c.isdigit() for c in password):
+            raise ValidationError('La contraseña debe incluir al menos un número.')
+        return password
 
     def save(self, commit=True):
         user = super().save(commit=False)

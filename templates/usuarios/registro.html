@@ -37,6 +37,7 @@
              placeholder="ejemplo@correo.com" 
              required
              value="{{ form.email.value|default:'' }}">
+      <span class="form-hint">Debe terminar en «.com».</span>
       {% if form.email.errors %}
         <span style="color: #ef4444; font-size: 0.75rem;">{{ form.email.errors.0 }}</span>
       {% endif %}
@@ -105,7 +106,9 @@
              class="auth-input" 
              placeholder="••••••••" 
              required
+             minlength="8"
              autocomplete="new-password">
+      <span class="form-hint">Mínimo 8 caracteres, con al menos una letra y un número.</span>
       {% if form.password.errors %}
         <span style="color: #ef4444; font-size: 0.75rem;">{{ form.password.errors.0 }}</span>
       {% endif %}
