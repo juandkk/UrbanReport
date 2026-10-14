@@ -1,0 +1,4 @@
+# Los scripts de shell DEBEN usar finales de línea LF, aunque se editen en
+# Windows. Render (Linux) falla al ejecutar un .sh con CRLF.
+*.sh text eol=lf
+build.sh text eol=lf
