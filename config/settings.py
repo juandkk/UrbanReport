@@ -121,6 +121,13 @@ if DB_NAME:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
+            'OPTIONS': {
+                # SSL requerido por el pooler de Supabase.
+                'sslmode': os.getenv('DB_SSLMODE', 'prefer'),
+                # Evita que el servidor se quede colgado si la BD no responde:
+                # falla rápido en lugar de esperar indefinidamente.
+                'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', '10')),
+            },
         }
     }
 else:
@@ -179,6 +186,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'feed_comunitario'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# ── CSRF / Cookies (desarrollo) ──
+# Orígenes de confianza para solicitudes POST. Incluye las dos formas de acceder
+# al servidor local para evitar errores 403 "CSRF token incorrect" al alternar
+# entre 127.0.0.1 y localhost.
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+
+if DEBUG:
+    # En desarrollo (HTTP) las cookies NO deben marcarse como Secure, de lo
+    # contrario el navegador no las envía por HTTP y el token CSRF nunca llega.
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    # El JS no necesita leer el token aquí, pero dejarlo accesible evita
+    # problemas si en el futuro se envían formularios por fetch/AJAX.
+    CSRF_COOKIE_HTTPONLY = False
 
 
 # Email
