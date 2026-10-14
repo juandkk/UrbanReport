@@ -128,6 +128,41 @@ class RegistroForm(forms.ModelForm):
         return user
 
 
+class CompletarPerfilForm(forms.ModelForm):
+    """
+    Formulario para que los usuarios que entraron por SSO (Google/Facebook)
+    completen los datos obligatorios que no pide el proveedor.
+    """
+    class Meta:
+        model = Usuario
+        fields = ['telefono', 'direccion', 'barrio_vereda', 'numero_finca', 'codigo_postal']
+        widgets = {
+            'telefono': forms.TextInput(attrs={
+                'class': 'auth-input', 'placeholder': '300 0000000', 'required': True,
+            }),
+            'direccion': forms.TextInput(attrs={
+                'class': 'auth-input', 'placeholder': 'KR 0 #00-00', 'required': True,
+            }),
+            'barrio_vereda': forms.TextInput(attrs={
+                'class': 'auth-input', 'placeholder': 'Ej: La Esperanza', 'required': True,
+            }),
+            'numero_finca': forms.TextInput(attrs={
+                'class': 'auth-input', 'placeholder': 'Ej: 12',
+            }),
+            'codigo_postal': forms.TextInput(attrs={
+                'class': 'auth-input', 'placeholder': '002000', 'required': True,
+            }),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        # Estos cuatro son obligatorios (numero_finca es opcional)
+        for campo in ['telefono', 'direccion', 'barrio_vereda', 'codigo_postal']:
+            if not (cleaned.get(campo) or '').strip():
+                self.add_error(campo, 'Este campo es obligatorio.')
+        return cleaned
+
+
 class RecuperarContrasenaForm(forms.Form):
     email = forms.EmailField(
         label='Correo Electrónico',

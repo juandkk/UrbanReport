@@ -1,0 +1,75 @@
+{% extends 'layouts/auth_base.html' %}
+{% load static %}
+
+{% block title %}Completa tu perfil | UrbanReport{% endblock %}
+
+{% block auth_card %}
+<div class="auth-card auth-card-wide">
+  <div class="auth-complete-head">
+    <h2 class="auth-complete-title">Completa tu perfil</h2>
+    <p class="auth-complete-sub">
+      Para empezar a usar UrbanReport necesitamos algunos datos de contacto y ubicación.
+    </p>
+  </div>
+
+  <form method="POST" action="{% url 'completar_perfil' %}" class="auth-form">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label class="form-label" for="id_telefono">Número de teléfono*</label>
+      <input type="text" name="telefono" id="id_telefono" class="auth-input"
+             placeholder="300 0000000" required
+             value="{{ form.telefono.value|default:'' }}">
+      {% if form.telefono.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.telefono.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_direccion">Dirección*</label>
+      <input type="text" name="direccion" id="id_direccion" class="auth-input"
+             placeholder="KR 0 #00-00" required
+             value="{{ form.direccion.value|default:'' }}">
+      {% if form.direccion.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.direccion.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="id_barrio_vereda">Barrio o vereda*</label>
+        <input type="text" name="barrio_vereda" id="id_barrio_vereda" class="auth-input"
+               placeholder="Ej: La Esperanza" required
+               value="{{ form.barrio_vereda.value|default:'' }}">
+        {% if form.barrio_vereda.errors %}
+          <span style="color: #ef4444; font-size: 0.75rem;">{{ form.barrio_vereda.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_numero_finca">Número de Finca</label>
+        <input type="text" name="numero_finca" id="id_numero_finca" class="auth-input"
+               placeholder="Ej: 12"
+               value="{{ form.numero_finca.value|default:'' }}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="id_codigo_postal">Código postal*</label>
+      <input type="text" name="codigo_postal" id="id_codigo_postal" class="auth-input"
+             placeholder="002000" required
+             value="{{ form.codigo_postal.value|default:'' }}">
+      {% if form.codigo_postal.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ form.codigo_postal.errors.0 }}</span>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0.5rem; height: 44px;">
+      Guardar y continuar
+    </button>
+
+    <p class="auth-footer-text">
+      <a href="{% url 'logout' %}">Cerrar sesión</a>
+    </p>
+  </form>
+</div>
+{% endblock %}

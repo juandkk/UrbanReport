@@ -95,6 +95,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Requerido por allauth para procesar la respuesta de los proveedores
     'allauth.account.middleware.AccountMiddleware',
+    # Obliga a los usuarios con perfil incompleto (p. ej. SSO) a completarlo
+    'usuarios.middleware.CompletarPerfilMiddleware',
 ]
 
 # allauth necesita django.contrib.sites

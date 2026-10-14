@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Usuario
-from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm
+from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm, CompletarPerfilForm
 
 
 def login_view(request):
@@ -50,6 +50,30 @@ def login_view(request):
         'form': form,
         'active_tab': 'login'
     })
+
+
+@login_required
+def completar_perfil_view(request):
+    """
+    Pide a los usuarios con el perfil incompleto (típicamente los que entraron
+    por Google/Facebook) que completen sus datos de contacto y ubicación.
+    Si el perfil ya está completo, redirige al feed.
+    """
+    if not request.user.perfil_incompleto():
+        return redirect('feed_comunitario')
+
+    if request.method == 'POST':
+        form = CompletarPerfilForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Gracias! Tu perfil quedó completo.')
+            return redirect('feed_comunitario')
+        else:
+            messages.error(request, 'Por favor completa los campos obligatorios.')
+    else:
+        form = CompletarPerfilForm(instance=request.user)
+
+    return render(request, 'usuarios/completar_perfil.html', {'form': form})
 
 
 def registro_view(request):

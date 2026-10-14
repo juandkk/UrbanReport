@@ -32,6 +32,18 @@ class Usuario(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.get_rol_display()})"
 
+    def perfil_incompleto(self):
+        """
+        True si al usuario le faltan datos obligatorios de contacto/ubicación.
+        Se usa sobre todo para usuarios que entraron por SSO (Google/Facebook),
+        que no pasaron por el formulario de registro y llegan sin estos campos.
+        Los superusuarios/staff quedan exentos (acceso administrativo).
+        """
+        if self.is_superuser or self.is_staff:
+            return False
+        requeridos = [self.telefono, self.direccion, self.barrio_vereda, self.codigo_postal]
+        return any(not (c or '').strip() for c in requeridos)
+
     @property
     def total_seguidores(self):
         """Cuántos usuarios siguen a este usuario."""
