@@ -14,8 +14,9 @@
   // Paleta coherente con el tema oscuro del portal
   var COLORS = {
     azul: '#3b82f6',
-    verde: '#22c55e',
-    ambar: '#f59e0b',
+    verde: '#22c55e',   // RESUELTA (igual que el mapa)
+    ambar: '#f59e0b',   // EN_PROCESO (igual que el mapa)
+    gris: '#94a3b8',    // REPORTADO (igual que el mapa)
     rojo: '#ef4444',
     indigo: '#6366f1',
     cian: '#06b6d4',
@@ -71,8 +72,9 @@
           labels: estLabels,
           datasets: [{
             label: 'Reportes',
+            // Reportado=gris, En Proceso=amarillo, Resuelta=verde (como el mapa)
             data: estData,
-            backgroundColor: [COLORS.ambar, COLORS.azul, COLORS.verde],
+            backgroundColor: [COLORS.gris, COLORS.ambar, COLORS.verde],
             borderRadius: 6,
             maxBarThickness: 56,
           }],
