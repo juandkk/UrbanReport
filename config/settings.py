@@ -176,6 +176,66 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ---------------------------------------------------------------------------
+# Almacenamiento de archivos subidos (avatares, imágenes de publicaciones)
+# ---------------------------------------------------------------------------
+# Para que las imágenes se COMPARTAN entre ambos (y en la demo), se guardan en
+# Supabase Storage (compatible con S3) en vez del disco local.
+#
+# Se activa SOLO si están definidas las credenciales S3 de Supabase en el .env.
+# Si no, cae al almacenamiento local de siempre (útil si alguien no lo configura).
+SUPABASE_S3_ACCESS_KEY = os.getenv('SUPABASE_S3_ACCESS_KEY')
+SUPABASE_S3_SECRET_KEY = os.getenv('SUPABASE_S3_SECRET_KEY')
+SUPABASE_S3_BUCKET = os.getenv('SUPABASE_S3_BUCKET', 'media')
+SUPABASE_S3_ENDPOINT = os.getenv('SUPABASE_S3_ENDPOINT')  # ej. https://<ref>.supabase.co/storage/v1/s3
+SUPABASE_S3_REGION = os.getenv('SUPABASE_S3_REGION', 'us-east-1')
+
+if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY and SUPABASE_S3_ENDPOINT:
+    # El endpoint S3 (.../storage/v1/s3) sirve para SUBIR/BORRAR archivos, pero NO
+    # para mostrarlos (devuelve 403). Supabase sirve los archivos de un bucket
+    # público desde: https://<host>/storage/v1/object/public/<bucket>/<archivo>.
+    # Por eso derivamos esa base y la usamos como "custom_domain" para que las
+    # URLs que ve el navegador apunten a la ruta pública correcta.
+    _s3_base = SUPABASE_S3_ENDPOINT.split('/storage/v1/s3')[0]  # https://<host>
+    _s3_host = _s3_base.split('://', 1)[-1]                      # <host>
+    SUPABASE_PUBLIC_DOMAIN = f'{_s3_host}/storage/v1/object/public/{SUPABASE_S3_BUCKET}'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'access_key': SUPABASE_S3_ACCESS_KEY,
+                'secret_key': SUPABASE_S3_SECRET_KEY,
+                'bucket_name': SUPABASE_S3_BUCKET,
+                'endpoint_url': SUPABASE_S3_ENDPOINT,
+                'region_name': SUPABASE_S3_REGION,
+                # Supabase usa S3 "path-style" (no virtual-hosted); esto evita
+                # URLs rotas del tipo bucket.endpoint.
+                'addressing_style': 'path',
+                # Genera URLs publicas (sin firma) hacia la ruta /object/public.
+                'default_acl': None,
+                'querystring_auth': False,
+                'custom_domain': SUPABASE_PUBLIC_DOMAIN,
+                'url_protocol': 'https:',
+                # No sobrescribir: si dos archivos tienen el mismo nombre, se renombra.
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+else:
+    # Fallback: almacenamiento local en disco (comportamiento original).
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'feed_comunitario'
 LOGOUT_REDIRECT_URL = 'login'
