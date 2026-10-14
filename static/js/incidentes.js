@@ -77,9 +77,101 @@
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
+  // ---- Importación CSV (modal) ----
+  function iniciarImportacion() {
+    var modal = document.getElementById('importModal');
+    var btnAbrir = document.getElementById('btnAbrirImportar');
+    if (!modal || !btnAbrir) return;
+
+    var btnCerrar = document.getElementById('btnCerrarImportar');
+    var btnCancelar = document.getElementById('btnCancelarImportar');
+    var form = document.getElementById('importForm');
+    var input = document.getElementById('importFile');
+    var fileLabel = document.getElementById('fileLabel');
+    var fileDrop = document.getElementById('fileDrop');
+    var btnEnviar = document.getElementById('btnEnviarImportar');
+    var resultado = document.getElementById('importResult');
+
+    function abrir() { modal.classList.add('open'); }
+    function cerrar() { modal.classList.remove('open'); }
+
+    btnAbrir.addEventListener('click', abrir);
+    if (btnCerrar) btnCerrar.addEventListener('click', cerrar);
+    if (btnCancelar) btnCancelar.addEventListener('click', cerrar);
+    modal.addEventListener('click', function (e) { if (e.target === modal) cerrar(); });
+
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) {
+        fileLabel.textContent = input.files[0].name;
+        fileDrop.classList.add('has-file');
+        btnEnviar.disabled = false;
+      } else {
+        fileLabel.textContent = 'Haz clic para elegir un archivo .csv';
+        fileDrop.classList.remove('has-file');
+        btnEnviar.disabled = true;
+      }
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!input.files || !input.files.length) return;
+
+      btnEnviar.disabled = true;
+      btnEnviar.textContent = 'Importando…';
+      resultado.hidden = true;
+
+      var fd = new FormData(form);
+      fetch('/feed/incidentes/importar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd,
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          var d = res.data;
+          if (res.ok && d.status === 'ok') {
+            var detalle = '';
+            if (d.errores && d.errores.length) {
+              detalle = '<ul class="inc-import-errors">';
+              d.errores.slice(0, 10).forEach(function (er) {
+                detalle += '<li>' + er.replace(/</g, '&lt;') + '</li>';
+              });
+              if (d.errores.length > 10) detalle += '<li>…y ' + (d.errores.length - 10) + ' más.</li>';
+              detalle += '</ul>';
+            }
+            resultado.className = 'inc-import-result ok';
+            resultado.innerHTML = '<strong>' + d.message + '</strong>' + detalle +
+              '<div class="inc-import-reload">Recargando la tabla…</div>';
+            resultado.hidden = false;
+            toast(d.message);
+            // Recargar para ver los nuevos reportes
+            setTimeout(function () { window.location.reload(); }, 1600);
+          } else {
+            resultado.className = 'inc-import-result error';
+            resultado.innerHTML = '<strong>' + ((d && d.message) || 'No se pudo importar.') + '</strong>';
+            resultado.hidden = false;
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = 'Importar';
+          }
+        })
+        .catch(function () {
+          resultado.className = 'inc-import-result error';
+          resultado.textContent = 'Error de conexión al importar.';
+          resultado.hidden = false;
+          btnEnviar.disabled = false;
+          btnEnviar.textContent = 'Importar';
+        });
+    });
+  }
+
+  function arrancar() {
     iniciar();
+    iniciarImportacion();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', arrancar);
+  } else {
+    arrancar();
   }
 })();

@@ -75,10 +75,22 @@
     </div>
   </form>
 
-  <!-- Resumen de resultados -->
+  <!-- Resumen de resultados + exportar/importar -->
   <div class="inc-results-bar">
-    <span>{{ total_resultados }} reporte{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</span>
-    {% if hay_filtros %}<span class="inc-filter-note">Filtros activos</span>{% endif %}
+    <div class="inc-results-left">
+      <span>{{ total_resultados }} reporte{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</span>
+      {% if hay_filtros %}<span class="inc-filter-note">Filtros activos</span>{% endif %}
+    </div>
+    <div class="inc-io-actions">
+      <a class="inc-btn inc-btn-ghost" href="{% url 'exportar_incidentes' %}{% if querystring_filtros %}?{{ querystring_filtros }}{% endif %}" title="Exporta los reportes filtrados a CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar CSV
+      </a>
+      <button type="button" class="inc-btn inc-btn-ghost" id="btnAbrirImportar" title="Importar reportes desde un CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importar CSV
+      </button>
+    </div>
   </div>
 
   <!-- Tabla -->
@@ -147,6 +159,41 @@
     {% endif %}
   </nav>
   {% endif %}
+</div>
+
+<!-- Modal de importación CSV -->
+<div class="inc-modal-backdrop" id="importModal">
+  <div class="inc-modal">
+    <div class="inc-modal-header">
+      <h3>Importar incidentes desde CSV</h3>
+      <button type="button" class="inc-modal-close" id="btnCerrarImportar">&times;</button>
+    </div>
+    <div class="inc-modal-body">
+      <p class="inc-modal-help">
+        Sube un archivo <strong>.csv</strong> (UTF-8). Debe incluir al menos la columna
+        <code>contenido</code>. Columnas reconocidas:
+        <code>titulo, contenido, categoria, estado, ubicacion, latitud, longitud, autor</code>.
+        La columna <code>id</code> se ignora (siempre se crean reportes nuevos).
+      </p>
+      <p class="inc-modal-help inc-modal-tip">
+        Sugerencia: exporta primero un CSV para usarlo como plantilla.
+      </p>
+
+      <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label class="inc-file-drop" id="fileDrop">
+          <input type="file" name="archivo" accept=".csv" id="importFile" hidden>
+          <span id="fileLabel">Haz clic para elegir un archivo .csv</span>
+        </label>
+        <div class="inc-modal-actions">
+          <button type="button" class="inc-btn inc-btn-ghost" id="btnCancelarImportar">Cancelar</button>
+          <button type="submit" class="inc-btn inc-btn-primary" id="btnEnviarImportar" disabled>Importar</button>
+        </div>
+      </form>
+
+      <div class="inc-import-result" id="importResult" hidden></div>
+    </div>
+  </div>
 </div>
 
 <!-- Toast de confirmación -->

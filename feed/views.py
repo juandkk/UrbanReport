@@ -1017,6 +1017,46 @@ def panel_administrador_view(request):
     return render(request, 'feed/panel_admin.html', context)
 
 
+def _filtrar_incidentes(request):
+    """
+    Construye el queryset de incidentes aplicando los filtros de búsqueda
+    avanzada de la query string. Reutilizado por la tabla y por la exportación.
+    Devuelve (queryset, filtros_dict).
+    """
+    Estado = Publicacion.EstadoIncidencia
+    Cat = Publicacion.Categoria
+
+    q = (request.GET.get('q') or '').strip()
+    f_categoria = (request.GET.get('categoria') or '').strip().upper()
+    f_estado = (request.GET.get('estado') or '').strip().upper()
+    f_desde = (request.GET.get('desde') or '').strip()
+    f_hasta = (request.GET.get('hasta') or '').strip()
+
+    qs = Publicacion.objects.select_related('autor').order_by('-fecha_creacion')
+
+    if q:
+        qs = qs.filter(
+            Q(titulo__icontains=q) |
+            Q(contenido__icontains=q) |
+            Q(ubicacion__icontains=q) |
+            Q(autor_nombre__icontains=q) |
+            Q(autor__username__icontains=q) |
+            Q(autor__first_name__icontains=q) |
+            Q(autor__last_name__icontains=q)
+        )
+    if f_categoria in [c[0] for c in Cat.choices]:
+        qs = qs.filter(categoria=f_categoria)
+    if f_estado in [c[0] for c in Estado.choices]:
+        qs = qs.filter(estado_incidencia=f_estado)
+    if f_desde:
+        qs = qs.filter(fecha_creacion__date__gte=f_desde)
+    if f_hasta:
+        qs = qs.filter(fecha_creacion__date__lte=f_hasta)
+
+    filtros = {'q': q, 'categoria': f_categoria, 'estado': f_estado, 'desde': f_desde, 'hasta': f_hasta}
+    return qs, filtros
+
+
 @login_required
 @_solo_administrador
 def incidentes_view(request):
@@ -1034,40 +1074,12 @@ def incidentes_view(request):
     Estado = Publicacion.EstadoIncidencia
     Cat = Publicacion.Categoria
 
-    # --- Lectura de filtros desde la query string ---
-    q = (request.GET.get('q') or '').strip()
-    f_categoria = (request.GET.get('categoria') or '').strip().upper()
-    f_estado = (request.GET.get('estado') or '').strip().upper()
-    f_desde = (request.GET.get('desde') or '').strip()
-    f_hasta = (request.GET.get('hasta') or '').strip()
-
-    qs = Publicacion.objects.select_related('autor').order_by('-fecha_creacion')
-
-    # Texto libre: título, contenido, ubicación, nombre y username del autor
-    if q:
-        qs = qs.filter(
-            Q(titulo__icontains=q) |
-            Q(contenido__icontains=q) |
-            Q(ubicacion__icontains=q) |
-            Q(autor_nombre__icontains=q) |
-            Q(autor__username__icontains=q) |
-            Q(autor__first_name__icontains=q) |
-            Q(autor__last_name__icontains=q)
-        )
-
-    # Categoría (solo si es una válida)
-    if f_categoria in [c[0] for c in Cat.choices]:
-        qs = qs.filter(categoria=f_categoria)
-
-    # Estado (solo si es uno válido)
-    if f_estado in [c[0] for c in Estado.choices]:
-        qs = qs.filter(estado_incidencia=f_estado)
-
-    # Rango de fechas (formato YYYY-MM-DD)
-    if f_desde:
-        qs = qs.filter(fecha_creacion__date__gte=f_desde)
-    if f_hasta:
-        qs = qs.filter(fecha_creacion__date__lte=f_hasta)
+    qs, filtros_vals = _filtrar_incidentes(request)
+    q = filtros_vals['q']
+    f_categoria = filtros_vals['categoria']
+    f_estado = filtros_vals['estado']
+    f_desde = filtros_vals['desde']
+    f_hasta = filtros_vals['hasta']
 
     total_resultados = qs.count()
 
@@ -1097,6 +1109,131 @@ def incidentes_view(request):
         'querystring_filtros': querystring_filtros,
     }
     return render(request, 'feed/incidentes.html', context)
+
+
+# Columnas del CSV de incidentes (orden fijo para exportar e importar)
+INCIDENTES_CSV_COLUMNAS = [
+    'id', 'titulo', 'contenido', 'categoria', 'estado', 'ubicacion',
+    'autor', 'latitud', 'longitud', 'likes', 'fecha_creacion',
+]
+
+
+@login_required
+@_solo_administrador
+def exportar_incidentes_csv(request):
+    """
+    Exporta a CSV los incidentes que coinciden con los filtros activos
+    (RF-005, Fase 3). Respeta la búsqueda avanzada de la tabla.
+    """
+    import csv
+    from django.http import HttpResponse
+
+    qs, _ = _filtrar_incidentes(request)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="incidentes_urbanreport.csv"'
+    # BOM para que Excel reconozca UTF-8 (tildes/ñ)
+    response.write('\ufeff')
+
+    writer = csv.writer(response)
+    writer.writerow(INCIDENTES_CSV_COLUMNAS)
+    for p in qs:
+        writer.writerow([
+            p.id,
+            p.titulo or '',
+            p.contenido or '',
+            p.categoria or '',
+            p.estado_incidencia or '',
+            p.ubicacion or '',
+            p.nombre_autor or '',
+            p.latitud if p.latitud is not None else '',
+            p.longitud if p.longitud is not None else '',
+            p.likes,
+            p.fecha_creacion.strftime('%Y-%m-%d %H:%M'),
+        ])
+    return response
+
+
+@login_required
+@_solo_administrador
+@require_POST
+def importar_incidentes_csv(request):
+    """
+    Importa incidentes desde un CSV (RF-005, Fase 3).
+    Columnas usadas: titulo, contenido, categoria, estado, ubicacion,
+    latitud, longitud (la columna 'id' se ignora, siempre se crean nuevos).
+    El autor de los reportes importados es el administrador que importa; el
+    nombre original se conserva en autor_nombre si viene en el CSV.
+    Devuelve un JSON con el resumen (creados, errores).
+    """
+    import csv
+    import io as _io
+
+    archivo = request.FILES.get('archivo')
+    if not archivo:
+        return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo.'}, status=400)
+    if not archivo.name.lower().endswith('.csv'):
+        return JsonResponse({'status': 'error', 'message': 'El archivo debe ser un .csv'}, status=400)
+
+    try:
+        datos = archivo.read().decode('utf-8-sig')  # -sig quita el BOM si lo hay
+    except UnicodeDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'No se pudo leer el archivo (debe ser UTF-8).'}, status=400)
+
+    lector = csv.DictReader(_io.StringIO(datos))
+    if not lector.fieldnames or 'contenido' not in [c.strip().lower() for c in lector.fieldnames]:
+        return JsonResponse({
+            'status': 'error',
+            'message': "El CSV debe tener al menos la columna 'contenido'. Columnas esperadas: " + ', '.join(INCIDENTES_CSV_COLUMNAS),
+        }, status=400)
+
+    cats_validas = {c[0] for c in Publicacion.Categoria.choices}
+    estados_validos = {c[0] for c in Publicacion.EstadoIncidencia.choices}
+
+    creados = 0
+    errores = []
+    for i, fila in enumerate(lector, start=2):  # fila 1 = encabezado
+        fila = {(k or '').strip().lower(): (v or '').strip() for k, v in fila.items()}
+        contenido = fila.get('contenido', '')
+        if not contenido:
+            errores.append(f'Fila {i}: sin contenido, omitida.')
+            continue
+
+        categoria = fila.get('categoria', '').upper()
+        if categoria not in cats_validas:
+            categoria = Publicacion.Categoria.VIAS
+        estado = fila.get('estado', '').upper()
+        if estado not in estados_validos:
+            estado = Publicacion.EstadoIncidencia.REPORTADO
+
+        def _num(valor):
+            try:
+                return float(valor) if valor not in ('', None) else None
+            except (ValueError, TypeError):
+                return None
+
+        try:
+            Publicacion.objects.create(
+                autor=request.user,
+                autor_nombre=fila.get('autor', '') or request.user.username,
+                titulo=fila.get('titulo', '')[:200],
+                contenido=contenido,
+                categoria=categoria,
+                estado_incidencia=estado,
+                ubicacion=fila.get('ubicacion', '') or None,
+                latitud=_num(fila.get('latitud')),
+                longitud=_num(fila.get('longitud')),
+            )
+            creados += 1
+        except Exception as e:
+            errores.append(f'Fila {i}: {e}')
+
+    return JsonResponse({
+        'status': 'ok',
+        'creados': creados,
+        'errores': errores,
+        'message': f'{creados} incidente(s) importado(s).' + (f' {len(errores)} con problemas.' if errores else ''),
+    })
 
 
 @login_required
