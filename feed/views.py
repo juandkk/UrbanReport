@@ -1016,6 +1016,89 @@ def panel_administrador_view(request):
     }
     return render(request, 'feed/panel_admin.html', context)
 
+
+@login_required
+@_solo_administrador
+def incidentes_view(request):
+    """
+    Gestión de incidentes (RF-005, Fase 2).
+    Tabla administrativa con TODOS los reportes y filtros de búsqueda avanzada:
+    texto, categoría, estado y rango de fechas. Permite actualizar el estado de
+    cada reporte (reutiliza cambiar_estado_incidencia_ajax).
+    """
+    from django.core.paginator import Paginator
+
+    if not Publicacion.objects.exists():
+        _seed_demo_data()
+
+    Estado = Publicacion.EstadoIncidencia
+    Cat = Publicacion.Categoria
+
+    # --- Lectura de filtros desde la query string ---
+    q = (request.GET.get('q') or '').strip()
+    f_categoria = (request.GET.get('categoria') or '').strip().upper()
+    f_estado = (request.GET.get('estado') or '').strip().upper()
+    f_desde = (request.GET.get('desde') or '').strip()
+    f_hasta = (request.GET.get('hasta') or '').strip()
+
+    qs = Publicacion.objects.select_related('autor').order_by('-fecha_creacion')
+
+    # Texto libre: título, contenido, ubicación, nombre y username del autor
+    if q:
+        qs = qs.filter(
+            Q(titulo__icontains=q) |
+            Q(contenido__icontains=q) |
+            Q(ubicacion__icontains=q) |
+            Q(autor_nombre__icontains=q) |
+            Q(autor__username__icontains=q) |
+            Q(autor__first_name__icontains=q) |
+            Q(autor__last_name__icontains=q)
+        )
+
+    # Categoría (solo si es una válida)
+    if f_categoria in [c[0] for c in Cat.choices]:
+        qs = qs.filter(categoria=f_categoria)
+
+    # Estado (solo si es uno válido)
+    if f_estado in [c[0] for c in Estado.choices]:
+        qs = qs.filter(estado_incidencia=f_estado)
+
+    # Rango de fechas (formato YYYY-MM-DD)
+    if f_desde:
+        qs = qs.filter(fecha_creacion__date__gte=f_desde)
+    if f_hasta:
+        qs = qs.filter(fecha_creacion__date__lte=f_hasta)
+
+    total_resultados = qs.count()
+
+    # --- Paginación ---
+    paginator = Paginator(qs, 15)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    # Querystring sin 'page' para conservar filtros en los enlaces de paginación
+    params = request.GET.copy()
+    params.pop('page', None)
+    querystring_filtros = params.urlencode()
+
+    context = {
+        'active_menu': 'incidentes',
+        'page_obj': page_obj,
+        'total_resultados': total_resultados,
+        'categorias': Cat.choices,
+        'estados': Estado.choices,
+        'filtros': {
+            'q': q,
+            'categoria': f_categoria,
+            'estado': f_estado,
+            'desde': f_desde,
+            'hasta': f_hasta,
+        },
+        'hay_filtros': bool(q or f_categoria or f_estado or f_desde or f_hasta),
+        'querystring_filtros': querystring_filtros,
+    }
+    return render(request, 'feed/incidentes.html', context)
+
+
 @login_required
 @require_POST
 def moderar_publicacion_ajax(request, publicacion_id):

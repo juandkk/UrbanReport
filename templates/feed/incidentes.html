@@ -1,0 +1,159 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Incidentes | UrbanReport{% endblock %}
+
+{# Panel ancho, sin barra de widgets derecha #}
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-panel{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/incidentes.css' %}?v={% now 'U' %}">
+{% endblock %}
+
+{% block portal_content %}
+<div class="inc-page">
+  <!-- Cabecera -->
+  <header class="panel-header">
+    <div>
+      <h1 class="panel-title">Gestión de Incidentes</h1>
+      <p class="panel-subtitle">Consulta, filtra y actualiza el estado de todos los reportes ciudadanos.</p>
+    </div>
+    <a href="{% url 'panel_administrador' %}" class="panel-cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Ir al panel
+    </a>
+  </header>
+
+  <!-- Filtros de búsqueda avanzada -->
+  <form class="inc-filters panel-card" method="get" action="{% url 'incidentes' %}">
+    <div class="inc-filter-field inc-filter-grow">
+      <label for="f-q">Búsqueda</label>
+      <input type="text" id="f-q" name="q" value="{{ filtros.q }}" placeholder="Título, descripción, ubicación o autor…" autocomplete="off" maxlength="150">
+    </div>
+
+    <div class="inc-filter-field">
+      <label for="f-categoria">Categoría</label>
+      <select id="f-categoria" name="categoria">
+        <option value="">Todas</option>
+        {% for valor, etiqueta in categorias %}
+        <option value="{{ valor }}" {% if filtros.categoria == valor %}selected{% endif %}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="inc-filter-field">
+      <label for="f-estado">Estado</label>
+      <select id="f-estado" name="estado">
+        <option value="">Todos</option>
+        {% for valor, etiqueta in estados %}
+        <option value="{{ valor }}" {% if filtros.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="inc-filter-field">
+      <label for="f-desde">Desde</label>
+      <input type="date" id="f-desde" name="desde" value="{{ filtros.desde }}">
+    </div>
+
+    <div class="inc-filter-field">
+      <label for="f-hasta">Hasta</label>
+      <input type="date" id="f-hasta" name="hasta" value="{{ filtros.hasta }}">
+    </div>
+
+    <div class="inc-filter-actions">
+      <button type="submit" class="inc-btn inc-btn-primary">Filtrar</button>
+      {% if hay_filtros %}
+      <a href="{% url 'incidentes' %}" class="inc-btn inc-btn-ghost">Limpiar</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <!-- Resumen de resultados -->
+  <div class="inc-results-bar">
+    <span>{{ total_resultados }} reporte{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</span>
+    {% if hay_filtros %}<span class="inc-filter-note">Filtros activos</span>{% endif %}
+  </div>
+
+  <!-- Tabla -->
+  <div class="panel-card inc-table-card">
+    <div class="inc-table-scroll">
+      <table class="inc-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Reporte</th>
+            <th>Categoría</th>
+            <th>Autor</th>
+            <th>Fecha</th>
+            <th>Votos</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in page_obj %}
+          <tr data-post-id="{{ post.id }}">
+            <td class="inc-id">#{{ post.id }}</td>
+            <td class="inc-reporte">
+              <a href="{% url 'detalle_publicacion' post.id %}" class="inc-reporte-link" title="Ver detalle">
+                {{ post.titulo|default:post.contenido|truncatechars:60 }}
+              </a>
+              {% if post.ubicacion %}<span class="inc-ubic">{{ post.ubicacion }}</span>{% endif %}
+            </td>
+            <td><span class="inc-cat">{{ post.get_categoria_display }}</span></td>
+            <td class="inc-autor">{{ post.nombre_autor }}</td>
+            <td class="inc-fecha">{{ post.fecha_creacion|date:'d/m/Y' }}</td>
+            <td class="inc-votos">👍 {{ post.likes }}</td>
+            <td>
+              <select class="inc-estado-select inc-estado-{{ post.estado_incidencia|lower }}"
+                      data-post-id="{{ post.id }}" data-estado-actual="{{ post.estado_incidencia }}">
+                {% for valor, etiqueta in estados %}
+                <option value="{{ valor }}" {% if post.estado_incidencia == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="inc-empty">No se encontraron reportes con los filtros aplicados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Paginación -->
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="inc-pagination">
+    {% if page_obj.has_previous %}
+    <a class="inc-page-btn" href="?{% if querystring_filtros %}{{ querystring_filtros }}&{% endif %}page={{ page_obj.previous_page_number }}">← Anterior</a>
+    {% else %}
+    <span class="inc-page-btn inc-page-disabled">← Anterior</span>
+    {% endif %}
+
+    <span class="inc-page-info">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+
+    {% if page_obj.has_next %}
+    <a class="inc-page-btn" href="?{% if querystring_filtros %}{{ querystring_filtros }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente →</a>
+    {% else %}
+    <span class="inc-page-btn inc-page-disabled">Siguiente →</span>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Toast de confirmación -->
+<div class="inc-toast" id="incToast"></div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script defer src="{% static 'js/incidentes.js' %}?v={% now 'U' %}"></script>
+{% endblock %}
