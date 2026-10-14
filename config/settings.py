@@ -38,6 +38,13 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes
 ALLOWED_HOSTS = [
     h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()
 ]
+
+# Render expone el dominio público del servicio en esta variable. La agregamos
+# automáticamente para no tener que fijarla a mano en cada deploy.
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 if DEBUG:
     # En desarrollo permitimos localhost y, además, la IP local de esta máquina
     # para poder abrir la app desde otro dispositivo en la misma red WiFi.
@@ -87,6 +94,9 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise sirve los archivos estáticos en producción (debe ir justo
+    # después de SecurityMiddleware).
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -251,7 +261,8 @@ if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY and SUPABASE_S3_ENDPOINT:
             },
         },
         'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            # WhiteNoise: comprime y versiona los estáticos para producción.
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
         },
     }
 else:
@@ -261,7 +272,7 @@ else:
             'BACKEND': 'django.core.files.storage.FileSystemStorage',
         },
         'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
         },
     }
 
@@ -320,13 +331,20 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 
-# ── CSRF / Cookies (desarrollo) ──
+# ── CSRF / Cookies ──
 # Orígenes de confianza para solicitudes POST. Incluye las dos formas de acceder
 # al servidor local para evitar errores 403 "CSRF token incorrect" al alternar
 # entre 127.0.0.1 y localhost.
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
+]
+# En Render el dominio es https://<servicio>.onrender.com
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+# Orígenes extra configurables por entorno (coma-separados), p. ej. dominio propio.
+CSRF_TRUSTED_ORIGINS += [
+    o.strip() for o in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
 ]
 
 if DEBUG:
@@ -337,6 +355,13 @@ if DEBUG:
     # El JS no necesita leer el token aquí, pero dejarlo accesible evita
     # problemas si en el futuro se envían formularios por fetch/AJAX.
     CSRF_COOKIE_HTTPONLY = False
+else:
+    # Producción (HTTPS): cookies seguras y confianza en el proxy de Render para
+    # detectar HTTPS (Render termina TLS y reenvía esta cabecera).
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'True').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 # Email
