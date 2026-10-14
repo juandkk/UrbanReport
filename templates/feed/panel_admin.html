@@ -1,0 +1,161 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Panel de Control Municipal | UrbanReport{% endblock %}
+
+{# El panel no usa la barra de widgets derecha del feed #}
+{% block right_widgets %}{% endblock %}
+
+{# El panel ocupa todo el ancho, no la columna angosta del feed #}
+{% block portal_main_class %}portal-main-panel{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}?v={% now 'U' %}">
+{% endblock %}
+
+{% block portal_content %}
+<div class="panel-admin">
+  <!-- Cabecera -->
+  <header class="panel-header">
+    <div>
+      <h1 class="panel-title">Panel de Control Municipal</h1>
+      <p class="panel-subtitle">Monitoreo en tiempo real de reportes ciudadanos y estado operativo.</p>
+    </div>
+    <a href="{% url 'feed_comunitario' %}" class="panel-cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      Mira todos los incidentes
+    </a>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-head">
+        <span class="kpi-label">Activas &amp; en curso</span>
+        <span class="kpi-icon kpi-icon-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+      </div>
+      <div class="kpi-value">{{ stats.activas }}</div>
+      <div class="kpi-foot kpi-muted">{{ stats.total }} reportes en total</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-head">
+        <span class="kpi-label">Tiempo promedio en sistema</span>
+        <span class="kpi-icon kpi-icon-indigo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+        </span>
+      </div>
+      <div class="kpi-value">{{ stats.tiempo_prom_horas }} <span class="kpi-unit">hrs</span></div>
+      <div class="kpi-foot kpi-muted">De los reportes resueltos</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-head">
+        <span class="kpi-label">Resueltas exitosas</span>
+        <span class="kpi-icon kpi-icon-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+      </div>
+      <div class="kpi-value">{{ stats.resueltas }}</div>
+      <div class="kpi-foot kpi-pos">{{ stats.tasa_resolucion }}% tasa de resolución</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-head">
+        <span class="kpi-label">Satisfacción vecinal</span>
+        <span class="kpi-icon kpi-icon-amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+      </div>
+      <div class="kpi-value">{{ stats.satisfaccion }}%</div>
+      <div class="kpi-foot kpi-muted">Basada en la tasa de resolución</div>
+    </div>
+  </section>
+
+  <!-- Gráficas Chart.js -->
+  <section class="charts-grid">
+    <div class="panel-card chart-card">
+      <h3 class="panel-card-title">Reportes por categoría</h3>
+      <div class="chart-wrap"><canvas id="chartCategoria"></canvas></div>
+    </div>
+
+    <div class="panel-card chart-card">
+      <h3 class="panel-card-title">Reportes por estado</h3>
+      <div class="chart-wrap"><canvas id="chartEstado"></canvas></div>
+    </div>
+
+    <div class="panel-card chart-card chart-card-wide">
+      <h3 class="panel-card-title">Reportes en los últimos 14 días</h3>
+      <div class="chart-wrap"><canvas id="chartTendencia"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Cola prioritaria + Carga por departamento -->
+  <section class="panel-bottom">
+    <div class="panel-card queue-card">
+      <h3 class="panel-card-title">Cola de Atención Prioritaria</h3>
+      <div class="queue-list">
+        {% for post in stats.cola_prioritaria %}
+        <a class="queue-item" href="{% url 'detalle_publicacion' post.id %}">
+          <div class="queue-thumb">
+            {% if post.imagen %}<img src="{{ post.imagen.url }}" alt="">{% else %}<span class="queue-thumb-ph">UR</span>{% endif %}
+          </div>
+          <div class="queue-info">
+            <div class="queue-title-row">
+              <span class="queue-title">{{ post.titulo|default:post.contenido|truncatechars:48 }}</span>
+              <span class="queue-badge queue-badge-{{ post.estado_incidencia|lower }}">
+                {% if post.estado_incidencia == 'REPORTADO' %}Pendiente{% elif post.estado_incidencia == 'EN_PROCESO' %}En proceso{% else %}Resuelta{% endif %}
+              </span>
+            </div>
+            <div class="queue-meta">
+              <span class="queue-loc">{{ post.ubicacion|default:post.get_categoria_display }}</span>
+              <span class="queue-votes">👍 {{ post.likes }} votos vecinales</span>
+            </div>
+          </div>
+        </a>
+        {% empty %}
+        <p class="queue-empty">No hay reportes activos en la cola. ¡Todo al día!</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="panel-card load-card">
+      <h3 class="panel-card-title">Carga por Departamento</h3>
+      <div class="load-list">
+        {% for d in stats.carga_departamento %}
+        <div class="load-row">
+          <div class="load-row-head">
+            <span class="load-name">{{ d.etiqueta }}</span>
+            <span class="load-pct">{{ d.porcentaje }}%</span>
+          </div>
+          <div class="load-bar"><div class="load-bar-fill" style="width: {{ d.porcentaje }}%;"></div></div>
+          <span class="load-count">{{ d.cantidad }} reporte{{ d.cantidad|pluralize }}</span>
+        </div>
+        {% empty %}
+        <p class="queue-empty">Aún no hay reportes por categoría.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+
+{# Datos para Chart.js, pasados de forma segura con json_script #}
+{{ stats.chart_categoria_labels|json_script:"data-cat-labels" }}
+{{ stats.chart_categoria_data|json_script:"data-cat-data" }}
+{{ stats.chart_estado_labels|json_script:"data-est-labels" }}
+{{ stats.chart_estado_data|json_script:"data-est-data" }}
+{{ stats.chart_tendencia_labels|json_script:"data-tend-labels" }}
+{{ stats.chart_tendencia_data|json_script:"data-tend-data" }}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<!-- Chart.js desde CDN (defer para no bloquear el render) -->
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script defer src="{% static 'js/panel_admin.js' %}?v={% now 'U' %}"></script>
+{% endblock %}

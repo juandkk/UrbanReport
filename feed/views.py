@@ -906,50 +906,115 @@ def ayuda_view(request):
     return render(request, 'feed/ayuda.html', {'active_menu': 'ayuda'})
 
 
+def _calcular_estadisticas_panel():
+    """
+    Calcula todas las métricas del Panel de Control Municipal a partir de datos
+    reales de Publicacion. Devuelve un dict listo para la plantilla y para
+    alimentar las gráficas de Chart.js.
+    """
+    Estado = Publicacion.EstadoIncidencia
+    Cat = Publicacion.Categoria
+
+    qs = Publicacion.objects.all()
+    total = qs.count()
+
+    # --- Conteos por estado ---
+    por_estado = {
+        Estado.REPORTADO: qs.filter(estado_incidencia=Estado.REPORTADO).count(),
+        Estado.EN_PROCESO: qs.filter(estado_incidencia=Estado.EN_PROCESO).count(),
+        Estado.RESUELTA: qs.filter(estado_incidencia=Estado.RESUELTA).count(),
+    }
+    activas = por_estado[Estado.REPORTADO] + por_estado[Estado.EN_PROCESO]
+    resueltas = por_estado[Estado.RESUELTA]
+
+    # --- Tasa de resolución y "satisfacción vecinal" (derivada de la tasa) ---
+    tasa_resolucion = round((resueltas / total) * 100, 1) if total else 0.0
+    satisfaccion = tasa_resolucion  # satisfacción = tasa de resolución (decisión del equipo)
+
+    # --- Tiempo promedio de respuesta ---
+    # Sin campo de fecha de resolución, aproximamos con la antigüedad promedio de
+    # los reportes resueltos (cuánto tardan en el sistema). Es una estimación.
+    ahora = timezone.now()
+    resueltas_qs = qs.filter(estado_incidencia=Estado.RESUELTA)
+    horas = [
+        (ahora - p.fecha_creacion).total_seconds() / 3600.0
+        for p in resueltas_qs
+    ]
+    tiempo_prom_horas = round(sum(horas) / len(horas), 1) if horas else 0.0
+
+    # --- Conteos por categoría (para la dona y "Carga por Departamento") ---
+    por_categoria = []
+    for valor, etiqueta in Cat.choices:
+        c = qs.filter(categoria=valor).count()
+        por_categoria.append({
+            'clave': valor,
+            'etiqueta': etiqueta,
+            'cantidad': c,
+            'porcentaje': round((c / total) * 100) if total else 0,
+        })
+    # Orden descendente por cantidad para la "Carga por Departamento"
+    carga_departamento = sorted(por_categoria, key=lambda x: x['cantidad'], reverse=True)
+
+    # --- Tendencia temporal: reportes por día en los últimos 14 días ---
+    dias = 14
+    serie_labels = []
+    serie_valores = []
+    base = ahora.date() - timedelta(days=dias - 1)
+    for i in range(dias):
+        dia = base + timedelta(days=i)
+        serie_labels.append(dia.strftime('%d/%m'))
+        serie_valores.append(qs.filter(fecha_creacion__date=dia).count())
+
+    # --- Cola de atención prioritaria: activas, por más votos y antigüedad ---
+    cola = list(
+        qs.exclude(estado_incidencia=Estado.RESUELTA)
+          .order_by('-likes', 'fecha_creacion')[:6]
+    )
+
+    return {
+        'total': total,
+        'activas': activas,
+        'resueltas': resueltas,
+        'tasa_resolucion': tasa_resolucion,
+        'satisfaccion': satisfaccion,
+        'tiempo_prom_horas': tiempo_prom_horas,
+        'por_estado': por_estado,
+        'por_categoria': por_categoria,
+        'carga_departamento': carga_departamento,
+        # Datos serializados para Chart.js
+        'chart_categoria_labels': [c['etiqueta'] for c in por_categoria],
+        'chart_categoria_data': [c['cantidad'] for c in por_categoria],
+        'chart_estado_labels': ['Reportado', 'En Proceso', 'Resuelta'],
+        'chart_estado_data': [
+            por_estado[Estado.REPORTADO],
+            por_estado[Estado.EN_PROCESO],
+            por_estado[Estado.RESUELTA],
+        ],
+        'chart_tendencia_labels': serie_labels,
+        'chart_tendencia_data': serie_valores,
+        'cola_prioritaria': cola,
+    }
+
+
 @login_required
 @_solo_administrador
 def panel_administrador_view(request):
     """
-    Punto de entrada del panel administrador.
-    Reutiliza exactamente la misma lógica y template que feed_comunitario,
-    con active_menu='panel' para resaltar el ítem correcto en el sidebar.
-    El administrador tiene acceso a todas las funciones ciudadanas MÁS
-    las herramientas de moderación activadas por _es_admin().
+    Panel de Control Municipal (RF-005, Fase 1).
+    Vista exclusiva de administradores con KPIs, estadísticas en Chart.js y la
+    cola de atención prioritaria. Las métricas se calculan de datos reales.
     """
-    # Reutilizar toda la lógica del feed comunitario
     if not Publicacion.objects.exists():
         _seed_demo_data()
     _ensure_demo_balance()
 
-    publicaciones = list(Publicacion.objects.all().order_by('-id').prefetch_related(
-        'comentarios__respuestas', 'comentarios__autor', 'autor'
-    ))
-    trending_topics = calcular_trending_topics()
-    actividades = obtener_actividades_recientes_balanceadas()
-
-    user_post_reactions = {}
-    user_comment_reactions = {}
-    for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
-        user_post_reactions[r.publicacion_id] = r.tipo
-    all_comment_ids = [c.id for p in publicaciones for c in p.comentarios.all()]
-    if all_comment_ids:
-        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=all_comment_ids):
-            user_comment_reactions[r.comentario_id] = r.tipo
-
-    for p in publicaciones:
-        p.user_reaction = user_post_reactions.get(p.id)
-        for c in p.comentarios.all():
-            c.user_reaction = user_comment_reactions.get(c.id)
-            for rep in c.respuestas.all():
-                rep.user_reaction = user_comment_reactions.get(rep.id)
+    stats = _calcular_estadisticas_panel()
 
     context = {
-        'publicaciones': publicaciones,
-        'trending_topics': trending_topics,
-        'actividades': actividades,
-        'active_menu': 'panel',   # Resalta "Panel" en el sidebar del admin
+        'active_menu': 'panel',
+        'stats': stats,
     }
-    return render(request, 'feed/feed_comunitario.html', context)
+    return render(request, 'feed/panel_admin.html', context)
 
 @login_required
 @require_POST
