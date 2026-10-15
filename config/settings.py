@@ -300,6 +300,10 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'
 # En producción (HTTPS) allauth debe construir los redirect_uri con https://,
 # porque Facebook rechaza callbacks http. En desarrollo (DEBUG) se queda en http.
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
+# Adapter propio: genera email/username placeholder cuando el proveedor social
+# no los entrega (p. ej. Facebook sin permiso 'email'), evitando el fallo al
+# crear el usuario (email es obligatorio y único en el modelo).
+SOCIALACCOUNT_ADAPTER = 'usuarios.adapters.SocialAccountAdapter'
 
 # Credenciales de los proveedores, leídas del .env. Si están vacías, el botón
 # correspondiente aparece deshabilitado (el proveedor no funcionará).
