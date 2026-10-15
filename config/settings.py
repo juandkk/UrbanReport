@@ -304,6 +304,9 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 # no los entrega (p. ej. Facebook sin permiso 'email'), evitando el fallo al
 # crear el usuario (email es obligatorio y único en el modelo).
 SOCIALACCOUNT_ADAPTER = 'usuarios.adapters.SocialAccountAdapter'
+# Crear la cuenta directamente tras el login social, sin mostrar el formulario
+# de signup intermedio de allauth (el adapter ya rellena email/username).
+SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # Credenciales de los proveedores, leídas del .env. Si están vacías, el botón
 # correspondiente aparece deshabilitado (el proveedor no funcionará).
