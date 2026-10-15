@@ -382,14 +382,18 @@ else:
 # ---------------------------------------------------------------------------
 # Si hay credenciales SMTP en el .env (p. ej. Gmail), se envían correos reales.
 # Si no, los correos se imprimen en la consola (útil en desarrollo/demo sin SMTP).
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+# La contraseña de aplicación de Google se muestra en bloques con espacios
+# (abcd efgh ijkl mnop); aquí quitamos los espacios por si se pegaron.
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
 
 if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
     EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
     EMAIL_USE_TLS = True
+    # Falla rápido si Gmail no responde, en vez de dejar la petición colgada.
+    EMAIL_TIMEOUT = 20
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'UrbanReport <{EMAIL_HOST_USER}>')
 else:
     # Sin credenciales: los correos se muestran en la consola del servidor.
