@@ -400,6 +400,10 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     DEFAULT_FROM_EMAIL = 'UrbanReport <no-reply@urbanreport.local>'
 
+# Deja constancia en los logs de qué backend de correo quedó activo, para
+# diagnosticar en producción si las credenciales SMTP están llegando o no.
+print(f'[EMAIL] Backend activo: {EMAIL_BACKEND} | usuario SMTP configurado: {bool(EMAIL_HOST_USER)}')
+
 
 # ── Logging ──
 # Envía a la consola (stderr, que Render captura) los errores de allauth y
