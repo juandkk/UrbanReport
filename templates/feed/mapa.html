@@ -15,6 +15,17 @@
 
 {% block content %}
 <div class="portal-wrapper">
+  <!-- Botón hamburguesa (solo visible en móvil) -->
+  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Abrir menú" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <!-- Fondo oscuro al abrir el menú en móvil -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
   <!-- Left Sidebar Component -->
   {% include 'includes/sidebar.html' %}
 
@@ -88,4 +99,36 @@
         crossorigin=""></script>
 <script src="{% static 'js/mapa.js' %}?v={% now 'U' %}"></script>
 <script src="{% static 'js/modal_radicar.js' %}?v={% now 'U' %}"></script>
+
+<!-- Menú lateral móvil (drawer): mismo comportamiento que en el resto del portal -->
+<script>
+  (function () {
+    var toggle = document.getElementById('mobileNavToggle');
+    var overlay = document.getElementById('mobileNavOverlay');
+    var sidebar = document.querySelector('.portal-sidebar');
+    if (!toggle || !overlay || !sidebar) return;
+
+    function abrir() {
+      sidebar.classList.add('open');
+      overlay.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+    function cerrar() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', function () {
+      if (sidebar.classList.contains('open')) { cerrar(); } else { abrir(); }
+    });
+    overlay.addEventListener('click', cerrar);
+    sidebar.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', cerrar);
+    });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 768) cerrar();
+    });
+  })();
+</script>
 {% endblock %}
