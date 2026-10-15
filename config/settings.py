@@ -297,6 +297,9 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 # No pedimos verificación de email para el login social (el proveedor ya lo verificó).
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+# En producción (HTTPS) allauth debe construir los redirect_uri con https://,
+# porque Facebook rechaza callbacks http. En desarrollo (DEBUG) se queda en http.
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if DEBUG else 'https'
 
 # Credenciales de los proveedores, leídas del .env. Si están vacías, el botón
 # correspondiente aparece deshabilitado (el proveedor no funcionará).
