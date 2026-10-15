@@ -20,6 +20,10 @@ class Usuario(AbstractUser):
     codigo_postal = models.CharField('Código postal', max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
+    # Preferencias de notificaciones (añadidas en la base compartida como 0005).
+    notif_feed = models.BooleanField('Notificaciones del feed', default=True)
+    notif_reportes = models.BooleanField('Notificaciones de reportes', default=True)
+
     # Usuarios que este usuario sigue (relación dirigida a través de Seguimiento)
     seguidos = models.ManyToManyField(
         'self',

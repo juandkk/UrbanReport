@@ -84,7 +84,10 @@ def registro_view(request):
         form = RegistroForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            # Con allauth hay varios AUTHENTICATION_BACKENDS, así que login()
+            # requiere indicar explícitamente con cuál autenticar al usuario
+            # recién creado (si no, lanza error y da 500).
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, f'¡Bienvenido a UrbanReport, {user.username}!')
             return redirect('feed_comunitario')
         else:
