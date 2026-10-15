@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Usuario
-from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm, CompletarPerfilForm
+from .forms import LoginForm, RegistroForm, CompletarPerfilForm
 
 
 def login_view(request):
@@ -98,27 +98,9 @@ def registro_view(request):
     })
 
 
-def recuperar_contrasena_view(request):
-    mensaje_enviado = False
-    correo_destino = ''
-
-    if request.method == 'POST':
-        form = RecuperarContrasenaForm(request.POST)
-        if form.is_valid():
-            correo_destino = form.cleaned_data['email']
-            mensaje_enviado = True
-            messages.success(
-                request,
-                f'Instrucciones enviadas exitosamente a {correo_destino}.'
-            )
-    else:
-        form = RecuperarContrasenaForm()
-
-    return render(request, 'usuarios/recuperar_contrasena.html', {
-        'form': form,
-        'mensaje_enviado': mensaje_enviado,
-        'correo_destino': correo_destino,
-    })
+# La recuperación de contraseña ahora usa el sistema nativo de Django
+# (PasswordResetView y familia), configurado en usuarios/urls.py con las
+# plantillas usuarios/password_reset_*.html.
 
 
 def logout_view(request):
