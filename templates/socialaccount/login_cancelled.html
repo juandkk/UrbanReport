@@ -1,0 +1,22 @@
+{% extends 'layouts/auth_base.html' %}
+{% load static %}
+
+{% block title %}Inicio de sesión cancelado | UrbanReport{% endblock %}
+
+{% block auth_card %}
+<div class="auth-card auth-status-card">
+  <div class="auth-status-icon auth-status-neutral">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  </div>
+  <h2 class="auth-status-title">Inicio de sesión cancelado</h2>
+  <p class="auth-status-text">
+    Cancelaste el acceso con tu cuenta externa. No pasa nada: puedes volver a
+    intentarlo cuando quieras.
+  </p>
+  <a href="{% url 'login' %}" class="btn-primary auth-status-btn">Volver al inicio de sesión</a>
+</div>
+{% endblock %}

@@ -475,3 +475,69 @@
   line-height: 1.45;
   margin: 0;
 }
+
+/* ── Páginas de estado del login social (cancelado / error) ── */
+.auth-status-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 28px;
+}
+.auth-status-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-status-icon svg { width: 30px; height: 30px; }
+.auth-status-neutral { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.auth-status-error { background: rgba(239,68,68,0.15); color: #f87171; }
+.auth-status-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+.auth-status-text {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 340px;
+}
+.auth-status-btn {
+  width: 100%;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  margin-top: 6px;
+}
+
+/* Inputs del formulario de registro social de allauth (no llevan la clase
+   auth-input automáticamente, así que replicamos su estilo por el contenedor) */
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  width: 100%;
+  height: 44px;
+  background-color: #0e1117;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.auth-form input[type="text"]:focus,
+.auth-form input[type="email"]:focus,
+.auth-form input[type="password"]:focus {
+  border-color: var(--border-focus);
+}
+.auth-form input::placeholder { color: #4b5563; }

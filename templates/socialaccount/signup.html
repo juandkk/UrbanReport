@@ -1,0 +1,41 @@
+{% extends 'layouts/auth_base.html' %}
+{% load static %}
+
+{% block title %}Completar registro | UrbanReport{% endblock %}
+
+{% block auth_card %}
+<div class="auth-card auth-card-wide">
+  <div class="auth-complete-head">
+    <h2 class="auth-complete-title">Casi listo</h2>
+    <p class="auth-complete-sub">
+      Vas a usar tu cuenta de {{ account.get_provider.name|default:"terceros" }} para entrar a UrbanReport.
+      Confirma estos datos para crear tu cuenta.
+    </p>
+  </div>
+
+  <form method="post" action="{% url 'socialaccount_signup' %}" class="auth-form">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}
+        <span style="color: #ef4444; font-size: 0.75rem;">{{ field.errors.0 }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if form.non_field_errors %}
+      <div style="color:#ef4444; font-size:0.8rem; margin-bottom:8px;">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <button type="submit" class="btn-primary" style="width:100%; height:44px; margin-top:0.5rem;">
+      Crear cuenta y continuar
+    </button>
+
+    <p class="auth-footer-text">
+      <a href="{% url 'login' %}">Volver al inicio de sesión</a>
+    </p>
+  </form>
+</div>
+{% endblock %}
