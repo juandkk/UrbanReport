@@ -329,7 +329,10 @@ SOCIALACCOUNT_PROVIDERS = {
             'key': '',
         },
         'METHOD': 'oauth2',
-        'SCOPE': ['email', 'public_profile'],
+        # Solo public_profile: el permiso 'email' requiere habilitarse en la app
+        # de Meta ("Invalid Scopes: email" si no está). Para la demo basta el
+        # perfil público; se puede reañadir 'email' cuando se active en Meta.
+        'SCOPE': ['public_profile'],
     },
 }
 
