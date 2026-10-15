@@ -377,14 +377,32 @@ else:
     SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'True').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# ---------------------------------------------------------------------------
+# Email (recuperación de contraseña, etc.)
+# ---------------------------------------------------------------------------
+# Si hay credenciales SMTP en el .env (p. ej. Gmail), se envían correos reales.
+# Si no, los correos se imprimen en la consola (útil en desarrollo/demo sin SMTP).
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+# La contraseña de aplicación de Google se muestra en bloques con espacios
+# (abcd efgh ijkl mnop); aquí quitamos los espacios por si se pegaron.
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = True
+    # Falla rápido si Gmail no responde, en vez de dejar la petición colgada.
+    EMAIL_TIMEOUT = 20
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'UrbanReport <{EMAIL_HOST_USER}>')
+else:
+    # Sin credenciales: los correos se muestran en la consola del servidor.
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = 'UrbanReport <no-reply@urbanreport.local>'
+
+# Deja constancia en los logs de qué backend de correo quedó activo, para
+# diagnosticar en producción si las credenciales SMTP están llegando o no.
+print(f'[EMAIL] Backend activo: {EMAIL_BACKEND} | usuario SMTP configurado: {bool(EMAIL_HOST_USER)}')
 
 
 # ── Logging ──
