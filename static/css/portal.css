@@ -3960,7 +3960,9 @@
 /* Tarjetas de guía */
 .ayuda-cards-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Columnas que se adaptan al número de tarjetas: el ciudadano ve solo la
+     Guía del Ciudadano (una tarjeta a ancho completo), el admin ve las dos. */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.25rem;
   margin-bottom: 2.25rem;
 }
@@ -3968,7 +3970,7 @@
 .ayuda-guide-card {
   background: #10141d;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 1.5rem 1.5rem 1.75rem;
   display: flex;
   flex-direction: column;
