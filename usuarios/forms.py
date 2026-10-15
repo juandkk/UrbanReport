@@ -4,6 +4,22 @@ from django.core.exceptions import ValidationError
 from .models import Usuario
 
 
+def validar_telefono_colombiano(valor):
+    """
+    Valida un número de teléfono colombiano: exactamente 10 dígitos, sin
+    espacios, signos ni letras. Devuelve el número normalizado (solo dígitos).
+    Lanza ValidationError si no cumple.
+    """
+    telefono = (valor or '').strip()
+    if not telefono:
+        raise ValidationError('El número de teléfono es obligatorio.')
+    if not telefono.isdigit():
+        raise ValidationError('El teléfono solo puede contener números (sin espacios, signos ni letras).')
+    if len(telefono) != 10:
+        raise ValidationError('El teléfono debe tener exactamente 10 dígitos.')
+    return telefono
+
+
 class LoginForm(forms.Form):
     ROLES = [
         ('CIUDADANO', 'Ciudadano'),
@@ -107,6 +123,9 @@ class RegistroForm(forms.ModelForm):
             raise ValidationError('Este correo electrónico ya está registrado.')
         return email
 
+    def clean_telefono(self):
+        return validar_telefono_colombiano(self.cleaned_data.get('telefono'))
+
     def clean_password(self):
         password = self.cleaned_data.get('password') or ''
         # Mínimo 8 caracteres
@@ -154,10 +173,14 @@ class CompletarPerfilForm(forms.ModelForm):
             }),
         }
 
+    def clean_telefono(self):
+        return validar_telefono_colombiano(self.cleaned_data.get('telefono'))
+
     def clean(self):
         cleaned = super().clean()
-        # Estos cuatro son obligatorios (numero_finca es opcional)
-        for campo in ['telefono', 'direccion', 'barrio_vereda', 'codigo_postal']:
+        # Estos tres son obligatorios (numero_finca es opcional; telefono ya se
+        # valida en clean_telefono con el formato de 10 dígitos).
+        for campo in ['direccion', 'barrio_vereda', 'codigo_postal']:
             if not (cleaned.get(campo) or '').strip():
                 self.add_error(campo, 'Este campo es obligatorio.')
         return cleaned
