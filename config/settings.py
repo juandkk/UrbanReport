@@ -383,3 +383,29 @@ MAILERS = {
     },
 }
 
+
+# ── Logging ──
+# Envía a la consola (stderr, que Render captura) los errores de allauth y
+# Django, para poder diagnosticar fallos de login social en producción.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'allauth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
