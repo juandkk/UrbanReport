@@ -102,7 +102,7 @@ def api_incidentes_mapa(request):
     incidentes = Publicacion.objects.filter(
         latitud__isnull=False,
         longitud__isnull=False,
-    )
+    ).annotate(_total_comentarios=Count('comentarios'))
 
     if estado and estado != 'TODOS':
         incidentes = incidentes.filter(estado_incidencia=estado)
@@ -536,13 +536,9 @@ def detalle_publicacion_view(request, publicacion_id):
 
 @login_required
 def feed_comunitario_view(request):
-    # Seed sample data if empty so UI looks 100% complete and identical to designs
-    if not Publicacion.objects.exists():
-        _seed_demo_data()
-
     # El feed comunitario muestra TODAS las publicaciones recientes disponibles (sin limitación)
-    publicaciones = list(Publicacion.objects.all().order_by('-id').prefetch_related(
-        'comentarios__respuestas', 'comentarios__autor', 'autor'
+    publicaciones = list(Publicacion.objects.all().order_by('-id').select_related('autor').prefetch_related(
+        'comentarios__respuestas__autor', 'comentarios__autor', 'reposteos'
     ))
     # Trending Topics calculados en vivo desde las publicaciones (categorías + hashtags)
     trending_topics = calcular_trending_topics()
@@ -1025,9 +1021,6 @@ def estadisticas_view(request):
     métricas generales (datos globales) integrado con sus métricas personales.
     Para ciudadanos muestra solo "Mis Estadísticas e Impacto".
     """
-    if not Publicacion.objects.exists():
-        _seed_demo_data()
-
     # Filtro temporal: ?rango=7 | 30 | todo (por defecto 30 días)
     RANGOS = {'7': 7, '30': 30, 'todo': None}
     rango = (request.GET.get('rango') or '30').lower()
@@ -1148,10 +1141,6 @@ def panel_administrador_view(request):
     Vista exclusiva de administradores con KPIs, estadísticas en Chart.js y la
     cola de atención prioritaria. Las métricas se calculan de datos reales.
     """
-    if not Publicacion.objects.exists():
-        _seed_demo_data()
-    _ensure_demo_balance()
-
     stats = _calcular_estadisticas_panel()
 
     context = {
@@ -1211,9 +1200,6 @@ def incidentes_view(request):
     cada reporte (reutiliza cambiar_estado_incidencia_ajax).
     """
     from django.core.paginator import Paginator
-
-    if not Publicacion.objects.exists():
-        _seed_demo_data()
 
     Estado = Publicacion.EstadoIncidencia
     Cat = Publicacion.Categoria
@@ -1742,8 +1728,8 @@ def api_buscar_publicaciones(request):
             fecha_validada = None
 
     # ── Protocolo 3: Consultas seguras y parametrizadas ──
-    qs = Publicacion.objects.all().prefetch_related(
-        'comentarios__respuestas', 'comentarios__autor', 'autor'
+    qs = Publicacion.objects.all().select_related('autor').prefetch_related(
+        'comentarios__respuestas__autor', 'comentarios__autor', 'reposteos'
     )
 
     es_admin = (
@@ -2048,8 +2034,6 @@ def notificaciones_view(request):
     (todas / publicaciones / reportes) y agrupa por día (hoy / ayer / anteriores).
     Al entrar, se marcan como leídas.
     """
-    _seed_notificaciones_demo(request.user)
-
     filtro = request.GET.get('filtro', 'todas').lower()
     qs = Notificacion.objects.filter(destinatario=request.user).select_related('actor', 'publicacion', 'comentario')
 

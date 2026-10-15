@@ -71,6 +71,10 @@ class Publicacion(models.Model):
 
     @property
     def total_comentarios(self):
+        if hasattr(self, '_total_comentarios'):
+            return self._total_comentarios
+        if '_prefetched_objects_cache' in getattr(self, '__dict__', {}) and 'comentarios' in self._prefetched_objects_cache:
+            return len(self._prefetched_objects_cache['comentarios'])
         return self.comentarios.count()
 
     @property
@@ -78,13 +82,18 @@ class Publicacion(models.Model):
         from django.utils.timesince import timesince
         return timesince(self.fecha_creacion).replace(', ', ',').replace(',', ', ')
 
-
     def comentarios_principales(self):
         """Retorna solo comentarios raíz (sin padre) para estructurar el hilo."""
+        if '_prefetched_objects_cache' in getattr(self, '__dict__', {}) and 'comentarios' in self._prefetched_objects_cache:
+            return [c for c in self._prefetched_objects_cache['comentarios'] if c.padre_id is None]
         return self.comentarios.filter(padre__isnull=True).prefetch_related('respuestas')
 
     @property
     def total_reposteos(self):
+        if hasattr(self, '_total_reposteos'):
+            return self._total_reposteos
+        if '_prefetched_objects_cache' in getattr(self, '__dict__', {}) and 'reposteos' in self._prefetched_objects_cache:
+            return len(self._prefetched_objects_cache['reposteos'])
         return self.reposteos.count()
 
 
@@ -133,6 +142,8 @@ class Comentario(models.Model):
 
     @property
     def total_respuestas(self):
+        if '_prefetched_objects_cache' in getattr(self, '__dict__', {}) and 'respuestas' in self._prefetched_objects_cache:
+            return len(self._prefetched_objects_cache['respuestas'])
         return self.respuestas.count()
 
     @property

@@ -249,11 +249,11 @@ def perfil_view(request, username=None):
     if tab not in ('publicaciones', 'reposteos'):
         tab = 'publicaciones'
 
-    _prefetch = ('comentarios__respuestas', 'comentarios__autor', 'autor')
+    _prefetch = ('comentarios__respuestas__autor', 'comentarios__autor', 'reposteos')
 
     # Publicaciones propias del usuario del perfil
     publicaciones_propias = list(
-        Publicacion.objects.filter(autor=usuario).order_by('-id').prefetch_related(*_prefetch)
+        Publicacion.objects.filter(autor=usuario).order_by('-id').select_related('autor').prefetch_related(*_prefetch)
     )
     total_publicaciones = len(publicaciones_propias)
 
@@ -268,7 +268,7 @@ def perfil_view(request, username=None):
     # Prefetch de comentarios/autor para las reposteadas
     if publicaciones_reposteadas:
         ids = [p.id for p in publicaciones_reposteadas]
-        cache = {p.id: p for p in Publicacion.objects.filter(id__in=ids).prefetch_related(*_prefetch)}
+        cache = {p.id: p for p in Publicacion.objects.filter(id__in=ids).select_related('autor').prefetch_related(*_prefetch)}
         publicaciones_reposteadas = []
         for rp in reposteos_qs:
             p = cache.get(rp.publicacion_id)
