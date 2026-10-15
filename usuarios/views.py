@@ -2,10 +2,51 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from .models import Usuario
 from .forms import LoginForm, RegistroForm, CompletarPerfilForm
+
+
+def _diagnostico_email(request):
+    """
+    DIAGNÓSTICO TEMPORAL: envía un correo de prueba al correo indicado en ?to=
+    y muestra el resultado detallado. Solo para superusuarios. Sirve para ver el
+    error SMTP exacto que PasswordResetView oculta. Eliminar tras depurar.
+    """
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return HttpResponse('Solo superusuarios.', status=403)
+
+    from django.conf import settings
+    from django.core.mail import send_mail
+    import traceback
+
+    destino = request.GET.get('to') or request.user.email
+    lineas = [
+        f'EMAIL_BACKEND = {settings.EMAIL_BACKEND}',
+        f'EMAIL_HOST = {getattr(settings, "EMAIL_HOST", "(n/a)")}',
+        f'EMAIL_PORT = {getattr(settings, "EMAIL_PORT", "(n/a)")}',
+        f'EMAIL_USE_TLS = {getattr(settings, "EMAIL_USE_TLS", "(n/a)")}',
+        f'EMAIL_HOST_USER = {getattr(settings, "EMAIL_HOST_USER", "(n/a)")}',
+        f'DEFAULT_FROM_EMAIL = {settings.DEFAULT_FROM_EMAIL}',
+        f'Enviando a: {destino}',
+        '-' * 40,
+    ]
+    try:
+        enviados = send_mail(
+            'Prueba de correo UrbanReport',
+            'Si recibes esto, el envío de correos funciona.',
+            settings.DEFAULT_FROM_EMAIL,
+            [destino],
+            fail_silently=False,
+        )
+        lineas.append(f'RESULTADO: send_mail devolvió {enviados} (1 = aceptado por el servidor)')
+    except Exception as e:
+        lineas.append('RESULTADO: EXCEPCIÓN al enviar')
+        lineas.append(repr(e))
+        lineas.append(traceback.format_exc())
+
+    return HttpResponse('\n'.join(lineas), content_type='text/plain; charset=utf-8')
 
 
 def login_view(request):

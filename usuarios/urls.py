@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
+    # DIAGNÓSTICO TEMPORAL de envío de correo (solo superusers). Eliminar luego.
+    path('diag-email/', views._diagnostico_email, name='diag_email'),
     path('completar-perfil/', views.completar_perfil_view, name='completar_perfil'),
     path('perfil/', views.perfil_view, name='perfil'),
     path('perfil/<str:username>/', views.perfil_view, name='perfil_usuario'),
