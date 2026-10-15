@@ -1,0 +1,175 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Configuración | UrbanReport{% endblock %}
+
+{# La configuración usa una sola columna ancha, sin el widget derecho del feed #}
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-wide{% endblock %}
+
+{% block portal_content %}
+<form method="POST" action="{% url 'configuracion' %}" class="cfg-form" id="cfgForm" novalidate>
+  {% csrf_token %}
+
+  <!-- ===== Encabezado ===== -->
+  <header class="cfg-header">
+    <div class="cfg-header-left">
+      <a href="{% url 'perfil' %}" class="cfg-back-btn" title="Volver a Mi Perfil" aria-label="Volver a Mi Perfil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </a>
+      <div>
+        <h1 class="cfg-title">Configuración</h1>
+        <p class="cfg-subtitle">Gestiona tu información personal y tus preferencias.</p>
+      </div>
+    </div>
+
+    <button type="submit" class="cfg-save-btn" id="cfgSaveBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 8 15 8" />
+      </svg>
+      <span class="cfg-save-label">Guardar Cambios</span>
+    </button>
+  </header>
+
+  <!-- ===== Mensajes de estado ===== -->
+  {% if messages %}
+  <div class="cfg-messages">
+    {% for message in messages %}
+    <div class="cfg-alert cfg-alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if form.non_field_errors %}
+  <div class="cfg-messages">
+    {% for err in form.non_field_errors %}
+    <div class="cfg-alert cfg-alert-error">{{ err }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ===== Información Personal ===== -->
+  <section class="cfg-card">
+    <h2 class="cfg-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      Información Personal
+    </h2>
+
+    <div class="cfg-grid cfg-grid-3">
+      <div class="cfg-field">
+        <label for="id_nombre_completo" class="cfg-label">Nombre completo<span class="cfg-req">*</span></label>
+        {{ form.nombre_completo }}
+        {% for err in form.nombre_completo.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_email" class="cfg-label">Correo electrónico<span class="cfg-req">*</span></label>
+        {{ form.email }}
+        {% for err in form.email.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_telefono" class="cfg-label">Número de teléfono<span class="cfg-req">*</span></label>
+        {{ form.telefono }}
+        {% for err in form.telefono.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Residencia ===== -->
+  <section class="cfg-card">
+    <h2 class="cfg-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+      Residencia
+    </h2>
+
+    <div class="cfg-field cfg-field-full">
+      <label for="id_direccion" class="cfg-label">Dirección de residencia<span class="cfg-req">*</span></label>
+      {{ form.direccion }}
+      {% for err in form.direccion.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="cfg-grid cfg-grid-3">
+      <div class="cfg-field">
+        <label for="id_barrio_vereda" class="cfg-label">Barrio o vereda<span class="cfg-req">*</span></label>
+        {{ form.barrio_vereda }}
+        {% for err in form.barrio_vereda.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_numero_finca" class="cfg-label">Número de finca</label>
+        {{ form.numero_finca }}
+        {% for err in form.numero_finca.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_codigo_postal" class="cfg-label">Código postal<span class="cfg-req">*</span></label>
+        {{ form.codigo_postal }}
+        {% for err in form.codigo_postal.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Gestión de Notificaciones ===== -->
+  <section class="cfg-card">
+    <h2 class="cfg-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      Gestión de Notificaciones
+    </h2>
+
+    <div class="cfg-toggle-row">
+      <div class="cfg-toggle-text">
+        <span class="cfg-toggle-title">Notificaciones del Feed</span>
+        <span class="cfg-toggle-desc">Activa para recibir notificaciones del Feed comunitario (comentarios, me gusta, respuestas y seguidores).</span>
+      </div>
+      <label class="cfg-switch">
+        <input type="checkbox" name="notif_feed" id="id_notif_feed" {% if notif_feed %}checked{% endif %}>
+        <span class="cfg-switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="cfg-toggle-row">
+      <div class="cfg-toggle-text">
+        <span class="cfg-toggle-title">Notificaciones de Reporte</span>
+        <span class="cfg-toggle-desc">Activa para recibir notificaciones sobre tus reportes (cambios de estado y moderación). Recomendado.</span>
+      </div>
+      <label class="cfg-switch">
+        <input type="checkbox" name="notif_reportes" id="id_notif_reportes" {% if notif_reportes %}checked{% endif %}>
+        <span class="cfg-switch-slider"></span>
+      </label>
+    </div>
+  </section>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+  (function () {
+    // Evita envíos duplicados y da feedback visual mientras se procesa el guardado.
+    var form = document.getElementById('cfgForm');
+    var btn = document.getElementById('cfgSaveBtn');
+    if (form && btn) {
+      form.addEventListener('submit', function () {
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+        var label = btn.querySelector('.cfg-save-label');
+        if (label) label.textContent = 'Guardando...';
+      });
+    }
+  })();
+</script>
+{% endblock %}

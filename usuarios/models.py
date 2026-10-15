@@ -20,6 +20,21 @@ class Usuario(AbstractUser):
     codigo_postal = models.CharField('Código postal', max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
+    # ── Preferencias de notificaciones (Configuración del perfil) ──
+    # True  = el usuario recibe las notificaciones correspondientes (interruptor "apagado"
+    #         en la UI, es decir, NO suspendidas).
+    # False = el usuario suspende esas notificaciones (interruptor "encendido" en la UI).
+    # Son preferencias independientes entre sí. Guardar la preferencia NO implica que
+    # exista todavía un sistema de envío de notificaciones; solo deja el estado persistido.
+    notif_feed = models.BooleanField(
+        'Notificaciones del Feed comunitario',
+        default=True,
+    )
+    notif_reportes = models.BooleanField(
+        'Notificaciones de reportes',
+        default=True,
+    )
+
     # Usuarios que este usuario sigue (relación dirigida a través de Seguimiento)
     seguidos = models.ManyToManyField(
         'self',

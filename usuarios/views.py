@@ -5,7 +5,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Usuario
-from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm, CompletarPerfilForm
+from django.db import transaction
+from .forms import LoginForm, RegistroForm, RecuperarContrasenaForm, CompletarPerfilForm, ConfiguracionForm
 
 
 def login_view(request):
@@ -84,7 +85,10 @@ def registro_view(request):
         form = RegistroForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            # Con varios AUTHENTICATION_BACKENDS (Django + allauth), login() necesita
+            # saber qué backend usar. El registro con usuario/contraseña corresponde
+            # al ModelBackend de Django.
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, f'¡Bienvenido a UrbanReport, {user.username}!')
             return redirect('feed_comunitario')
         else:
@@ -124,6 +128,62 @@ def recuperar_contrasena_view(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+
+@login_required
+def configuracion_view(request):
+    """
+    Vista "Configuración" del perfil. SIEMPRE opera sobre el usuario autenticado
+    (request.user): no acepta ningún id/username externo, de modo que un usuario
+    jamás puede ver ni modificar la configuración de otra cuenta.
+
+    GET  -> muestra el formulario precargado con los datos actuales del usuario
+            (campos vacíos si aún no ha guardado nada).
+    POST -> valida en el servidor y, si todo es correcto, persiste de forma
+            atómica (transacción) información personal, residencia y las dos
+            preferencias de notificaciones. Si algo falla, no guarda nada.
+
+    Interruptores de notificaciones (semántica directa): ENCENDIDO = recibir las
+    notificaciones correspondientes; APAGADO = no recibirlas. Estos valores se
+    guardan en Usuario.notif_feed / Usuario.notif_reportes y los respeta
+    crear_notificacion() al momento de generar cada notificación.
+    """
+    usuario = request.user
+
+    if request.method == 'POST':
+        # Semántica directa de los interruptores: ENCENDIDO = recibir notificaciones.
+        # El checkbox marca "on" cuando está activo; su ausencia significa apagado.
+        recibir_feed = request.POST.get('notif_feed') in ('on', '1', 'true', 'True')
+        recibir_reportes = request.POST.get('notif_reportes') in ('on', '1', 'true', 'True')
+
+        # Copia mutable del POST con los valores que espera el ModelForm.
+        datos = request.POST.copy()
+        datos['notif_feed'] = 'on' if recibir_feed else ''
+        datos['notif_reportes'] = 'on' if recibir_reportes else ''
+
+        form = ConfiguracionForm(datos, instance=usuario)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+            except Exception:
+                messages.error(request, 'Ocurrió un error al guardar. Inténtalo de nuevo.')
+            else:
+                messages.success(request, 'Cambios guardados correctamente.')
+                return redirect('configuracion')
+        else:
+            messages.error(request, 'Revisa los campos marcados: hay datos por corregir.')
+    else:
+        form = ConfiguracionForm(instance=usuario)
+
+    context = {
+        'form': form,
+        # Estado de los interruptores: encendido = recibir = valor directo de la preferencia.
+        'notif_feed': usuario.notif_feed,
+        'notif_reportes': usuario.notif_reportes,
+        'active_menu': 'perfil',
+    }
+    return render(request, 'usuarios/configuracion.html', context)
 
 
 @login_required

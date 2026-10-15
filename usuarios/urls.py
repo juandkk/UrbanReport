@@ -5,6 +5,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('completar-perfil/', views.completar_perfil_view, name='completar_perfil'),
     path('perfil/', views.perfil_view, name='perfil'),
+    path('perfil/configuracion/', views.configuracion_view, name='configuracion'),
     path('perfil/<str:username>/', views.perfil_view, name='perfil_usuario'),
     path('perfil/<str:username>/seguir/', views.toggle_seguir_ajax, name='toggle_seguir'),
     path('perfil/<str:username>/seguidores/', views.lista_seguidores_ajax, name='lista_seguidores'),

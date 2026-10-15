@@ -38,6 +38,18 @@ def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=N
         else:
             categoria = Notificacion.Categoria.PUBLICACION
 
+    # ── Respetar las preferencias de notificaciones del destinatario ──
+    # (configuradas en la vista "Configuración" del perfil).
+    #   - notif_reportes controla la categoría REPORTE.
+    #   - notif_feed controla las categorías del Feed comunitario (PUBLICACION y SOCIAL).
+    # Si la preferencia correspondiente está desactivada, no se crea la notificación.
+    if categoria == Notificacion.Categoria.REPORTE:
+        if not getattr(destinatario, 'notif_reportes', True):
+            return None
+    else:  # PUBLICACION o SOCIAL -> notificaciones del Feed
+        if not getattr(destinatario, 'notif_feed', True):
+            return None
+
     actor_nombre = f"{actor.first_name} {actor.last_name}".strip() or actor.username
     return Notificacion.objects.create(
         destinatario=destinatario,
