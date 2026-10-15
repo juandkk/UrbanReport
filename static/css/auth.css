@@ -547,3 +547,28 @@
   border-color: var(--border-focus);
 }
 .auth-form input::placeholder { color: #4b5563; }
+
+/* Caja que muestra el enlace de recuperación simulado (demo sin correo real) */
+.reset-sim-box {
+  background: #0b1220;
+  border: 1px dashed var(--border-strong, #334155);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 6px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reset-sim-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #f59e0b;
+}
+.reset-sim-link {
+  font-size: 0.8rem;
+  color: #60a5fa;
+  word-break: break-all;
+  line-height: 1.4;
+}

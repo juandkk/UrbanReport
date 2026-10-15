@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db import transaction
 from .models import Usuario
@@ -14,45 +14,54 @@ from .forms import (
     ConfiguracionForm,
 )
 
-def _diagnostico_email(request):
+def recuperar_contrasena_view(request):
     """
-    DIAGNÓSTICO TEMPORAL: envía un correo de prueba al correo indicado en ?to=
-    y muestra el resultado detallado. Solo para superusuarios. Sirve para ver el
-    error SMTP exacto que PasswordResetView oculta. Eliminar tras depurar.
+    Recuperación de contraseña (envío SIMULADO).
+
+    Render free bloquea el SMTP saliente, así que no enviamos un correo real.
+    En su lugar generamos el enlace seguro de restablecimiento con el sistema
+    NATIVO de Django (uid + token con expiración y un solo uso) y lo guardamos
+    en la sesión para mostrarlo en la pantalla siguiente, dejando claro que es
+    una simulación del correo.
     """
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return HttpResponse('Solo superusuarios.', status=403)
+    if request.method == 'POST':
+        form = RecuperarContrasenaForm(request.POST)
+        if form.is_valid():
+            from django.contrib.auth.tokens import default_token_generator
+            from django.utils.http import urlsafe_base64_encode
+            from django.utils.encoding import force_bytes
+            from django.urls import reverse
 
-    from django.conf import settings
-    from django.core.mail import send_mail
-    import traceback
+            email = form.cleaned_data['email'].strip()
+            # Buscamos el usuario; si no existe, no revelamos nada (igual que el
+            # flujo nativo), pero sin enlace.
+            usuario = Usuario.objects.filter(email__iexact=email).first()
+            if usuario is not None:
+                uid = urlsafe_base64_encode(force_bytes(usuario.pk))
+                token = default_token_generator.make_token(usuario)
+                ruta = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+                request.session['reset_link'] = request.build_absolute_uri(ruta)
+            else:
+                request.session['reset_link'] = None
+            request.session['reset_email'] = email
+            return redirect('password_reset_done')
+    else:
+        form = RecuperarContrasenaForm()
 
-    destino = request.GET.get('to') or request.user.email
-    lineas = [
-        f'EMAIL_BACKEND = {settings.EMAIL_BACKEND}',
-        f'EMAIL_HOST = {getattr(settings, "EMAIL_HOST", "(n/a)")}',
-        f'EMAIL_PORT = {getattr(settings, "EMAIL_PORT", "(n/a)")}',
-        f'EMAIL_USE_TLS = {getattr(settings, "EMAIL_USE_TLS", "(n/a)")}',
-        f'EMAIL_HOST_USER = {getattr(settings, "EMAIL_HOST_USER", "(n/a)")}',
-        f'DEFAULT_FROM_EMAIL = {settings.DEFAULT_FROM_EMAIL}',
-        f'Enviando a: {destino}',
-        '-' * 40,
-    ]
-    try:
-        enviados = send_mail(
-            'Prueba de correo UrbanReport',
-            'Si recibes esto, el envío de correos funciona.',
-            settings.DEFAULT_FROM_EMAIL,
-            [destino],
-            fail_silently=False,
-        )
-        lineas.append(f'RESULTADO: send_mail devolvió {enviados} (1 = aceptado por el servidor)')
-    except Exception as e:
-        lineas.append('RESULTADO: EXCEPCIÓN al enviar')
-        lineas.append(repr(e))
-        lineas.append(traceback.format_exc())
+    return render(request, 'usuarios/password_reset_form.html', {'form': form})
 
-    return HttpResponse('\n'.join(lineas), content_type='text/plain; charset=utf-8')
+
+def recuperar_contrasena_enviado_view(request):
+    """
+    Muestra el enlace de restablecimiento generado (simulación del correo).
+    Lee el enlace de la sesión y lo limpia para que no quede disponible luego.
+    """
+    reset_link = request.session.pop('reset_link', None)
+    reset_email = request.session.pop('reset_email', None)
+    return render(request, 'usuarios/password_reset_done.html', {
+        'reset_link': reset_link,
+        'reset_email': reset_email,
+    })
 
 
 def login_view(request):

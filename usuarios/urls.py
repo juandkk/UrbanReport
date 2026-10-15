@@ -4,8 +4,6 @@ from . import views
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
-    # DIAGNÓSTICO TEMPORAL de envío de correo (solo superusers). Eliminar luego.
-    path('diag-email/', views._diagnostico_email, name='diag_email'),
     path('completar-perfil/', views.completar_perfil_view, name='completar_perfil'),
     path('perfil/', views.perfil_view, name='perfil'),
     path('perfil/configuracion/', views.configuracion_view, name='configuracion'),
@@ -17,18 +15,14 @@ urlpatterns = [
     path('registro/', views.registro_view, name='registro'),
     path('logout/', views.logout_view, name='logout'),
 
-    # ── Recuperación de contraseña (sistema nativo de Django) ──
-    # 1. Pedir el correo
-    path('recuperar-contrasena/', auth_views.PasswordResetView.as_view(
-        template_name='usuarios/password_reset_form.html',
-        email_template_name='usuarios/password_reset_email.txt',
-        subject_template_name='usuarios/password_reset_subject.txt',
-        success_url=reverse_lazy('password_reset_done'),
-    ), name='recuperar_contrasena'),
-    # 2. "Correo enviado"
-    path('recuperar-contrasena/enviado/', auth_views.PasswordResetDoneView.as_view(
-        template_name='usuarios/password_reset_done.html',
-    ), name='password_reset_done'),
+    # ── Recuperación de contraseña ──
+    # El envío por SMTP no es viable en Render free (bloquea los puertos SMTP
+    # salientes), así que SIMULAMOS el envío: generamos el enlace seguro de
+    # Django (token nativo con expiración) y lo mostramos en pantalla.
+    # 1. Pedir el correo (vista propia que genera y muestra el enlace)
+    path('recuperar-contrasena/', views.recuperar_contrasena_view, name='recuperar_contrasena'),
+    # 2. "Enlace generado" (muestra el enlace de restablecimiento)
+    path('recuperar-contrasena/enviado/', views.recuperar_contrasena_enviado_view, name='password_reset_done'),
     # 3. Enlace del correo -> poner nueva contraseña
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
         template_name='usuarios/password_reset_confirm.html',
