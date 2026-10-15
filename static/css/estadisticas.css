@@ -117,6 +117,58 @@
 }
 .stats-chart-dona { height: 260px; }
 
+/* ---- Leyenda interactiva (checkboxes) de la gráfica mensual ---- */
+.stats-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.stats-card-head .stats-card-title { margin: 0; }
+.stats-legend { display: flex; gap: 16px; }
+.stats-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  user-select: none;
+  transition: opacity 0.15s ease;
+}
+.stats-legend-item.is-off { opacity: 0.45; }
+/* Oculta el checkbox nativo; usamos el recuadro .stats-legend-box como control */
+.stats-legend-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 2px solid var(--c, #64748b);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+.stats-legend-check:checked {
+  background: var(--c);
+  border-color: var(--c);
+}
+.stats-legend-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #0b1220;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* ---- Actividad reciente ---- */
 .stats-activity-list { display: flex; flex-direction: column; }
 .stats-activity-item {

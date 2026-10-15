@@ -115,7 +115,20 @@
       <div class="stats-chart-wrap"><canvas id="chartMisCategorias"></canvas></div>
     </div>
     <div class="stats-card stats-card-grow">
-      <h3 class="stats-card-title">Actividad mensual</h3>
+      <div class="stats-card-head">
+        <h3 class="stats-card-title">Actividad mensual</h3>
+        <!-- Leyenda interactiva: cada check muestra/oculta su serie en la gráfica -->
+        <div class="stats-legend" id="mesesLegend">
+          <label class="stats-legend-item" style="--c:#8b5cf6;">
+            <input type="checkbox" class="stats-legend-check" data-ds="0" checked>
+            <span>Radicados</span>
+          </label>
+          <label class="stats-legend-item" style="--c:#22c55e;">
+            <input type="checkbox" class="stats-legend-check" data-ds="1" checked>
+            <span>Solucionados</span>
+          </label>
+        </div>
+      </div>
       <div class="stats-chart-wrap"><canvas id="chartMisMeses"></canvas></div>
     </div>
   </section>

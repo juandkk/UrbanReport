@@ -85,7 +85,7 @@
     var resData = leer('m-res-data');
     var elMes = document.getElementById('chartMisMeses');
     if (elMes && mesLabels) {
-      new Chart(elMes, {
+      var chartMeses = new Chart(elMes, {
         type: 'line',
         data: { labels: mesLabels, datasets: [
           { label: 'Radicados', data: radData, borderColor: COLORS.morado,
@@ -96,8 +96,23 @@
             borderDash: [5, 4], fill: false, tension: 0.35, pointRadius: 3 },
         ]},
         options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, padding: 14 } } },
+          // Leyenda nativa desactivada: usamos la leyenda HTML con checkboxes.
+          plugins: { legend: { display: false } },
           scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } } } },
+      });
+
+      // Conecta los checkboxes de la leyenda personalizada con la visibilidad
+      // de cada serie del gráfico.
+      var checks = document.querySelectorAll('#mesesLegend .stats-legend-check');
+      checks.forEach(function (chk) {
+        chk.addEventListener('change', function () {
+          var idx = parseInt(chk.getAttribute('data-ds'), 10);
+          chartMeses.setDatasetVisibility(idx, chk.checked);
+          chartMeses.update();
+          // Atenúa visualmente la etiqueta cuando la serie está oculta
+          var item = chk.closest('.stats-legend-item');
+          if (item) item.classList.toggle('is-off', !chk.checked);
+        });
       });
     }
   }
