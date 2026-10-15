@@ -16,13 +16,38 @@
 
   {% if es_admin_vista %}
   <!-- ================= TABLERO DE MÉTRICAS GENERALES (ADMIN) ================= -->
-  <header class="stats-header">
+  <header class="stats-header stats-header-row">
     <div>
       <h1 class="stats-title">Tablero de Métricas Generales</h1>
       <p class="stats-subtitle">Análisis en tiempo real de los reportes de incidentes generales.</p>
     </div>
+    <form method="get" class="stats-filter" id="statsFilterForm">
+      <label class="stats-filter-label" for="rango">Periodo</label>
+      <select name="rango" id="rango" class="stats-filter-select" onchange="document.getElementById('statsFilterForm').submit()">
+        <option value="7" {% if rango_activo == '7' %}selected{% endif %}>Últimos 7 días</option>
+        <option value="30" {% if rango_activo == '30' %}selected{% endif %}>Últimos 30 días</option>
+        <option value="todo" {% if rango_activo == 'todo' %}selected{% endif %}>Todo el histórico</option>
+      </select>
+    </form>
   </header>
+  {% else %}
+  <header class="stats-header stats-header-row">
+    <div>
+      <h1 class="stats-title">Mis Estadísticas e Impacto</h1>
+      <p class="stats-subtitle">Un resumen de tu contribución a la mejora de la comunidad. Tu participación hace la diferencia.</p>
+    </div>
+    <form method="get" class="stats-filter" id="statsFilterForm">
+      <label class="stats-filter-label" for="rango">Periodo</label>
+      <select name="rango" id="rango" class="stats-filter-select" onchange="document.getElementById('statsFilterForm').submit()">
+        <option value="7" {% if rango_activo == '7' %}selected{% endif %}>Últimos 7 días</option>
+        <option value="30" {% if rango_activo == '30' %}selected{% endif %}>Últimos 30 días</option>
+        <option value="todo" {% if rango_activo == 'todo' %}selected{% endif %}>Todo el histórico</option>
+      </select>
+    </form>
+  </header>
+  {% endif %}
 
+  {% if es_admin_vista %}
   <section class="stats-kpi-grid">
     <div class="stats-kpi">
       <div class="stats-kpi-head"><span class="stats-kpi-label">Reportes totales</span></div>
@@ -56,16 +81,13 @@
   {% endif %}
 
   <!-- ================= TABLERO PERSONAL (TODOS) ================= -->
+  {% if es_admin_vista %}
   <header class="stats-header">
     <div>
-      {% if es_admin_vista %}
       <h2 class="stats-title stats-title-sm">Tablero de Tus Métricas</h2>
-      {% else %}
-      <h1 class="stats-title">Mis Estadísticas e Impacto</h1>
-      <p class="stats-subtitle">Un resumen de tu contribución a la mejora de la comunidad. Tu participación hace la diferencia.</p>
-      {% endif %}
     </div>
   </header>
+  {% endif %}
 
   <section class="stats-kpi-grid">
     <div class="stats-kpi">
@@ -95,6 +117,30 @@
     <div class="stats-card stats-card-grow">
       <h3 class="stats-card-title">Actividad mensual</h3>
       <div class="stats-chart-wrap"><canvas id="chartMisMeses"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Actividad reciente del usuario -->
+  <section class="stats-card">
+    <h3 class="stats-card-title">Actividad Reciente</h3>
+    <div class="stats-activity-list">
+      {% for post in mis_stats.actividad_reciente %}
+      <a class="stats-activity-item" href="{% url 'detalle_publicacion' post.id %}">
+        <span class="stats-activity-dot stats-dot-{{ post.estado_incidencia|lower }}"></span>
+        <div class="stats-activity-info">
+          <span class="stats-activity-title">{{ post.titulo|default:post.contenido|truncatechars:60 }}</span>
+          <span class="stats-activity-meta">
+            <span class="stats-activity-badge stats-badge-{{ post.estado_incidencia|lower }}">
+              {% if post.estado_incidencia == 'REPORTADO' %}Reportado{% elif post.estado_incidencia == 'EN_PROCESO' %}En revisión{% else %}Resuelto{% endif %}
+            </span>
+            ID: #{{ post.id }}
+          </span>
+        </div>
+        <span class="stats-activity-time">{{ post.fecha_creacion|timesince }}</span>
+      </a>
+      {% empty %}
+      <p class="stats-activity-empty">Aún no tienes reportes. ¡Crea tu primer incidente!</p>
+      {% endfor %}
     </div>
   </section>
 </div>

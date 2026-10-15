@@ -919,31 +919,48 @@ def manual_administrador_view(request):
     return render(request, 'feed/manual_administrador.html', {'active_menu': 'ayuda'})
 
 
-def _estadisticas_usuario(usuario):
+def _estadisticas_usuario(usuario, dias=None):
     """
     Calcula las métricas personales de un usuario (RF-020): reportes radicados,
     resueltos, en proceso, impacto (suma de likes recibidos), nivel de confianza,
     distribución por categoría y actividad mensual de los últimos 6 meses.
+    `dias` filtra las métricas del periodo (7, 30, ...); None = todo el histórico.
     """
     Estado = Publicacion.EstadoIncidencia
     Cat = Publicacion.Categoria
 
-    pubs = Publicacion.objects.filter(autor=usuario)
+    # Todas las publicaciones del usuario (base para nivel de confianza, global)
+    pubs_todas = Publicacion.objects.filter(autor=usuario)
+
+    # Si se pasa un rango de días, las métricas del periodo se filtran por fecha.
+    # dias=None significa "todo el histórico".
+    if dias:
+        desde = timezone.now() - timedelta(days=dias)
+        pubs = pubs_todas.filter(fecha_creacion__gte=desde)
+    else:
+        pubs = pubs_todas
+
     total = pubs.count()
     resueltos = pubs.filter(estado_incidencia=Estado.RESUELTA).count()
     en_proceso = pubs.filter(estado_incidencia=Estado.EN_PROCESO).count()
     reportados = pubs.filter(estado_incidencia=Estado.REPORTADO).count()
 
-    # Impacto = suma de likes recibidos en sus publicaciones
+    # Impacto = suma de likes recibidos en sus publicaciones (del periodo)
     impacto = sum(p.likes for p in pubs)
 
+    # El nivel de confianza es acumulado (todo el histórico), no del periodo.
     confianza = usuario.nivel_confianza()
 
-    # Distribución por categoría
+    # Distribución por categoría (del periodo)
     por_categoria = []
     for valor, etiqueta in Cat.choices:
         c = pubs.filter(categoria=valor).count()
         por_categoria.append({'etiqueta': etiqueta, 'cantidad': c})
+
+    # Actividad reciente: últimas 6 publicaciones del usuario (independiente del rango)
+    actividad_reciente = list(
+        pubs_todas.order_by('-fecha_creacion')[:6]
+    )
 
     # Actividad mensual: últimos 6 meses (radicados vs resueltos)
     ahora = timezone.now()
@@ -980,6 +997,7 @@ def _estadisticas_usuario(usuario):
         'impacto': impacto,
         'confianza': confianza,
         'por_categoria': por_categoria,
+        'actividad_reciente': actividad_reciente,
         'chart_cat_labels': [c['etiqueta'] for c in por_categoria],
         'chart_cat_data': [c['cantidad'] for c in por_categoria],
         'chart_meses_labels': meses_labels,
@@ -998,13 +1016,21 @@ def estadisticas_view(request):
     if not Publicacion.objects.exists():
         _seed_demo_data()
 
+    # Filtro temporal: ?rango=7 | 30 | todo (por defecto 30 días)
+    RANGOS = {'7': 7, '30': 30, 'todo': None}
+    rango = (request.GET.get('rango') or '30').lower()
+    if rango not in RANGOS:
+        rango = '30'
+    dias = RANGOS[rango]
+
     es_admin_user = _es_admin(request.user)
-    mis_stats = _estadisticas_usuario(request.user)
+    mis_stats = _estadisticas_usuario(request.user, dias=dias)
 
     context = {
         'active_menu': 'estadisticas' if es_admin_user else 'mis_estadisticas',
         'mis_stats': mis_stats,
         'es_admin_vista': es_admin_user,
+        'rango_activo': rango,
     }
     if es_admin_user:
         context['stats'] = _calcular_estadisticas_panel()
