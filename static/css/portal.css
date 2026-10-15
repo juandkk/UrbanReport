@@ -4013,6 +4013,8 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.25rem;
   margin-bottom: 2.25rem;
+  /* Las tarjetas de una misma fila igualan su altura (evita el escalonado) */
+  align-items: stretch;
 }
 
 .ayuda-guide-card {
@@ -4023,12 +4025,24 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: border-color var(--transition-fast);
-  cursor: default;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
+  text-decoration: none;
+  height: 100%;
 }
 
 .ayuda-guide-card:hover {
   border-color: #2a3a55;
+  transform: translateY(-2px);
+}
+
+/* Llamado a la acción, anclado al fondo para que ambas tarjetas se vean parejas */
+.ayuda-guide-cta {
+  margin-top: auto;
+  padding-top: 6px;
+  color: #60a5fa;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .ayuda-guide-icon {

@@ -1,0 +1,115 @@
+/* =========================================================================
+   Guías / Manuales (Guía del Ciudadano, Manual del Administrador)
+   ========================================================================= */
+
+.guia {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 4px 2px 48px;
+}
+
+.guia-header {
+  margin-bottom: 1.5rem;
+}
+.guia-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted, #94a3b8);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  transition: color 0.15s ease;
+}
+.guia-back:hover { color: #e2e8f0; }
+.guia-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px;
+}
+.guia-subtitle {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.guia-section {
+  background: #10141d;
+  border: 1px solid var(--border-subtle, #1e293b);
+  border-radius: var(--radius-lg, 14px);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.guia-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0 0 10px;
+}
+.guia-section p {
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+.guia-section p:last-child { margin-bottom: 0; }
+
+.guia-list,
+.guia-steps {
+  margin: 6px 0 0;
+  padding-left: 1.25rem;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+.guia-list li,
+.guia-steps li { margin-bottom: 6px; }
+
+.guia-section strong { color: #ffffff; font-weight: 600; }
+.guia-section code {
+  background: #0b1220;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #93c5fd;
+}
+
+/* Lista de estados con punto de color */
+.guia-estados {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.9;
+}
+.guia-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.guia-dot-gris { background: #94a3b8; }
+.guia-dot-amarillo { background: #f59e0b; }
+.guia-dot-verde { background: #22c55e; }
+
+.guia-footer-note {
+  margin-top: 1.25rem;
+  padding: 12px 16px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-md, 10px);
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+.guia-footer-note a { color: #60a5fa; }
+
+@media (max-width: 600px) {
+  .guia-title { font-size: 1.45rem; }
+  .guia-section { padding: 1rem 1.1rem; }
+}

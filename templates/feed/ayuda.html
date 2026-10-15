@@ -48,7 +48,7 @@
 <!-- ===== TARJETAS GUÍA ===== -->
 <section class="ayuda-cards-row" id="ayudaMainContent">
 
-  <div class="ayuda-guide-card">
+  <a href="{% url 'guia_ciudadano' %}" class="ayuda-guide-card">
     <div class="ayuda-guide-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -59,10 +59,11 @@
     </div>
     <h2 class="ayuda-guide-title">Guía del Ciudadano</h2>
     <p class="ayuda-guide-desc">Aprende a reportar incidentes, hacer seguimiento y usar el mapa...</p>
-  </div>
+    <span class="ayuda-guide-cta">Ver guía →</span>
+  </a>
 
   {% if es_admin %}
-  <div class="ayuda-guide-card">
+  <a href="{% url 'manual_administrador' %}" class="ayuda-guide-card">
     <div class="ayuda-guide-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
@@ -72,7 +73,8 @@
     </div>
     <h2 class="ayuda-guide-title">Manual del Administrador</h2>
     <p class="ayuda-guide-desc">Gestión de reportes, asignación de cuadrillas y análisis de estadísticas</p>
-  </div>
+    <span class="ayuda-guide-cta">Ver manual →</span>
+  </a>
   {% endif %}
 
 </section>

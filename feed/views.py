@@ -906,6 +906,19 @@ def ayuda_view(request):
     return render(request, 'feed/ayuda.html', {'active_menu': 'ayuda'})
 
 
+@login_required
+def guia_ciudadano_view(request):
+    """Guía del Ciudadano: cómo usar UrbanReport (todos los usuarios)."""
+    return render(request, 'feed/guia_ciudadano.html', {'active_menu': 'ayuda'})
+
+
+@login_required
+@_solo_administrador
+def manual_administrador_view(request):
+    """Manual del Administrador: gestión y moderación (solo administradores)."""
+    return render(request, 'feed/manual_administrador.html', {'active_menu': 'ayuda'})
+
+
 def _calcular_estadisticas_panel():
     """
     Calcula todas las métricas del Panel de Control Municipal a partir de datos

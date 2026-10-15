@@ -1,0 +1,92 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Guía del Ciudadano | UrbanReport{% endblock %}
+
+{% block right_widgets %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/guia.css' %}?v={% now 'U' %}">
+{% endblock %}
+
+{% block portal_content %}
+<article class="guia">
+  <header class="guia-header">
+    <a href="{% url 'ayuda' %}" class="guia-back" title="Volver a Ayuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver a Ayuda
+    </a>
+    <h1 class="guia-title">Guía del Ciudadano</h1>
+    <p class="guia-subtitle">Todo lo que necesitas para reportar y seguir incidentes en tu ciudad.</p>
+  </header>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">1. ¿Qué es UrbanReport?</h2>
+    <p>UrbanReport es una plataforma cívica donde los ciudadanos reportan problemas de su entorno urbano
+       —baches, fallas de alumbrado, parques deteriorados, infraestructura dañada— para que la administración
+       municipal les dé seguimiento y los resuelva. También puedes ver lo que reporta tu comunidad, apoyar
+       reportes con tu voto y comentar.</p>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">2. Crear tu cuenta e iniciar sesión</h2>
+    <ul class="guia-list">
+      <li>Regístrate con tu correo (debe terminar en «.com») y una contraseña de al menos 8 caracteres con letras y números.</li>
+      <li>Completa tus datos de contacto y ubicación (teléfono de 10 dígitos, dirección, barrio).</li>
+      <li>También puedes entrar con tu cuenta de <strong>Google</strong> o <strong>Facebook</strong>; si lo haces, te pediremos completar algunos datos la primera vez.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">3. Reportar un incidente</h2>
+    <ol class="guia-steps">
+      <li>Pulsa el botón <strong>«Reportar Incidente»</strong> en el menú lateral.</li>
+      <li>Escribe un <strong>título</strong> claro y una <strong>descripción</strong> detallada del problema.</li>
+      <li>Elige la <strong>categoría</strong>: Vías, Alumbrado, Parques o Infraestructura.</li>
+      <li>Indica la <strong>ubicación</strong> en el mapa y, si puedes, adjunta una <strong>foto</strong> como evidencia.</li>
+      <li>Envía el reporte. Aparecerá en el feed de la comunidad y en el mapa.</li>
+    </ol>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">4. Estados de un reporte</h2>
+    <p>Cada incidente pasa por estos estados, identificados por color (igual que en el mapa):</p>
+    <ul class="guia-estados">
+      <li><span class="guia-dot guia-dot-gris"></span> <strong>Reportado</strong> — registrado, aún sin atender.</li>
+      <li><span class="guia-dot guia-dot-amarillo"></span> <strong>En proceso</strong> — la administración lo está revisando o atendiendo.</li>
+      <li><span class="guia-dot guia-dot-verde"></span> <strong>Resuelto</strong> — el problema fue solucionado.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">5. Seguir, apoyar y comentar</h2>
+    <ul class="guia-list">
+      <li>Dale <strong>«Me gusta»</strong> a un reporte para apoyarlo; los más votados tienen prioridad.</li>
+      <li><strong>Comenta</strong> para aportar información o detalles adicionales.</li>
+      <li><strong>Repostea</strong> para difundir un reporte en tu perfil.</li>
+      <li>Sigue a otros usuarios para ver su actividad.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">6. El mapa</h2>
+    <p>En la sección <strong>«Mapa»</strong> ves todos los incidentes geolocalizados. Usa los filtros
+       (Todos, Pendientes, En Revisión, Resueltas) y el buscador de direcciones para explorar tu zona.</p>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">7. Notificaciones y perfil</h2>
+    <ul class="guia-list">
+      <li>La <strong>campana</strong> te avisa cuando alguien comenta, reacciona o cambia el estado de tus reportes.</li>
+      <li>En tu <strong>perfil</strong> ves tus publicaciones, reposteos, seguidores y tu nivel de confianza.</li>
+    </ul>
+  </section>
+
+  <div class="guia-footer-note">
+    ¿No encuentras lo que buscas? Vuelve a <a href="{% url 'ayuda' %}">Ayuda</a> y usa el buscador de preguntas frecuentes.
+  </div>
+</article>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Manual del Administrador | UrbanReport{% endblock %}
+
+{% block right_widgets %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/guia.css' %}?v={% now 'U' %}">
+{% endblock %}
+
+{% block portal_content %}
+<article class="guia">
+  <header class="guia-header">
+    <a href="{% url 'ayuda' %}" class="guia-back" title="Volver a Ayuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver a Ayuda
+    </a>
+    <h1 class="guia-title">Manual del Administrador</h1>
+    <p class="guia-subtitle">Herramientas de gestión, moderación y análisis para el equipo municipal.</p>
+  </header>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">1. Acceso de administrador</h2>
+    <p>Las funciones administrativas están disponibles solo para cuentas con rol <strong>Administrador</strong>
+       (o personal staff). Al iniciar sesión, un administrador entra directamente al <strong>Panel de Control</strong>
+       y ve en el menú lateral las secciones adicionales: Panel, Estadísticas e Incidentes.</p>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">2. Panel de Control Municipal</h2>
+    <p>El panel resume el estado operativo en tiempo real:</p>
+    <ul class="guia-list">
+      <li><strong>Indicadores (KPIs):</strong> activas y en curso, tiempo promedio en el sistema, resueltas y tasa de resolución, y satisfacción vecinal (basada en la tasa de resolución).</li>
+      <li><strong>Gráficas (Chart.js):</strong> reportes por categoría, por estado y la tendencia de los últimos 14 días.</li>
+      <li><strong>Cola de atención prioritaria:</strong> los reportes activos ordenados por votos vecinales.</li>
+      <li><strong>Carga por departamento:</strong> distribución de reportes por categoría.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">3. Gestión de incidentes</h2>
+    <p>En la sección <strong>«Incidentes»</strong> tienes la tabla completa de reportes con:</p>
+    <ul class="guia-list">
+      <li><strong>Filtros de búsqueda avanzada:</strong> por texto, categoría, estado y rango de fechas.</li>
+      <li><strong>Cambio de estado en línea:</strong> actualiza cada reporte a Reportado, En proceso o Resuelto; el autor recibe una notificación automática del cambio.</li>
+      <li><strong>Paginación</strong> para recorrer todos los reportes.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">4. Exportar e importar</h2>
+    <ul class="guia-list">
+      <li><strong>Exportar CSV:</strong> descarga los reportes que coinciden con los filtros activos, listo para Excel.</li>
+      <li><strong>Importar CSV:</strong> carga reportes nuevos desde un archivo. Debe incluir al menos la columna <code>contenido</code>; las filas inválidas se informan en el resumen.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">5. Moderación de contenido</h2>
+    <ul class="guia-list">
+      <li>Desde el menú de cada publicación o comentario puedes <strong>censurar</strong> o <strong>eliminar</strong> contenido que infrinja las normas.</li>
+      <li>Cuando un ciudadano <strong>reporta</strong> contenido, los administradores reciben una notificación para revisarlo y moderarlo.</li>
+    </ul>
+  </section>
+
+  <section class="guia-section">
+    <h2 class="guia-section-title">6. Código de colores por estado</h2>
+    <ul class="guia-estados">
+      <li><span class="guia-dot guia-dot-gris"></span> <strong>Reportado</strong> (gris)</li>
+      <li><span class="guia-dot guia-dot-amarillo"></span> <strong>En proceso / revisión</strong> (amarillo)</li>
+      <li><span class="guia-dot guia-dot-verde"></span> <strong>Resuelto</strong> (verde)</li>
+    </ul>
+    <p>Esta convención se usa de forma consistente en el feed, el panel, la tabla de incidentes y el mapa.</p>
+  </section>
+
+  <div class="guia-footer-note">
+    Para dudas operativas vuelve a <a href="{% url 'ayuda' %}">Ayuda</a>.
+  </div>
+</article>
+{% endblock %}
