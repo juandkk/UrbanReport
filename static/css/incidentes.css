@@ -161,7 +161,15 @@
   outline: none;
 }
 .inc-estado-select:disabled { opacity: 0.5; cursor: wait; }
-/* Estados consistentes con el mapa: gris / amarillo / verde */
+/* El color del estado solo tiñe el select cerrado, NO sus opciones. Las
+   opciones del desplegable usan siempre un color neutro fijo para que no se
+   contaminen con el color del estado seleccionado. */
+.inc-estado-select option {
+  color: #e2e8f0;
+  background: #0b1220;
+  font-weight: 500;
+}
+/* Estados consistentes con el mapa: gris / amarillo / verde (solo el select) */
 .inc-estado-reportado  { color: #94a3b8; border-color: rgba(148,163,184,0.4); }
 .inc-estado-en_proceso { color: #fbbf24; border-color: rgba(245,158,11,0.4); }
 .inc-estado-resuelta   { color: #22c55e; border-color: rgba(34,197,94,0.4); }
