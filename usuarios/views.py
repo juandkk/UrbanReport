@@ -233,7 +233,12 @@ def perfil_view(request, username=None):
         'total_seguidos': usuario.total_seguidos,
         'es_propio_perfil': es_propio_perfil,
         'ya_lo_sigo': ya_lo_sigo,
-        'es_admin': usuario.rol == Usuario.Rol.ADMINISTRADOR or usuario.is_staff or usuario.is_superuser,
+        # NOTA: no se pone 'es_admin' aquí. Ese valor lo provee el context
+        # processor usuarios.context_processors.es_admin y SIEMPRE debe reflejar
+        # al usuario autenticado (request.user), no al dueño del perfil visitado.
+        # Antes se sobrescribía con el rol del perfil, lo que hacía que el
+        # sidebar de un ciudadano se volviera el de admin al ver el perfil de uno.
+        'perfil_es_admin': usuario.rol == Usuario.Rol.ADMINISTRADOR or usuario.is_staff or usuario.is_superuser,
         'ubicaciones': UBICACIONES_MEDELLIN,
         'active_menu': 'perfil',
     }
