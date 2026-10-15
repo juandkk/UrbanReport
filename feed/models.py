@@ -31,6 +31,9 @@ class Publicacion(models.Model):
         ALUMBRADO = 'ALUMBRADO', 'Alumbrado'
         PARQUES = 'PARQUES', 'Parques'
         INFRAESTRUCTURA = 'INFRAESTRUCTURA', 'Infraestructura'
+        REDES = 'REDES', 'Redes eléctricas y telecomunicaciones'
+        ASEO = 'ASEO', 'Aseo y basuras'
+        OTROS = 'OTROS', 'Otros'
 
     titulo = models.CharField(max_length=200, blank=True, default='')
     categoria = models.CharField(
