@@ -89,12 +89,14 @@
         type: 'line',
         data: { labels: mesLabels, datasets: [
           { label: 'Radicados', data: radData, borderColor: COLORS.morado,
-            backgroundColor: 'rgba(139,92,246,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+            backgroundColor: COLORS.morado, pointBackgroundColor: COLORS.morado,
+            fill: false, tension: 0.35, pointRadius: 3 },
           { label: 'Solucionados', data: resData, borderColor: COLORS.verde,
+            backgroundColor: COLORS.verde, pointBackgroundColor: COLORS.verde,
             borderDash: [5, 4], fill: false, tension: 0.35, pointRadius: 3 },
         ]},
         options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 14 } } },
+          plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, padding: 14 } } },
           scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } } } },
       });
     }
