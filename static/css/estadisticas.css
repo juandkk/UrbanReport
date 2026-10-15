@@ -1,0 +1,104 @@
+/* =========================================================================
+   Estadísticas (RF-006, RF-020)
+   ========================================================================= */
+
+.stats-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 2px 48px;
+}
+
+.stats-header { margin-top: 4px; }
+.stats-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+.stats-title-sm { font-size: 1.3rem; }
+.stats-subtitle {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---- KPIs ---- */
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stats-kpi {
+  background: var(--surface, #10141d);
+  border: 1px solid var(--border-subtle, #1e293b);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stats-kpi-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+}
+.stats-kpi-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+}
+.stats-kpi-unit { font-size: 1rem; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.stats-kpi-foot { font-size: 0.76rem; color: var(--text-muted, #94a3b8); }
+
+/* Nivel de confianza con color según nivel */
+.stats-nivel-nuevo { color: #94a3b8; }
+.stats-nivel-bajo { color: #f87171; }
+.stats-nivel-medio { color: #fbbf24; }
+.stats-nivel-alto { color: #4ade80; }
+
+/* ---- Tarjetas de gráfica ---- */
+.stats-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.stats-card-grow { grid-column: span 1; }
+/* La tarjeta "grow" ocupa más en filas de dos: 1.6fr vs 1fr */
+.stats-charts-row:has(.stats-card-grow) {
+  grid-template-columns: 1.5fr 1fr;
+}
+.stats-card {
+  background: var(--surface, #10141d);
+  border: 1px solid var(--border-subtle, #1e293b);
+  border-radius: 14px;
+  padding: 18px;
+}
+.stats-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 14px;
+}
+.stats-chart-wrap {
+  position: relative;
+  height: 260px;
+}
+.stats-chart-dona { height: 260px; }
+
+/* ---- Responsive ---- */
+@media (max-width: 1100px) {
+  .stats-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .stats-charts-row,
+  .stats-charts-row:has(.stats-card-grow) { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .stats-kpi-grid { grid-template-columns: 1fr; }
+  .stats-title { font-size: 1.45rem; }
+}

@@ -1,0 +1,120 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}{% if es_admin_vista %}Estadísticas{% else %}Mis Estadísticas{% endif %} | UrbanReport{% endblock %}
+
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-panel{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/estadisticas.css' %}?v={% now 'U' %}">
+{% endblock %}
+
+{% block portal_content %}
+<div class="stats-page">
+
+  {% if es_admin_vista %}
+  <!-- ================= TABLERO DE MÉTRICAS GENERALES (ADMIN) ================= -->
+  <header class="stats-header">
+    <div>
+      <h1 class="stats-title">Tablero de Métricas Generales</h1>
+      <p class="stats-subtitle">Análisis en tiempo real de los reportes de incidentes generales.</p>
+    </div>
+  </header>
+
+  <section class="stats-kpi-grid">
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Reportes totales</span></div>
+      <div class="stats-kpi-value">{{ stats.total }}</div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Resueltos</span></div>
+      <div class="stats-kpi-value">{{ stats.tasa_resolucion }}%</div>
+      <div class="stats-kpi-foot">{{ stats.resueltas }} de {{ stats.total }}</div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Tiempo promedio</span></div>
+      <div class="stats-kpi-value">{{ stats.tiempo_prom_horas }} <span class="stats-kpi-unit">hrs</span></div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Activos (en curso)</span></div>
+      <div class="stats-kpi-value">{{ stats.activas }}</div>
+    </div>
+  </section>
+
+  <section class="stats-charts-row">
+    <div class="stats-card stats-card-grow">
+      <h3 class="stats-card-title">Tendencia de incidentes (14 días)</h3>
+      <div class="stats-chart-wrap"><canvas id="chartTendencia"></canvas></div>
+    </div>
+    <div class="stats-card">
+      <h3 class="stats-card-title">Resumen de estado</h3>
+      <div class="stats-chart-wrap stats-chart-dona"><canvas id="chartEstado"></canvas></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ================= TABLERO PERSONAL (TODOS) ================= -->
+  <header class="stats-header">
+    <div>
+      {% if es_admin_vista %}
+      <h2 class="stats-title stats-title-sm">Tablero de Tus Métricas</h2>
+      {% else %}
+      <h1 class="stats-title">Mis Estadísticas e Impacto</h1>
+      <p class="stats-subtitle">Un resumen de tu contribución a la mejora de la comunidad. Tu participación hace la diferencia.</p>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="stats-kpi-grid">
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Total reportes radicados</span></div>
+      <div class="stats-kpi-value">{{ mis_stats.total }}</div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Incidentes solucionados</span></div>
+      <div class="stats-kpi-value">{{ mis_stats.resueltos }}</div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Impacto (votos)</span></div>
+      <div class="stats-kpi-value">{{ mis_stats.impacto }}</div>
+    </div>
+    <div class="stats-kpi stats-kpi-nivel">
+      <div class="stats-kpi-head"><span class="stats-kpi-label">Nivel de confianza</span></div>
+      <div class="stats-kpi-value stats-nivel-{{ mis_stats.confianza.nivel|lower }}">{{ mis_stats.confianza.nivel }}</div>
+      <div class="stats-kpi-foot">{{ mis_stats.confianza.tasa }}% de resolución</div>
+    </div>
+  </section>
+
+  <section class="stats-charts-row">
+    <div class="stats-card">
+      <h3 class="stats-card-title">Reportes por categoría</h3>
+      <div class="stats-chart-wrap"><canvas id="chartMisCategorias"></canvas></div>
+    </div>
+    <div class="stats-card stats-card-grow">
+      <h3 class="stats-card-title">Actividad mensual</h3>
+      <div class="stats-chart-wrap"><canvas id="chartMisMeses"></canvas></div>
+    </div>
+  </section>
+</div>
+
+{# Datos para Chart.js #}
+{% if es_admin_vista %}
+{{ stats.chart_tendencia_labels|json_script:"g-tend-labels" }}
+{{ stats.chart_tendencia_data|json_script:"g-tend-data" }}
+{{ stats.chart_estado_labels|json_script:"g-est-labels" }}
+{{ stats.chart_estado_data|json_script:"g-est-data" }}
+{% endif %}
+{{ mis_stats.chart_cat_labels|json_script:"m-cat-labels" }}
+{{ mis_stats.chart_cat_data|json_script:"m-cat-data" }}
+{{ mis_stats.chart_meses_labels|json_script:"m-mes-labels" }}
+{{ mis_stats.chart_radicados_data|json_script:"m-rad-data" }}
+{{ mis_stats.chart_resueltos_data|json_script:"m-res-data" }}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script defer src="{% static 'js/estadisticas.js' %}?v={% now 'U' %}"></script>
+{% endblock %}

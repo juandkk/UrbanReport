@@ -8,6 +8,7 @@ urlpatterns = [
     path('incidentes/', views.incidentes_view, name='incidentes'),
     path('incidentes/exportar/', views.exportar_incidentes_csv, name='exportar_incidentes'),
     path('incidentes/importar/', views.importar_incidentes_csv, name='importar_incidentes'),
+    path('estadisticas/', views.estadisticas_view, name='estadisticas'),
     path('ayuda/', views.ayuda_view, name='ayuda'),
     path('ayuda/guia-ciudadano/', views.guia_ciudadano_view, name='guia_ciudadano'),
     path('ayuda/manual-administrador/', views.manual_administrador_view, name='manual_administrador'),

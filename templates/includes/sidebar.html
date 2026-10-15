@@ -77,7 +77,7 @@
       {% if es_admin %}
       <!-- Estadísticas (solo administrador) -->
       <li>
-        <a href="{% url 'panel_administrador' %}" class="nav-item-link {% if active_menu == 'estadisticas' %}active{% endif %}">
+        <a href="{% url 'estadisticas' %}" class="nav-item-link {% if active_menu == 'estadisticas' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="20" x2="18" y2="10"/>
             <line x1="12" y1="20" x2="12" y2="4"/>
@@ -99,7 +99,7 @@
       {% else %}
       <!-- Mis estadísticas (solo usuario normal / ciudadano) -->
       <li>
-        <a href="#" class="nav-item-link {% if active_menu == 'mis_estadisticas' %}active{% endif %}">
+        <a href="{% url 'estadisticas' %}" class="nav-item-link {% if active_menu == 'mis_estadisticas' %}active{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="20" x2="18" y2="10"/>
             <line x1="12" y1="20" x2="12" y2="4"/>

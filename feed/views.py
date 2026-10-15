@@ -919,6 +919,99 @@ def manual_administrador_view(request):
     return render(request, 'feed/manual_administrador.html', {'active_menu': 'ayuda'})
 
 
+def _estadisticas_usuario(usuario):
+    """
+    Calcula las métricas personales de un usuario (RF-020): reportes radicados,
+    resueltos, en proceso, impacto (suma de likes recibidos), nivel de confianza,
+    distribución por categoría y actividad mensual de los últimos 6 meses.
+    """
+    Estado = Publicacion.EstadoIncidencia
+    Cat = Publicacion.Categoria
+
+    pubs = Publicacion.objects.filter(autor=usuario)
+    total = pubs.count()
+    resueltos = pubs.filter(estado_incidencia=Estado.RESUELTA).count()
+    en_proceso = pubs.filter(estado_incidencia=Estado.EN_PROCESO).count()
+    reportados = pubs.filter(estado_incidencia=Estado.REPORTADO).count()
+
+    # Impacto = suma de likes recibidos en sus publicaciones
+    impacto = sum(p.likes for p in pubs)
+
+    confianza = usuario.nivel_confianza()
+
+    # Distribución por categoría
+    por_categoria = []
+    for valor, etiqueta in Cat.choices:
+        c = pubs.filter(categoria=valor).count()
+        por_categoria.append({'etiqueta': etiqueta, 'cantidad': c})
+
+    # Actividad mensual: últimos 6 meses (radicados vs resueltos)
+    ahora = timezone.now()
+    meses_labels = []
+    radicados_mes = []
+    resueltos_mes = []
+    MESES_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    # Construye los últimos 6 meses (incluido el actual)
+    year = ahora.year
+    month = ahora.month
+    secuencia = []
+    for i in range(5, -1, -1):
+        m = month - i
+        y = year
+        while m <= 0:
+            m += 12
+            y -= 1
+        secuencia.append((y, m))
+    for (y, m) in secuencia:
+        meses_labels.append(MESES_ES[m - 1])
+        radicados_mes.append(pubs.filter(fecha_creacion__year=y, fecha_creacion__month=m).count())
+        resueltos_mes.append(
+            pubs.filter(
+                estado_incidencia=Estado.RESUELTA,
+                fecha_creacion__year=y, fecha_creacion__month=m,
+            ).count()
+        )
+
+    return {
+        'total': total,
+        'resueltos': resueltos,
+        'en_proceso': en_proceso,
+        'reportados': reportados,
+        'impacto': impacto,
+        'confianza': confianza,
+        'por_categoria': por_categoria,
+        'chart_cat_labels': [c['etiqueta'] for c in por_categoria],
+        'chart_cat_data': [c['cantidad'] for c in por_categoria],
+        'chart_meses_labels': meses_labels,
+        'chart_radicados_data': radicados_mes,
+        'chart_resueltos_data': resueltos_mes,
+    }
+
+
+@login_required
+def estadisticas_view(request):
+    """
+    Estadísticas (RF-006, RF-020). Para administradores muestra el tablero de
+    métricas generales (datos globales) integrado con sus métricas personales.
+    Para ciudadanos muestra solo "Mis Estadísticas e Impacto".
+    """
+    if not Publicacion.objects.exists():
+        _seed_demo_data()
+
+    es_admin_user = _es_admin(request.user)
+    mis_stats = _estadisticas_usuario(request.user)
+
+    context = {
+        'active_menu': 'estadisticas' if es_admin_user else 'mis_estadisticas',
+        'mis_stats': mis_stats,
+        'es_admin_vista': es_admin_user,
+    }
+    if es_admin_user:
+        context['stats'] = _calcular_estadisticas_panel()
+
+    return render(request, 'feed/estadisticas.html', context)
+
+
 def _calcular_estadisticas_panel():
     """
     Calcula todas las métricas del Panel de Control Municipal a partir de datos
