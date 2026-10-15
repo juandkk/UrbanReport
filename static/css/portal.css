@@ -2202,6 +2202,16 @@
   max-width: 1100px;
 }
 
+/* Ancho amplio alineado a la izquierda (panel admin, ayuda, guías). Ocupa el
+   espacio disponible sin el centrado angosto del feed; se define aquí (en
+   portal.css) para que esté disponible en todas las vistas del portal. */
+.portal-main.portal-main-panel {
+  max-width: 1400px;
+  margin: 0;
+  width: 100%;
+  padding: 2rem 2.5rem;
+}
+
 .profile-header {
   margin-bottom: 1.5rem;
   padding-bottom: 1.25rem;

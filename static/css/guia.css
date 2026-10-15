@@ -3,8 +3,10 @@
    ========================================================================= */
 
 .guia {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 820px;
+  /* Alineado a la izquierda (no centrado) para que no quede un hueco a la
+     derecha donde iría la barra de widgets. */
+  margin: 0;
   padding: 4px 2px 48px;
 }
 

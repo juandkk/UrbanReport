@@ -2,14 +2,8 @@
    Panel de Control Municipal (RF-005, Fase 1)
    ========================================================================= */
 
-/* El panel usa todo el ancho disponible (no la columna angosta del feed).
-   Sobreescribe el max-width/centrado de .portal-main. */
-.portal-main.portal-main-panel {
-  max-width: 1400px;
-  margin: 0;
-  width: 100%;
-  padding: 2rem 2.5rem;
-}
+/* NOTA: .portal-main-panel se definió en portal.css (lo usan panel, ayuda y
+   las guías), para que la clase funcione aunque no se cargue panel_admin.css. */
 
 .panel-admin {
   display: flex;
