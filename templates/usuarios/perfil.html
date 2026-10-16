@@ -223,6 +223,16 @@
     <form id="editProfileForm" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="ur-modal-body">
+        <!-- Banner de alerta (nombre inapropiado, errores de validación, etc.) -->
+        <div class="edit-alert" id="editProfileAlert" role="alert" aria-live="assertive">
+          <svg class="edit-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span class="edit-alert-text" id="editProfileAlertText"></span>
+        </div>
+
         <!-- Foto de perfil -->
         <div class="edit-avatar-row">
           <div class="edit-avatar-preview" id="editAvatarPreview">
@@ -350,7 +360,14 @@
     var editModal = document.getElementById('editProfileModal');
     var openEditBtn = document.getElementById('open-edit-profile-btn');
     if (openEditBtn && editModal) {
-      openEditBtn.addEventListener('click', function () { openModal(editModal); });
+      openEditBtn.addEventListener('click', function () {
+        // Limpiar cualquier alerta previa al abrir el modal
+        var al = document.getElementById('editProfileAlert');
+        var nm = document.getElementById('editNombre');
+        if (al) al.classList.remove('visible');
+        if (nm) nm.classList.remove('input-error');
+        openModal(editModal);
+      });
     }
 
     // SVG por defecto (cuando no hay foto de perfil)
@@ -391,10 +408,35 @@
       });
     }
 
+    // Muestra/oculta el banner de alerta dentro del modal "Editar perfil".
+    var editAlert = document.getElementById('editProfileAlert');
+    var editAlertText = document.getElementById('editProfileAlertText');
+    var editNombreInput = document.getElementById('editNombre');
+
+    function mostrarEditAlert(msg) {
+      if (!editAlert) { return; }
+      editAlertText.textContent = msg || 'No se pudo actualizar el perfil.';
+      editAlert.classList.add('visible');
+      // Resaltar el campo del nombre y hacer scroll al banner
+      if (editNombreInput) editNombreInput.classList.add('input-error');
+      editAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function ocultarEditAlert() {
+      if (editAlert) editAlert.classList.remove('visible');
+      if (editNombreInput) editNombreInput.classList.remove('input-error');
+    }
+
+    // Al editar el nombre, limpiar el estado de error.
+    if (editNombreInput) {
+      editNombreInput.addEventListener('input', ocultarEditAlert);
+    }
+
     var editForm = document.getElementById('editProfileForm');
     if (editForm) {
       editForm.addEventListener('submit', function (e) {
         e.preventDefault();
+        ocultarEditAlert();
         var saveBtn = document.getElementById('saveProfileBtn');
         if (saveBtn) saveBtn.disabled = true;
         fetch('{% url "editar_perfil" %}', {
@@ -424,10 +466,10 @@
               if (avatarRemoveBtn) avatarRemoveBtn.classList.toggle('d-none', !data.tiene_avatar);
               closeModal(editModal);
             } else {
-              alert(data.message || 'No se pudo actualizar el perfil.');
+              mostrarEditAlert(data.message);
             }
           })
-          .catch(function () { alert('Error de conexión.'); })
+          .catch(function () { mostrarEditAlert('Error de conexión. Inténtalo de nuevo.'); })
           .finally(function () { if (saveBtn) saveBtn.disabled = false; });
       });
     }

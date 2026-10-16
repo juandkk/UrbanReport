@@ -282,6 +282,121 @@ class ApiTest(BaseUrbanReportTest):
 
 
 
+class ModeracionLenguajeTest(BaseUrbanReportTest):
+    """
+    Verifica el filtro de lenguaje inapropiado (feed/moderacion.py) integrado en
+    los puntos de entrada de publicaciones y comentarios.
+    """
+
+    def setUp(self):
+        self.client.force_login(self.ciudadano)
+
+    def _json(self, url, data=None, status=200):
+        r = self.client.post(url, data or {})
+        self.assertEqual(r.status_code, status, f'{url} -> {r.status_code}: {r.content[:200]}')
+        return r.json()
+
+    # ── Pruebas directas del módulo de moderación ──
+    def test_modulo_detecta_y_permite(self):
+        from feed.moderacion import contiene_lenguaje_inapropiado as c
+        # Permitido
+        self.assertFalse(c('Hay un bache enorme en la Avenida Oriental'))
+        self.assertFalse(c('El alumbrado del parque está dañado'))
+        self.assertFalse(c(''))
+        # Prohibido (español, mayúsculas, tildes, leet, separado)
+        self.assertTrue(c('eres un gonorrea'))
+        self.assertTrue(c('MARICA'))
+        self.assertTrue(c('hijueputa'))
+        self.assertTrue(c('p3nd3j0'))
+        self.assertTrue(c('p u t a'))
+
+    def test_sin_falsos_positivos(self):
+        """Palabras legítimas que contienen subcadenas sensibles no deben bloquearse."""
+        from feed.moderacion import contiene_lenguaje_inapropiado as c
+        for texto in [
+            'Carlos Vergara reportó el daño',   # "Vergara" contiene "verga"
+            'La administración municipal respondió',
+            'Hay basura acumulada en la esquina',
+            'El semáforo de la calle 50 no sirve',
+        ]:
+            self.assertFalse(c(texto), f'Falso positivo con: {texto}')
+
+    # ── 1. Publicación con lenguaje permitido se guarda ──
+    def test_publicacion_limpia_se_guarda(self):
+        url = reverse('radicar_incidencia_ajax')
+        antes = Publicacion.objects.count()
+        d = self._json(url, {
+            'titulo': 'Hueco peligroso',
+            'categoria': 'VIAS',
+            'contenido': 'Hay un hueco grande en la vía',
+            'ubicacion': 'Calle 10, El Poblado',
+            'latitud': '6.2090000', 'longitud': '-75.5700000', 'ubicacion_fijada': '1',
+        }, status=200)
+        self.assertEqual(d['status'], 'ok')
+        self.assertEqual(Publicacion.objects.count(), antes + 1)
+
+    # ── 2. Publicación con palabras prohibidas se rechaza ──
+    def test_publicacion_inapropiada_se_rechaza(self):
+        url = reverse('radicar_incidencia_ajax')
+        antes = Publicacion.objects.count()
+        d = self._json(url, {
+            'titulo': 'Reporte',
+            'categoria': 'VIAS',
+            'contenido': 'el alcalde es un gonorrea malparido',
+            'ubicacion': 'Calle 10, El Poblado',
+            'latitud': '6.2090000', 'longitud': '-75.5700000', 'ubicacion_fijada': '1',
+        }, status=400)
+        self.assertEqual(d['status'], 'error')
+        self.assertIn('inapropiada', d['message'].lower())
+        self.assertEqual(Publicacion.objects.count(), antes, 'No debe guardarse la publicación rechazada.')
+
+    # ── 3. Comentario con lenguaje permitido se guarda ──
+    def test_comentario_limpio_se_guarda(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        d = self._json(url, {'texto': 'Gracias por reportar, muy útil'}, status=200)
+        self.assertEqual(d['status'], 'ok')
+
+    # ── 4. Comentario con lenguaje inapropiado se rechaza ──
+    def test_comentario_inapropiado_se_rechaza(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        total_antes = self.pub.comentarios.count()
+        d = self._json(url, {'texto': 'no sea pendejo'}, status=400)
+        self.assertEqual(d['status'], 'error')
+        self.assertEqual(self.pub.comentarios.count(), total_antes, 'No debe guardarse el comentario rechazado.')
+
+    # ── 5. Edición: también se valida al editar ──
+    def test_editar_publicacion_valida(self):
+        url = reverse('editar_publicacion_ajax', args=[self.pub.id])
+        # Edición válida
+        d = self._json(url, {'titulo': 'Título corregido', 'contenido': 'Descripción válida'}, status=200)
+        self.assertEqual(d['status'], 'ok')
+        # Edición con groseria -> rechazada y sin persistir
+        d = self._json(url, {'titulo': 'Título', 'contenido': 'eres un hijueputa'}, status=400)
+        self.pub.refresh_from_db()
+        self.assertNotIn('hijueputa', self.pub.contenido.lower())
+
+    def test_editar_comentario_valida(self):
+        # Comentario propio del ciudadano (puede editarlo).
+        propio = Comentario.objects.create(
+            publicacion=self.pub, autor=self.ciudadano,
+            autor_nombre=self.ciudadano.username, texto='Comentario inicial',
+        )
+        url = reverse('editar_comentario_ajax', args=[propio.id])
+        d = self._json(url, {'texto': 'Comentario corregido y limpio'}, status=200)
+        self.assertEqual(d['status'], 'ok')
+        d = self._json(url, {'texto': 'malparido'}, status=400)
+        propio.refresh_from_db()
+        self.assertNotEqual(propio.texto, 'malparido')
+
+    # ── 6. Las rutas AJAX conservan su formato esperado ──
+    def test_formato_respuesta_ajax(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        d = self._json(url, {'texto': 'coño'}, status=400)
+        self.assertIn('status', d)
+        self.assertIn('message', d)
+        self.assertEqual(d['status'], 'error')
+
+
 class RendimientoTest(TestCase):
     """El número de consultas no debe crecer con la cantidad de publicaciones (sin N+1)."""
 

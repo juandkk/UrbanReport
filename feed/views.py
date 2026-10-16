@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST, require_GET
 from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.utils.timesince import timesince
 from django.utils import timezone
 from django.db.models import Count, Q, Sum
@@ -19,6 +20,7 @@ from .models import (
     Publicacion, Comentario,
     ReaccionPublicacion, ReaccionComentario, ReporteContenido, Notificacion, Reposteo
 )
+from .moderacion import contiene_lenguaje_inapropiado, MENSAJE_RECHAZO
 from usuarios.models import Usuario
 
 
@@ -264,6 +266,11 @@ def radicar_incidencia_ajax(request):
             contenido = titulo
         else:
             return JsonResponse({'status': 'error', 'message': 'Por favor ingrese una descripción del incidente.'}, status=400)
+
+    # ── Moderación de lenguaje ──
+    # Rechaza título o descripción con lenguaje inapropiado antes de guardar.
+    if contiene_lenguaje_inapropiado(titulo) or contiene_lenguaje_inapropiado(contenido):
+        return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
 
     # ── Ubicación obligatoria ──
     # Se exigen coordenadas válidas Y que el usuario haya fijado explícitamente el
@@ -588,6 +595,21 @@ def feed_comunitario_view(request):
             except ImagenInvalida:
                 imagen_limpia = None
         if contenido or titulo:
+            # ── Moderación de lenguaje ──
+            # Si el título o la descripción tienen lenguaje inapropiado, no se guarda.
+            # Se conserva lo escrito en el contexto para que el usuario pueda corregirlo.
+            if contiene_lenguaje_inapropiado(titulo) or contiene_lenguaje_inapropiado(contenido):
+                messages.error(request, MENSAJE_RECHAZO)
+                context = {
+                    'publicaciones': publicaciones,
+                    'trending_topics': trending_topics,
+                    'actividades': actividades,
+                    'active_menu': 'feed',
+                    'form_titulo': titulo,
+                    'form_contenido': contenido,
+                }
+                return render(request, 'feed/feed_comunitario.html', context)
+
             user = request.user
             autor_nombre = f"{user.first_name} {user.last_name}".strip() or user.username
 
@@ -760,6 +782,10 @@ def agregar_comentario_ajax(request, publicacion_id):
 
     if not texto:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
+
+    # ── Moderación de lenguaje ──
+    if contiene_lenguaje_inapropiado(texto):
+        return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
 
     padre = None
     if padre_id:
@@ -1447,6 +1473,10 @@ def editar_publicacion_ajax(request, publicacion_id):
     if not contenido and not titulo:
         return JsonResponse({'status': 'error', 'message': 'El título o la descripción no pueden estar vacíos.'}, status=400)
 
+    # ── Moderación de lenguaje ──
+    if contiene_lenguaje_inapropiado(titulo) or contiene_lenguaje_inapropiado(contenido):
+        return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
+
     publicacion.titulo = titulo
     publicacion.contenido = contenido or titulo
     if categoria in [c[0] for c in Publicacion.Categoria.choices]:
@@ -1536,6 +1566,10 @@ def editar_comentario_ajax(request, comentario_id):
     texto = request.POST.get('texto', '').strip()
     if not texto:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
+
+    # ── Moderación de lenguaje ──
+    if contiene_lenguaje_inapropiado(texto):
+        return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
 
     comentario.texto = texto
     comentario.save(update_fields=['texto'])

@@ -40,6 +40,7 @@ _PALABRAS_PROHIBIDAS = {
     'maldito', 'maldita', 'malditos', 'desgraciado', 'desgraciada',
     # ── Sexual / anatomía (indebido como nombre) ──
     'pene', 'penes', 'picha', 'pichula', 'polla', 'pollas', 'pija', 'pito',
+    'pipi', 'pipis', 'chimbita', 'penecito',
     'vagina', 'vaginas', 'cuca', 'cuchara', 'crica', 'panocha', 'concha',
     'conchatumadre', 'ctm', 'teta', 'tetas', 'tetona', 'culo', 'culos',
     'culote', 'nalga', 'nalgas', 'nalgon', 'nalgona', 'ano', 'orto',
