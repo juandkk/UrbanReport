@@ -1,0 +1,490 @@
+{% extends 'layouts/portal_base.html' %}
+{% load static %}
+
+{% block title %}Configuración | UrbanReport{% endblock %}
+
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-wide{% endblock %}
+
+{% block portal_content %}
+<form method="POST" action="{% url 'configuracion_admin' %}" class="cfg-form" id="cfgAdminForm" novalidate>
+  {% csrf_token %}
+
+  <!-- ===== Encabezado ===== -->
+  <header class="cfg-header">
+    <div class="cfg-header-left">
+      <a href="{% url 'perfil' %}" class="cfg-back-btn" title="Volver a Mi Perfil" aria-label="Volver a Mi Perfil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </a>
+      <div>
+        <h1 class="cfg-title">Configuración</h1>
+        <p class="cfg-subtitle">Gestión avanzada del sistema y parámetros operativos.</p>
+      </div>
+    </div>
+
+    <button type="submit" class="cfg-save-btn" id="cfgAdminSaveBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 8 15 8" />
+      </svg>
+      <span class="cfg-save-label">Guardar Cambios</span>
+    </button>
+  </header>
+
+  <!-- ===== Mensajes ===== -->
+  {% if messages %}
+  <div class="cfg-messages">
+    {% for message in messages %}
+    <div class="cfg-alert cfg-alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ===== Información Personal ===== -->
+  <section class="cfg-card">
+    <h2 class="cfg-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      Información Personal
+    </h2>
+
+    <div class="cfg-grid cfg-grid-3">
+      <div class="cfg-field">
+        <label for="id_nombre_completo" class="cfg-label">Nombre de usuario<span class="cfg-req">*</span></label>
+        {{ form.nombre_completo }}
+        {% for err in form.nombre_completo.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_email" class="cfg-label">Correo electrónico<span class="cfg-req">*</span></label>
+        {{ form.email }}
+        {% for err in form.email.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_telefono" class="cfg-label">Número de teléfono<span class="cfg-req">*</span></label>
+        {{ form.telefono }}
+        {% for err in form.telefono.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Residencia ===== -->
+  <section class="cfg-card">
+    <h2 class="cfg-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+      Residencia
+    </h2>
+
+    <div class="cfg-field cfg-field-full">
+      <label for="id_direccion" class="cfg-label">Dirección de residencia<span class="cfg-req">*</span></label>
+      {{ form.direccion }}
+      {% for err in form.direccion.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="cfg-grid cfg-grid-3">
+      <div class="cfg-field">
+        <label for="id_barrio_vereda" class="cfg-label">Barrio o vereda<span class="cfg-req">*</span></label>
+        {{ form.barrio_vereda }}
+        {% for err in form.barrio_vereda.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_numero_finca" class="cfg-label">Número de finca</label>
+        {{ form.numero_finca }}
+        {% for err in form.numero_finca.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div class="cfg-field">
+        <label for="id_codigo_postal" class="cfg-label">Código postal<span class="cfg-req">*</span></label>
+        {{ form.codigo_postal }}
+        {% for err in form.codigo_postal.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Fila: Gestión de Sistema + Parámetros de Alerta ===== -->
+  <div class="cfg-two-col">
+
+    <!-- Gestión de Sistema -->
+    <section class="cfg-card">
+      <h2 class="cfg-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+          <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+          <line x1="6" y1="6" x2="6.01" y2="6" />
+          <line x1="6" y1="18" x2="6.01" y2="18" />
+        </svg>
+        Gestión de Sistema
+      </h2>
+
+      <div class="cfg-toggle-row">
+        <div class="cfg-toggle-text">
+          <span class="cfg-toggle-title">Modo Mantenimiento</span>
+          <span class="cfg-toggle-desc">Suspende el acceso público para actualizaciones.</span>
+        </div>
+        <label class="cfg-switch">
+          <input type="checkbox" id="id_modo_mantenimiento"
+                 data-url="{% url 'toggle_modo_mantenimiento' %}"
+                 {% if config.modo_mantenimiento %}checked{% endif %}>
+          <span class="cfg-switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="cfg-backup-row">
+        <div class="cfg-toggle-text">
+          <span class="cfg-toggle-title">Backups Automatizados</span>
+          <span class="cfg-toggle-desc">
+            Último respaldo: <span id="ultimoBackupLabel">{{ ultimo_backup_rel }}</span>
+          </span>
+        </div>
+        <button type="button" class="cfg-mini-btn" id="btnBackupManual"
+                data-url="{% url 'ejecutar_backup' %}">Ejecutar Manual</button>
+      </div>
+    </section>
+
+    <!-- Parámetros de Alerta -->
+    <section class="cfg-card">
+      <h2 class="cfg-card-title cfg-card-title-warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        Parámetros de Alerta
+      </h2>
+
+      <div class="cfg-param-row">
+        <label for="id_umbral_critico_reportes" class="cfg-param-label">Umbral Crítico (Reportes/Hr)</label>
+        {{ alerta_form.umbral_critico_reportes }}
+      </div>
+      {% for err in alerta_form.umbral_critico_reportes.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+
+      <div class="cfg-param-row">
+        <label for="id_tiempo_max_respuesta_horas" class="cfg-param-label">Tiempo Máx. Respuesta (Hrs)</label>
+        {{ alerta_form.tiempo_max_respuesta_horas }}
+      </div>
+      {% for err in alerta_form.tiempo_max_respuesta_horas.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
+    </section>
+  </div>
+
+  <!-- ===== Administradores Activos ===== -->
+  <section class="cfg-card">
+    <div class="cfg-admins-head">
+      <h2 class="cfg-card-title cfg-card-title-tight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        Administradores Activos
+      </h2>
+      <button type="button" class="cfg-new-admin-btn" id="btnNuevoAdmin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Nuevo Admin
+      </button>
+    </div>
+
+    <div class="cfg-table-wrap">
+      <table class="cfg-admins-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Rol</th>
+            <th>Último Acceso</th>
+            <th>Estado</th>
+            <th class="cfg-col-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="adminsTbody">
+          {% for a in administradores %}
+          <tr data-user-id="{{ a.id }}">
+            <td>{{ a.nombre }}</td>
+            <td>{{ a.rol_label }}</td>
+            <td>{{ a.ultimo_acceso }}</td>
+            <td>
+              {% if a.en_linea %}
+              <span class="cfg-badge cfg-badge-online">En línea</span>
+              {% else %}
+              <span class="cfg-badge cfg-badge-offline">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="cfg-col-acciones">
+              {% if a.es_superuser %}
+              <span class="cfg-action-protected" title="Un superusuario no puede ser revocado">—</span>
+              {% else %}
+              <button type="button" class="cfg-icon-btn cfg-revoke-btn"
+                      data-url="{% url 'revocar_admin' a.id %}" title="Revocar administrador">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr id="adminsEmptyRow">
+            <td colspan="5" class="cfg-table-empty">No hay administradores registrados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</form>
+
+<!-- ===== Modal: Nuevo Admin / Promover ciudadano ===== -->
+<div class="cfg-modal-backdrop" id="nuevoAdminModal">
+  <div class="cfg-modal">
+    <div class="cfg-modal-header">
+      <h3>Nuevo Administrador</h3>
+      <button type="button" class="cfg-modal-close" id="closeNuevoAdmin">&times;</button>
+    </div>
+
+    <div class="cfg-modal-tabs">
+      <button type="button" class="cfg-modal-tab active" data-tab="crear">Crear nuevo</button>
+      <button type="button" class="cfg-modal-tab" data-tab="promover">Promover ciudadano</button>
+    </div>
+
+    <!-- Crear nuevo admin -->
+    <div class="cfg-modal-pane active" id="paneCrear">
+      <div class="cfg-field">
+        <label class="cfg-label">Nombre de usuario<span class="cfg-req">*</span></label>
+        <input type="text" class="cfg-input" id="na_username" placeholder="Nombre de usuario">
+      </div>
+      <div class="cfg-field">
+        <label class="cfg-label">Correo electrónico<span class="cfg-req">*</span></label>
+        <input type="email" class="cfg-input" id="na_email" placeholder="admin@correo.com">
+      </div>
+      <div class="cfg-field">
+        <label class="cfg-label">Contraseña<span class="cfg-req">*</span></label>
+        <input type="password" class="cfg-input" id="na_password" placeholder="Mínimo 8 caracteres, con letras y números">
+      </div>
+      <p class="cfg-modal-error" id="crearError"></p>
+      <button type="button" class="cfg-save-btn cfg-modal-submit" id="submitCrearAdmin"
+              data-url="{% url 'crear_admin' %}">Crear administrador</button>
+    </div>
+
+    <!-- Promover ciudadano existente -->
+    <div class="cfg-modal-pane" id="panePromover">
+      <div class="cfg-field">
+        <label class="cfg-label">Usuario o correo del ciudadano<span class="cfg-req">*</span></label>
+        <input type="text" class="cfg-input" id="pr_identificador" placeholder="Usuario o correo existente">
+      </div>
+      <p class="cfg-modal-hint">Cambia el rol de un ciudadano existente a administrador.</p>
+      <p class="cfg-modal-error" id="promoverError"></p>
+      <button type="button" class="cfg-save-btn cfg-modal-submit" id="submitPromover"
+              data-url="{% url 'promover_ciudadano' %}">Convertir en administrador</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  'use strict';
+
+  function getCookie(name) {
+    var value = null;
+    if (document.cookie) {
+      document.cookie.split(';').forEach(function (c) {
+        var t = c.trim();
+        if (t.indexOf(name + '=') === 0) value = decodeURIComponent(t.substring(name.length + 1));
+      });
+    }
+    return value;
+  }
+  var csrftoken = getCookie('csrftoken');
+
+  function post(url, data) {
+    var body = new URLSearchParams(data || {});
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest',
+                 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); });
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  // Evitar que el formulario principal se envíe al presionar Enter dentro de inputs.
+  var mainForm = document.getElementById('cfgAdminForm');
+  var saveBtn = document.getElementById('cfgAdminSaveBtn');
+  if (mainForm && saveBtn) {
+    mainForm.addEventListener('submit', function () {
+      saveBtn.disabled = true;
+      saveBtn.classList.add('is-loading');
+      var label = saveBtn.querySelector('.cfg-save-label');
+      if (label) label.textContent = 'Guardando...';
+    });
+  }
+
+  // ── Modo mantenimiento (toggle instantáneo) ──
+  var mantenimiento = document.getElementById('id_modo_mantenimiento');
+  if (mantenimiento) {
+    mantenimiento.addEventListener('change', function () {
+      var url = mantenimiento.dataset.url;
+      mantenimiento.disabled = true;
+      post(url, { activar: mantenimiento.checked ? 'on' : '' })
+        .then(function (res) {
+          if (!res.data || res.data.status !== 'ok') {
+            // Revertir si falla
+            mantenimiento.checked = !mantenimiento.checked;
+          }
+        })
+        .catch(function () { mantenimiento.checked = !mantenimiento.checked; })
+        .finally(function () { mantenimiento.disabled = false; });
+    });
+  }
+
+  // ── Backup manual ──
+  var btnBackup = document.getElementById('btnBackupManual');
+  if (btnBackup) {
+    btnBackup.addEventListener('click', function () {
+      btnBackup.disabled = true;
+      var original = btnBackup.textContent;
+      btnBackup.textContent = 'Ejecutando...';
+      post(btnBackup.dataset.url, {})
+        .then(function (res) {
+          if (res.data && res.data.status === 'ok') {
+            var label = document.getElementById('ultimoBackupLabel');
+            if (label) label.textContent = res.data.ultimo_backup_rel;
+          }
+        })
+        .finally(function () {
+          btnBackup.disabled = false;
+          btnBackup.textContent = original;
+        });
+    });
+  }
+
+  // ── Revocar admin ──
+  var tbody = document.getElementById('adminsTbody');
+  if (tbody) {
+    tbody.addEventListener('click', function (e) {
+      var btn = e.target.closest('.cfg-revoke-btn');
+      if (!btn) return;
+      if (!confirm('¿Quitar el rol de administrador a este usuario? Volverá a ser ciudadano.')) return;
+      btn.disabled = true;
+      post(btn.dataset.url, {})
+        .then(function (res) {
+          if (res.data && res.data.status === 'ok') {
+            var row = btn.closest('tr');
+            if (row) row.remove();
+          } else {
+            alert((res.data && res.data.message) || 'No se pudo revocar.');
+            btn.disabled = false;
+          }
+        })
+        .catch(function () { btn.disabled = false; });
+    });
+  }
+
+  // ── Modal Nuevo Admin ──
+  var modal = document.getElementById('nuevoAdminModal');
+  var btnOpen = document.getElementById('btnNuevoAdmin');
+  var btnClose = document.getElementById('closeNuevoAdmin');
+  function openModal() { if (modal) modal.classList.add('active'); }
+  function closeModal() { if (modal) modal.classList.remove('active'); }
+  if (btnOpen) btnOpen.addEventListener('click', openModal);
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+  // Tabs del modal
+  document.querySelectorAll('.cfg-modal-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.cfg-modal-tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.cfg-modal-pane').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      var pane = document.getElementById(tab.dataset.tab === 'crear' ? 'paneCrear' : 'panePromover');
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  function addAdminRow(a) {
+    var empty = document.getElementById('adminsEmptyRow');
+    if (empty) empty.remove();
+    var estado = a.en_linea
+      ? '<span class="cfg-badge cfg-badge-online">En línea</span>'
+      : '<span class="cfg-badge cfg-badge-offline">Inactivo</span>';
+    var acciones = a.es_superuser
+      ? '<span class="cfg-action-protected">—</span>'
+      : '<button type="button" class="cfg-icon-btn cfg-revoke-btn" data-url="/admin-config/revocar/' + a.id + '/" title="Revocar administrador">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-user-id', a.id);
+    tr.innerHTML = '<td>' + escapeHtml(a.nombre) + '</td><td>' + escapeHtml(a.rol_label) + '</td>' +
+      '<td>' + escapeHtml(a.ultimo_acceso) + '</td><td>' + estado + '</td>' +
+      '<td class="cfg-col-acciones">' + acciones + '</td>';
+    document.getElementById('adminsTbody').appendChild(tr);
+  }
+
+  // Crear nuevo admin
+  var submitCrear = document.getElementById('submitCrearAdmin');
+  if (submitCrear) {
+    submitCrear.addEventListener('click', function () {
+      var errEl = document.getElementById('crearError');
+      errEl.textContent = '';
+      submitCrear.disabled = true;
+      post(submitCrear.dataset.url, {
+        username: document.getElementById('na_username').value,
+        email: document.getElementById('na_email').value,
+        password: document.getElementById('na_password').value,
+      }).then(function (res) {
+        if (res.data && res.data.status === 'ok') {
+          addAdminRow(res.data.admin);
+          document.getElementById('na_username').value = '';
+          document.getElementById('na_email').value = '';
+          document.getElementById('na_password').value = '';
+          closeModal();
+        } else {
+          errEl.textContent = (res.data && res.data.message) || 'No se pudo crear.';
+        }
+      }).catch(function () { errEl.textContent = 'Error de conexión.'; })
+        .finally(function () { submitCrear.disabled = false; });
+    });
+  }
+
+  // Promover ciudadano
+  var submitPromover = document.getElementById('submitPromover');
+  if (submitPromover) {
+    submitPromover.addEventListener('click', function () {
+      var errEl = document.getElementById('promoverError');
+      errEl.textContent = '';
+      submitPromover.disabled = true;
+      post(submitPromover.dataset.url, {
+        identificador: document.getElementById('pr_identificador').value,
+      }).then(function (res) {
+        if (res.data && res.data.status === 'ok') {
+          addAdminRow(res.data.admin);
+          document.getElementById('pr_identificador').value = '';
+          closeModal();
+        } else {
+          errEl.textContent = (res.data && res.data.message) || 'No se pudo promover.';
+        }
+      }).catch(function () { errEl.textContent = 'Error de conexión.'; })
+        .finally(function () { submitPromover.disabled = false; });
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -5140,3 +5140,318 @@ body.lightbox-open {
   }
 }
 
+
+
+/* ==========================================================================
+   CONFIGURACIÓN DEL ADMINISTRADOR (secciones extra)
+   ========================================================================== */
+
+/* Fila de dos columnas: Gestión de Sistema + Parámetros de Alerta */
+.cfg-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.cfg-card-title-warn svg {
+  color: #f59e0b;
+}
+
+.cfg-card-title-tight {
+  margin-bottom: 0;
+}
+
+/* Fila de backup dentro de Gestión de Sistema */
+.cfg-backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.9rem;
+  margin-top: 0.3rem;
+}
+
+.cfg-mini-btn {
+  background: #10141d;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cfg-mini-btn:hover {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #fff;
+}
+
+.cfg-mini-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Parámetros de alerta */
+.cfg-param-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cfg-param-row:last-of-type {
+  border-bottom: none;
+}
+
+.cfg-param-label {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+/* Los inputs numéricos de parámetros: compactos y azules a la derecha */
+.cfg-param-row input[type="number"] {
+  width: 70px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  color: #3b82f6;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.cfg-param-row input[type="number"]:focus {
+  border-bottom-color: var(--brand-primary);
+}
+
+/* ── Administradores Activos ── */
+.cfg-admins-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+
+.cfg-new-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--brand-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.cfg-new-admin-btn:hover {
+  background: #1d4ed8;
+}
+
+.cfg-table-wrap {
+  overflow-x: auto;
+}
+
+.cfg-admins-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.cfg-admins-table thead th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 10px 10px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.cfg-admins-table tbody td {
+  padding: 12px 10px;
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+
+.cfg-admins-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cfg-col-acciones {
+  text-align: right;
+  width: 90px;
+}
+
+.cfg-table-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem 0;
+}
+
+.cfg-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cfg-badge-online {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cfg-badge-offline {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.cfg-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.cfg-icon-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.cfg-action-protected {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Modal Nuevo Admin ── */
+.cfg-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.cfg-modal-backdrop.active {
+  display: flex;
+}
+
+.cfg-modal {
+  background: #0d1017;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 440px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8);
+}
+
+.cfg-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.cfg-modal-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.cfg-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cfg-modal-close:hover {
+  color: #fff;
+}
+
+.cfg-modal-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cfg-modal-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.cfg-modal-tab.active {
+  color: #fff;
+  border-bottom-color: var(--brand-primary);
+}
+
+.cfg-modal-pane {
+  display: none;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.cfg-modal-pane.active {
+  display: flex;
+}
+
+.cfg-modal-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.cfg-modal-error {
+  color: #fca5a5;
+  font-size: 0.8rem;
+  margin: 0;
+  min-height: 1em;
+}
+
+.cfg-modal-hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 820px) {
+  .cfg-two-col {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from .models import Usuario
+from .models import Usuario, ConfiguracionSistema
 
 
 def validar_telefono_colombiano(valor):
@@ -243,8 +243,10 @@ class ConfiguracionForm(forms.ModelForm):
             self.fields[campo].required = True
         self.fields['numero_finca'].required = False
         # notif_* no son obligatorios (checkbox); su ausencia significa False.
-        self.fields['notif_feed'].required = False
-        self.fields['notif_reportes'].required = False
+        # Pueden no existir en subclases (p. ej. AdminConfiguracionForm los excluye).
+        for campo_notif in ('notif_feed', 'notif_reportes'):
+            if campo_notif in self.fields:
+                self.fields[campo_notif].required = False
 
     def clean_nombre_completo(self):
         nombre = (self.cleaned_data.get('nombre_completo') or '').strip()
@@ -302,6 +304,111 @@ class ConfiguracionForm(forms.ModelForm):
         if commit:
             usuario.save()
         return usuario
+
+
+class AdminConfiguracionForm(ConfiguracionForm):
+    """
+    Formulario de la vista "Configuración" del ADMINISTRADOR.
+
+    Reutiliza TODA la información personal y de residencia del ConfiguracionForm
+    del ciudadano (mismos campos, mismas validaciones). La diferencia es que el
+    administrador NO gestiona preferencias de notificaciones del feed/reporte aquí
+    (eso es del ciudadano), así que esos campos se excluyen del formulario.
+    """
+    class Meta(ConfiguracionForm.Meta):
+        # Mismos campos que el ciudadano pero SIN las preferencias de notificaciones.
+        fields = [
+            'email',
+            'telefono',
+            'direccion',
+            'barrio_vereda',
+            'numero_finca',
+            'codigo_postal',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # notif_feed / notif_reportes no existen en este form; nada que hacer con ellos.
+
+
+class ParametrosAlertaForm(forms.ModelForm):
+    """
+    Parámetros de alerta del sistema (umbral crítico de reportes/hora y tiempo
+    máximo de respuesta en horas). Opera sobre el singleton ConfiguracionSistema.
+    """
+    class Meta:
+        model = ConfiguracionSistema
+        fields = ['umbral_critico_reportes', 'tiempo_max_respuesta_horas']
+
+    def clean_umbral_critico_reportes(self):
+        valor = self.cleaned_data.get('umbral_critico_reportes')
+        if valor is None or valor < 1:
+            raise ValidationError('El umbral crítico debe ser un número mayor o igual a 1.')
+        if valor > 100000:
+            raise ValidationError('El umbral crítico es demasiado alto.')
+        return valor
+
+    def clean_tiempo_max_respuesta_horas(self):
+        valor = self.cleaned_data.get('tiempo_max_respuesta_horas')
+        if valor is None or valor < 1:
+            raise ValidationError('El tiempo máximo de respuesta debe ser de al menos 1 hora.')
+        if valor > 8760:  # 1 año en horas
+            raise ValidationError('El tiempo máximo de respuesta es demasiado alto.')
+        return valor
+
+
+class NuevoAdminForm(forms.ModelForm):
+    """
+    Alta de un nuevo administrador. Crea un Usuario con rol ADMINISTRADOR.
+    Reutiliza las validaciones de contraseña y teléfono del registro ciudadano.
+    """
+    password = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'cfg-input', 'placeholder': '••••••••'}),
+    )
+
+    class Meta:
+        model = Usuario
+        fields = ['username', 'email', 'password']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'cfg-input', 'placeholder': 'Nombre de usuario'}),
+            'email': forms.EmailInput(attrs={'class': 'cfg-input', 'placeholder': 'admin@correo.com'}),
+        }
+
+    def clean_username(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        if not username:
+            raise ValidationError('El nombre de usuario es obligatorio.')
+        if Usuario.objects.filter(username__iexact=username).exists():
+            raise ValidationError('Ese nombre de usuario ya está en uso.')
+        return username
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip()
+        if not email:
+            raise ValidationError('El correo electrónico es obligatorio.')
+        if Usuario.objects.filter(email__iexact=email).exists():
+            raise ValidationError('Ese correo ya está registrado.')
+        return email
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password') or ''
+        if len(password) < 8:
+            raise ValidationError('La contraseña debe tener al menos 8 caracteres.')
+        if not any(c.isalpha() for c in password):
+            raise ValidationError('La contraseña debe incluir al menos una letra.')
+        if not any(c.isdigit() for c in password):
+            raise ValidationError('La contraseña debe incluir al menos un número.')
+        return password
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        user.rol = Usuario.Rol.ADMINISTRADOR
+        user.is_staff = True  # acceso al panel admin de Django
+        if commit:
+            user.save()
+        return user
 
 
 class RecuperarContrasenaForm(forms.Form):

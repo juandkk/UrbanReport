@@ -120,6 +120,41 @@ class Usuario(AbstractUser):
         }
 
 
+class ConfiguracionSistema(models.Model):
+    """
+    Configuración global del sistema (singleton: siempre existe UNA sola fila con pk=1).
+    La gestionan exclusivamente los administradores desde su vista de Configuración.
+
+    - modo_mantenimiento: suspende temporalmente el acceso público para actualizaciones.
+    - ultimo_backup: fecha/hora del último respaldo ejecutado (manual o automatizado).
+    - umbral_critico_reportes: nº de reportes por hora a partir del cual se considera crítico.
+    - tiempo_max_respuesta_horas: tiempo máximo (en horas) esperado para responder un reporte.
+    """
+    modo_mantenimiento = models.BooleanField('Modo mantenimiento', default=False)
+    ultimo_backup = models.DateTimeField('Último backup', blank=True, null=True)
+    umbral_critico_reportes = models.PositiveIntegerField('Umbral crítico (reportes/hora)', default=50)
+    tiempo_max_respuesta_horas = models.PositiveIntegerField('Tiempo máx. respuesta (horas)', default=24)
+    actualizado_en = models.DateTimeField('Actualizado en', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración del sistema'
+        verbose_name_plural = 'Configuración del sistema'
+
+    def __str__(self):
+        return 'Configuración del sistema'
+
+    def save(self, *args, **kwargs):
+        # Forzar singleton: siempre pk=1
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        """Devuelve la única instancia, creándola con valores por defecto si no existe."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class Seguimiento(models.Model):
     """Relación dirigida: 'seguidor' sigue a 'seguido'."""
     seguidor = models.ForeignKey(

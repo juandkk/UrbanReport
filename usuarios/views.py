@@ -2,17 +2,30 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.db import transaction
-from .models import Usuario
+from django.utils import timezone
+from .models import Usuario, ConfiguracionSistema
 from .forms import (
     LoginForm,
     RegistroForm,
     RecuperarContrasenaForm,
     CompletarPerfilForm,
     ConfiguracionForm,
+    AdminConfiguracionForm,
+    ParametrosAlertaForm,
+    NuevoAdminForm,
 )
+
+
+def _es_administrador(user):
+    """Criterio único de administrador (igual que el context processor es_admin)."""
+    return user.is_authenticated and (
+        getattr(user, 'rol', None) == Usuario.Rol.ADMINISTRADOR
+        or user.is_staff
+        or user.is_superuser
+    )
 
 def recuperar_contrasena_view(request, *args, **kwargs):
     """
@@ -139,9 +152,13 @@ def logout_view(request):
 @login_required
 def configuracion_view(request):
     """
-    Vista "Configuración" del perfil. SIEMPRE opera sobre el usuario autenticado
-    (request.user): no acepta ningún id/username externo, de modo que un usuario
-    jamás puede ver ni modificar la configuración de otra cuenta.
+    Vista "Configuración" del perfil CIUDADANO. SIEMPRE opera sobre el usuario
+    autenticado (request.user): no acepta ningún id/username externo, de modo que
+    un usuario jamás puede ver ni modificar la configuración de otra cuenta.
+
+    Si el usuario es ADMINISTRADOR, se redirige a su propia vista de configuración
+    (más completa), de modo que el botón "Configuración" del perfil lleva a cada
+    rol a la vista que le corresponde.
 
     GET  -> muestra el formulario precargado con los datos actuales del usuario
             (campos vacíos si aún no ha guardado nada).
@@ -155,6 +172,10 @@ def configuracion_view(request):
     crear_notificacion() al momento de generar cada notificación.
     """
     usuario = request.user
+
+    # Los administradores tienen su propia vista de configuración.
+    if _es_administrador(usuario):
+        return redirect('configuracion_admin')
 
     if request.method == 'POST':
         # Semántica directa de los interruptores: ENCENDIDO = recibir notificaciones.
@@ -190,6 +211,261 @@ def configuracion_view(request):
         'active_menu': 'perfil',
     }
     return render(request, 'usuarios/configuracion.html', context)
+
+
+# ==========================================================================
+# Configuración del ADMINISTRADOR
+# ==========================================================================
+
+def _tiempo_relativo(dt):
+    """Devuelve una etiqueta tipo 'Hace 5 min' / 'Hace 2 h' / 'Nunca' para un datetime."""
+    if not dt:
+        return 'Nunca'
+    delta = timezone.now() - dt
+    segundos = int(delta.total_seconds())
+    if segundos < 0:
+        return 'Hace un momento'
+    if segundos < 60:
+        return 'Hace un momento'
+    minutos = segundos // 60
+    if minutos < 60:
+        return f'Hace {minutos} min'
+    horas = minutos // 60
+    if horas < 24:
+        return f'Hace {horas} h'
+    dias = horas // 24
+    return f'Hace {dias} d'
+
+
+def _listar_administradores():
+    """
+    Lista de administradores activos para la tabla inferior de la vista.
+    Criterio de admin: rol ADMINISTRADOR o is_staff o is_superuser.
+    'En línea' si tuvo actividad en los últimos 5 minutos.
+    """
+    from django.db.models import Q
+    admins = Usuario.objects.filter(
+        Q(rol=Usuario.Rol.ADMINISTRADOR) | Q(is_staff=True) | Q(is_superuser=True)
+    ).distinct().order_by('-last_login')
+
+    ahora = timezone.now()
+    filas = []
+    for a in admins:
+        nombre = f"{a.first_name} {a.last_name}".strip() or a.username
+        if a.is_superuser:
+            rol_label = 'Super Admin'
+        else:
+            rol_label = 'Administrador'
+        en_linea = bool(a.last_login and (ahora - a.last_login).total_seconds() <= 300)
+        filas.append({
+            'id': a.id,
+            'username': a.username,
+            'nombre': nombre,
+            'rol_label': rol_label,
+            'ultimo_acceso': _tiempo_relativo(a.last_login),
+            'en_linea': en_linea,
+            'es_superuser': a.is_superuser,
+        })
+    return filas
+
+
+@login_required
+def configuracion_admin_view(request):
+    """
+    Vista "Configuración" EXCLUSIVA del ADMINISTRADOR.
+
+    Un ciudadano que intente entrar (incluso escribiendo la URL) recibe 403.
+    Reúne, en un solo formulario:
+      - Información personal + Residencia (reutiliza AdminConfiguracionForm,
+        que hereda del form del ciudadano).
+      - Gestión del sistema (modo mantenimiento, info de backups).
+      - Parámetros de alerta (umbral crítico y tiempo máx. respuesta).
+      - Tabla de administradores activos.
+
+    SIEMPRE opera sobre request.user para los datos personales: un admin no puede
+    editar los datos personales de otro admin desde este formulario.
+    """
+    if not _es_administrador(request.user):
+        return HttpResponseForbidden(
+            '<h2>403 — Acceso denegado</h2>'
+            '<p>Esta sección es exclusiva para administradores.</p>'
+        )
+
+    usuario = request.user
+    config = ConfiguracionSistema.obtener()
+
+    if request.method == 'POST':
+        form = AdminConfiguracionForm(request.POST, instance=usuario)
+        alerta_form = ParametrosAlertaForm(request.POST, instance=config)
+
+        if form.is_valid() and alerta_form.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+                    alerta_form.save()
+            except Exception:
+                messages.error(request, 'Ocurrió un error al guardar. Inténtalo de nuevo.')
+            else:
+                messages.success(request, 'Cambios guardados correctamente.')
+                return redirect('configuracion_admin')
+        else:
+            messages.error(request, 'Revisa los campos marcados: hay datos por corregir.')
+    else:
+        form = AdminConfiguracionForm(instance=usuario)
+        alerta_form = ParametrosAlertaForm(instance=config)
+
+    context = {
+        'form': form,
+        'alerta_form': alerta_form,
+        'config': config,
+        'ultimo_backup_rel': _tiempo_relativo(config.ultimo_backup),
+        'administradores': _listar_administradores(),
+        'nuevo_admin_form': NuevoAdminForm(),
+        'active_menu': 'perfil',
+    }
+    return render(request, 'usuarios/configuracion_admin.html', context)
+
+
+@login_required
+@require_POST
+def toggle_modo_mantenimiento_ajax(request):
+    """Activa/desactiva el modo mantenimiento. Solo administradores."""
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+    config = ConfiguracionSistema.obtener()
+    activar = request.POST.get('activar') in ('on', '1', 'true', 'True')
+    config.modo_mantenimiento = activar
+    config.save(update_fields=['modo_mantenimiento', 'actualizado_en'])
+    return JsonResponse({
+        'status': 'ok',
+        'modo_mantenimiento': config.modo_mantenimiento,
+        'message': 'Modo mantenimiento activado.' if activar else 'Modo mantenimiento desactivado.',
+    })
+
+
+@login_required
+@require_POST
+def ejecutar_backup_ajax(request):
+    """
+    Registra un backup manual: actualiza la marca de tiempo del último respaldo.
+    Solo administradores. (El respaldo real de la BD lo gestiona la infraestructura;
+    aquí se deja registrada la ejecución, que es lo que la vista necesita mostrar.)
+    """
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+    config = ConfiguracionSistema.obtener()
+    config.ultimo_backup = timezone.now()
+    config.save(update_fields=['ultimo_backup', 'actualizado_en'])
+    return JsonResponse({
+        'status': 'ok',
+        'ultimo_backup_rel': _tiempo_relativo(config.ultimo_backup),
+        'ultimo_backup_abs': timezone.localtime(config.ultimo_backup).strftime('%d/%m/%Y %H:%M'),
+        'message': 'Backup ejecutado correctamente.',
+    })
+
+
+@login_required
+@require_POST
+def crear_admin_ajax(request):
+    """Crea un nuevo administrador. Solo administradores."""
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    form = NuevoAdminForm(request.POST)
+    if form.is_valid():
+        nuevo = form.save()
+        return JsonResponse({
+            'status': 'ok',
+            'message': f'Administrador «{nuevo.username}» creado correctamente.',
+            'admin': {
+                'id': nuevo.id,
+                'username': nuevo.username,
+                'nombre': (f"{nuevo.first_name} {nuevo.last_name}".strip() or nuevo.username),
+                'rol_label': 'Administrador',
+                'ultimo_acceso': 'Nunca',
+                'en_linea': False,
+                'es_superuser': False,
+            },
+        })
+    # Devolver el primer error legible
+    errores = []
+    for campo, errs in form.errors.items():
+        for e in errs:
+            errores.append(e)
+    return JsonResponse({'status': 'error', 'message': errores[0] if errores else 'Datos inválidos.'}, status=400)
+
+
+@login_required
+@require_POST
+def promover_ciudadano_ajax(request):
+    """
+    Cambia el rol de un ciudadano a ADMINISTRADOR por su username o email.
+    Solo administradores. Esto modifica el registro del usuario en la base de datos.
+    """
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    identificador = (request.POST.get('identificador') or '').strip()
+    if not identificador:
+        return JsonResponse({'status': 'error', 'message': 'Indica el usuario o correo del ciudadano.'}, status=400)
+
+    from django.db.models import Q
+    objetivo = Usuario.objects.filter(
+        Q(username__iexact=identificador) | Q(email__iexact=identificador)
+    ).first()
+
+    if objetivo is None:
+        return JsonResponse({'status': 'error', 'message': 'No se encontró un usuario con ese dato.'}, status=404)
+
+    if _es_administrador(objetivo):
+        return JsonResponse({'status': 'error', 'message': 'Ese usuario ya es administrador.'}, status=400)
+
+    objetivo.rol = Usuario.Rol.ADMINISTRADOR
+    objetivo.is_staff = True
+    objetivo.save(update_fields=['rol', 'is_staff'])
+
+    nombre = f"{objetivo.first_name} {objetivo.last_name}".strip() or objetivo.username
+    return JsonResponse({
+        'status': 'ok',
+        'message': f'«{objetivo.username}» ahora es administrador.',
+        'admin': {
+            'id': objetivo.id,
+            'username': objetivo.username,
+            'nombre': nombre,
+            'rol_label': 'Administrador',
+            'ultimo_acceso': _tiempo_relativo(objetivo.last_login),
+            'en_linea': False,
+            'es_superuser': objetivo.is_superuser,
+        },
+    })
+
+
+@login_required
+@require_POST
+def revocar_admin_ajax(request, user_id):
+    """
+    Revoca el rol de administrador (lo vuelve ciudadano). Solo administradores.
+    Protecciones: no puedes revocarte a ti mismo ni revocar a un superusuario.
+    """
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    from django.shortcuts import get_object_or_404
+    objetivo = get_object_or_404(Usuario, id=user_id)
+
+    if objetivo == request.user:
+        return JsonResponse({'status': 'error', 'message': 'No puedes revocar tu propio acceso.'}, status=400)
+    if objetivo.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'No se puede revocar a un superusuario.'}, status=400)
+
+    objetivo.rol = Usuario.Rol.CIUDADANO
+    objetivo.is_staff = False
+    objetivo.save(update_fields=['rol', 'is_staff'])
+    return JsonResponse({
+        'status': 'ok',
+        'message': f'«{objetivo.username}» ya no es administrador.',
+        'user_id': objetivo.id,
+    })
 
 
 @login_required
