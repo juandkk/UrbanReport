@@ -4,6 +4,151 @@ from django.core.exceptions import ValidationError
 from .models import Usuario, ConfiguracionSistema
 
 
+import re
+import unicodedata
+
+
+# ── Lista base de términos prohibidos en el nombre de perfil ──
+# Se comparan sobre una versión normalizada del nombre (minúsculas, sin tildes y
+# con sustituciones leet comunes), de modo que variantes como "P3ndejo", "péndejo"
+# o "p e n d e j o" también se detectan.
+_PALABRAS_PROHIBIDAS = {
+    # ── Insultos / groserías (español) ──
+    'puta', 'puto', 'putas', 'putos', 'putita', 'putito', 'putear', 'puton',
+    'perra', 'perro hp', 'perrahp', 'hp', 'hpta', 'hijueputa', 'hijueputas',
+    'hijuputa', 'ijueputa', 'hijuepucha', 'hijodeputa', 'hijadeputa',
+    'hijo de puta', 'hija de puta', 'hijo de perra', 'joputa', 'jueputa',
+    'gonorrea', 'gonorriento', 'gonorrienta',
+    'malparido', 'malparida', 'malparidos', 'malnacido', 'malnacida',
+    'marica', 'maricas', 'maricon', 'maricona', 'maricones', 'mariconazo',
+    'marikon', 'marik', 'maricca', 'puñal', 'puñeta', 'puñetero',
+    'verga', 'vergas', 'vergazo', 'vergota', 'bergas',
+    'pendejo', 'pendeja', 'pendejos', 'pendejas', 'pendejada',
+    'imbecil', 'imbeciles', 'idiota', 'idiotas', 'estupido', 'estupida',
+    'estupidos', 'tarado', 'tarada', 'retrasado', 'retrasada', 'mongolico',
+    'mongolica', 'subnormal', 'baboso', 'babosa', 'bobo hp',
+    'cabron', 'cabrona', 'cabrones', 'coño', 'cono', 'conazo',
+    'mierda', 'mierdas', 'mrd', 'mierdero', 'carajo', 'carajos',
+    'culero', 'culera', 'culiao', 'culiada', 'culiado', 'culiao', 'culicagado',
+    'zorra', 'zorras', 'zorro', 'ramera', 'rameras', 'puta madre', 'putamadre',
+    'prostituta', 'prostitutas', 'prostituto', 'prepago', 'perra maldita',
+    'pirobo', 'piroba', 'pirobos', 'pirobas', 'gamin', 'gonorreo',
+    'guevon', 'guevon', 'gueon', 'huevon', 'huevones', 'guevonazo',
+    'mamaguevo', 'mamahuevo', 'mamawebo', 'mamaguevos', 'mamona', 'mamon',
+    'chupapollas', 'chupapolla', 'chupaverga', 'chimba', 'chucha', 'chimbo',
+    'cagada', 'cagon', 'cagona', 'careverga', 'carepicha', 'carechimba',
+    'maldito', 'maldita', 'malditos', 'desgraciado', 'desgraciada',
+    # ── Sexual / anatomía (indebido como nombre) ──
+    'pene', 'penes', 'picha', 'pichula', 'polla', 'pollas', 'pija', 'pito',
+    'vagina', 'vaginas', 'cuca', 'cuchara', 'crica', 'panocha', 'concha',
+    'conchatumadre', 'ctm', 'teta', 'tetas', 'tetona', 'culo', 'culos',
+    'culote', 'nalga', 'nalgas', 'nalgon', 'nalgona', 'ano', 'orto',
+    'sexo', 'sexual', 'porno', 'pornografia', 'xxx', 'orgia', 'follar',
+    'coger', 'tirar sexo', 'masturba', 'masturbacion', 'semen', 'esperma',
+    'violador', 'violacion', 'pedofilo', 'pederasta', 'zoofilia',
+    # ── Términos sobre orientación/identidad usados como insulto ──
+    # Nota: se restringen como nombre de perfil por ser objeto frecuente de abuso.
+    'gay', 'gays', 'lesbiana', 'lesbianas', 'lesbico', 'lesbica', 'tortillera',
+    'marimacha', 'travesti', 'transexual', 'maricón', 'joto', 'jota',
+    'puñal', 'volteado', 'camionera',
+    # ── Insultos / vulgaridades (inglés) ──
+    'fuck', 'fucker', 'fucking', 'fuk', 'fck', 'shit', 'shite', 'bullshit',
+    'bitch', 'bitches', 'asshole', 'ass', 'dick', 'dickhead', 'cunt',
+    'bastard', 'whore', 'slut', 'nigger', 'nigga', 'faggot', 'fag',
+    'motherfucker', 'pussy', 'cock', 'cocksucker', 'wanker', 'twat',
+    'retard', 'rape', 'rapist', 'pedo', 'porn', 'penis', 'boobs', 'tits',
+    # ── Suplantación de identidad / cuentas de sistema ──
+    'admin', 'administrador', 'administrator', 'moderador', 'moderator',
+    'soporte', 'support', 'root', 'superuser', 'sistema', 'system',
+    'urbanreport', 'staff', 'oficial', 'official', 'webmaster', 'owner',
+}
+
+# Sustituciones "leet" habituales para evadir filtros (3->e, 0->o, etc.)
+_LEET = str.maketrans({
+    '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a',
+    '$': 's', '!': 'i',
+})
+
+
+def _normalizar_nombre(texto):
+    """
+    Normaliza un texto para la comparación anti-groserías:
+      - minúsculas
+      - sin tildes/acentos
+      - sustituciones leet (3->e, 0->o, ...)
+    Devuelve el texto normalizado.
+    """
+    t = (texto or '').lower()
+    # Quitar acentos/diacríticos
+    t = unicodedata.normalize('NFD', t)
+    t = ''.join(c for c in t if unicodedata.category(c) != 'Mn')
+    # Sustituciones leet
+    t = t.translate(_LEET)
+    return t
+
+
+def validar_nombre_perfil(valor):
+    """
+    Valida que el nombre de perfil no contenga lenguaje obsceno/indebido ni intente
+    suplantar cuentas de sistema. Lanza ValidationError si detecta algo prohibido.
+    Devuelve el nombre (con espacios colapsados) si es válido.
+
+    Estrategia de detección:
+      1. Normaliza (minúsculas, sin tildes, anti-leet).
+      2. Revisa palabra por palabra (coincidencia exacta de token).
+      3. Revisa la versión "sin separadores" (p. ej. "p-u-t-a" -> "puta") contra
+         los términos prohibidos como subcadena, para atrapar evasiones.
+    """
+    nombre = re.sub(r'\s+', ' ', (valor or '').strip())
+    if not nombre:
+        raise ValidationError('El nombre no puede estar vacío.')
+
+    norm = _normalizar_nombre(nombre)
+
+    # 2. Coincidencia por token (palabra completa). Atrapa cualquier término
+    #    prohibido que aparezca como palabra suelta, incluso con leet o tildes.
+    tokens = set(re.split(r'[^a-z]+', norm))
+    for prohibida in _PALABRAS_PROHIBIDAS:
+        if ' ' not in prohibida and prohibida in tokens:
+            raise ValidationError('El nombre contiene lenguaje no permitido. Elige otro.')
+        # Frases prohibidas (con espacio): buscar como subcadena en el texto normalizado
+        if ' ' in prohibida and prohibida in norm:
+            raise ValidationError('El nombre contiene lenguaje no permitido. Elige otro.')
+
+    # 3. Coincidencia por subcadena sobre el texto compactado (sin separadores),
+    #    para atrapar evasiones tipo "p-u-t-a" o "f u c k". Se limita a una lista
+    #    de términos INEQUÍVOCOS para no generar falsos positivos con apellidos
+    #    legítimos (p. ej. "Vergara" contiene "verga", "Escobar" no aplica, etc.).
+    _INEQUIVOCAS = {
+        'hijueputa', 'hijuputa', 'hijodeputa', 'hijadeputa', 'malparido',
+        'malparida', 'malnacido', 'gonorrea', 'gonorriento', 'maricon',
+        'mariconazo', 'mamaguevo', 'mamahuevo', 'mamawebo', 'motherfucker',
+        'hijuepucha', 'chupapollas', 'chupaverga', 'conchatumadre',
+        'prostituta', 'pirobo', 'piroba', 'cabron', 'desgraciado',
+        'fuck', 'shit', 'bitch', 'asshole', 'nigger', 'faggot', 'cocksucker',
+        'puta', 'puto', 'mierda', 'pendejo', 'pendeja', 'estupido', 'imbecil',
+        'lesbiana', 'prepago', 'violador', 'pedofilo', 'pederasta',
+    }
+    compacto = re.sub(r'[^a-z]', '', norm)
+    for clave in _INEQUIVOCAS:
+        if len(clave) >= 4 and clave in compacto:
+            raise ValidationError('El nombre contiene lenguaje no permitido. Elige otro.')
+
+    # 4. Evasión por "letras sueltas": secuencias de 3+ caracteres separados uno a
+    #    uno (p. ej. "p e n e", "p-u-t-a", "g.a.y"). Ese patrón NO ocurre en nombres
+    #    reales, así que al detectarlo compactamos los tramos y comparamos contra
+    #    TODA la lista de prohibidas (incluidos términos cortos como "pene"/"gay").
+    tramos_sueltos = re.findall(r'(?:\b[a-z]\W+){2,}[a-z]\b', norm)
+    for tramo in tramos_sueltos:
+        compacto_tramo = re.sub(r'[^a-z]', '', tramo)
+        for prohibida in _PALABRAS_PROHIBIDAS:
+            clave = prohibida.replace(' ', '')
+            if len(clave) >= 3 and clave in compacto_tramo:
+                raise ValidationError('El nombre contiene lenguaje no permitido. Elige otro.')
+
+    return nombre
+
+
 def validar_telefono_colombiano(valor):
     """
     Valida un número de teléfono colombiano: exactamente 10 dígitos, sin
@@ -252,7 +397,8 @@ class ConfiguracionForm(forms.ModelForm):
         nombre = (self.cleaned_data.get('nombre_completo') or '').strip()
         if not nombre:
             raise ValidationError('El nombre completo es obligatorio.')
-        return nombre
+        # Rechaza lenguaje obsceno/indebido o suplantación de cuentas de sistema.
+        return validar_nombre_perfil(nombre)
 
     def clean_email(self):
         # Django ya valida el formato del email por ser un EmailField. Aquí solo

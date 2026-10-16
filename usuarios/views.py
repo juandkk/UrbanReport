@@ -704,6 +704,9 @@ def editar_perfil_ajax(request):
     """
     # Reutilizamos la sanitización de imágenes de la app feed
     from feed.views import sanitizar_imagen, ImagenInvalida
+    # Validador de nombres obscenos/indebidos (reutilizado del formulario)
+    from .forms import validar_nombre_perfil
+    from django.core.exceptions import ValidationError
 
     usuario = request.user
 
@@ -714,6 +717,11 @@ def editar_perfil_ajax(request):
 
     # Nombre: se guarda en first_name (y limpiamos last_name para evitar duplicidad)
     if nombre:
+        # Rechaza lenguaje obsceno/indebido o suplantación de cuentas de sistema.
+        try:
+            nombre = validar_nombre_perfil(nombre)
+        except ValidationError as e:
+            return JsonResponse({'status': 'error', 'message': e.messages[0]}, status=400)
         partes = nombre.split()
         usuario.first_name = partes[0][:150]
         usuario.last_name = ' '.join(partes[1:])[:150] if len(partes) > 1 else ''
