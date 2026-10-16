@@ -60,10 +60,10 @@
       </span>
       {% elif n.actor.avatar %}
       {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}">{% endif %}
-      <img src="{{ n.actor.avatar.url }}" alt="{{ n.actor_nombre }}" class="notif-avatar-img">
+      <img src="{{ n.actor.avatar.url }}" alt="{{ n.nombre_actor }}" class="notif-avatar-img">
       {% if n.actor %}</a>{% endif %}
       {% else %}
-      <span class="notif-avatar-fallback">{{ n.actor_nombre|slice:":2"|upper|default:"UR" }}</span>
+      <span class="notif-avatar-fallback">{{ n.nombre_actor|slice:":2"|upper|default:"UR" }}</span>
       {% endif %}
     </div>
 
@@ -72,10 +72,10 @@
         {% if n.tipo == 'CAMBIO_ESTADO' %}
         Tu reporte {% if n.publicacion %}<strong>#REP-{{ n.publicacion.id }}</strong>{% endif %} cambió de estado
         {% elif n.tipo == 'REPORTE_CONTENIDO' %}
-        {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %}
+        {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %}
         reportó {% if n.comentario %}un comentario{% else %}una publicación{% endif %} para moderación
         {% else %}
-         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.actor_nombre }}</a>{% else %}<strong>{{ n.actor_nombre }}</strong>{% endif %} {% if n.tipo == 'LIKE' and n.comentario %}le dio Me Gusta a tu comentario{% else %}{{ n.get_tipo_display|lower }}{% endif %}
+         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %} {% if n.tipo == 'LIKE' and n.comentario %}le dio Me Gusta a tu comentario{% else %}{{ n.get_tipo_display|lower }}{% endif %}
         {% endif %}
       </p>
 

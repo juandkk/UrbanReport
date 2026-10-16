@@ -795,7 +795,7 @@ def agregar_comentario_ajax(request, publicacion_id):
         'status': 'ok',
         'comentario': {
             'id': comentario.id,
-            'autor_nombre': comentario.autor_nombre,
+            'autor_nombre': comentario.nombre_autor,
             'initials': initials,
             'texto': comentario.texto,
             'tiempo': 'Hace un momento',

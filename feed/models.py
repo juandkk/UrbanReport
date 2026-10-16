@@ -391,3 +391,16 @@ class Notificacion(models.Model):
     def __str__(self):
         return f"Para {self.destinatario.username}: {self.get_tipo_display()} ({self.actor_nombre})"
 
+    @property
+    def nombre_actor(self):
+        """
+        Nombre a mostrar del actor SIEMPRE actualizado: se toma del usuario
+        relacionado (first_name/last_name o username). Solo cae a la copia
+        `actor_nombre` si la notificación no tiene actor (datos de sistema/demo).
+        Así, si el usuario cambia su nombre, las notificaciones ya creadas
+        reflejan el nombre nuevo.
+        """
+        if self.actor_id and self.actor:
+            return f"{self.actor.first_name} {self.actor.last_name}".strip() or self.actor.username
+        return self.actor_nombre
+
