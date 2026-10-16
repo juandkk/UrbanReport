@@ -1,6 +1,7 @@
 {% load static %}
-<article class="post-card" id="post-card-{{ post.id }}" data-post-id="{{ post.id }}"
+<article class="post-card {% if post.censurado %}is-censored-card{% endif %}" id="post-card-{{ post.id }}" data-post-id="{{ post.id }}"
   data-estado="{{ post.estado_incidencia }}" data-categoria="{{ post.categoria }}"
+  data-censurado="{{ post.censurado|yesno:'true,false' }}"
   data-texto="{{ post.titulo }} {{ post.contenido }} {{ post.autor_nombre }} {{ post.autor.username }} {{ post.ubicacion }}"
   data-comentarios="{% for c in post.comentarios.all %}{% if not c.censurado or user.rol == 'ADMINISTRADOR' or user.is_staff or user.is_superuser %}{{ c.autor_nombre }} {{ c.texto }} {% endif %}{% endfor %}"
   data-autor="{{ post.autor_nombre }} {{ post.autor.username }}"
@@ -99,14 +100,40 @@
 
     <!-- Attached Image (if any) -->
     {% if post.imagen %}
-    <div class="post-media-container {% if modo == 'detalle' %}is-expandable-media{% endif %}"
-         {% if modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
+    <div class="post-media-container {% if post.censurado %}is-censored-media{% elif modo == 'detalle' %}is-expandable-media{% endif %}"
+         {% if not post.censurado and modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
       <img src="{{ post.imagen.url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
+      {% if post.censurado %}
+      <div class="censor-media-shield">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div class="censor-media-shield-text">
+          <strong>Imagen censurada por moderación</strong>
+          <span>Contenido restringido por incumplimiento de normas</span>
+        </div>
+      </div>
+      {% endif %}
     </div>
     {% elif post.imagen_url %}
-    <div class="post-media-container {% if modo == 'detalle' %}is-expandable-media{% endif %}"
-         {% if modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
+    <div class="post-media-container {% if post.censurado %}is-censored-media{% elif modo == 'detalle' %}is-expandable-media{% endif %}"
+         {% if not post.censurado and modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
       <img src="{{ post.imagen_url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
+      {% if post.censurado %}
+      <div class="censor-media-shield">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div class="censor-media-shield-text">
+          <strong>Imagen censurada por moderación</strong>
+          <span>Contenido restringido por incumplimiento de normas</span>
+        </div>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
   </div>

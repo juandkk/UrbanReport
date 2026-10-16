@@ -748,20 +748,64 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.status === 'ok') {
         const banner = document.getElementById(`censored-banner-${postId}`);
         const contentWrap = document.getElementById(`post-content-wrap-${postId}`);
+        const postCard = document.getElementById(`post-card-${postId}`);
         const label = censorBtn.querySelector('.censor-btn-text');
+        const mediaContainer = contentWrap ? contentWrap.querySelector('.post-media-container') : null;
 
         if (data.censurado) {
           if (banner) banner.classList.remove('d-none');
           if (contentWrap) contentWrap.classList.add('is-censored');
+          if (postCard) {
+            postCard.dataset.censurado = 'true';
+            postCard.classList.add('is-censored-card');
+          }
+          if (mediaContainer) {
+            mediaContainer.classList.remove('is-expandable-media');
+            mediaContainer.classList.add('is-censored-media');
+            mediaContainer.removeAttribute('role');
+            mediaContainer.removeAttribute('tabindex');
+            mediaContainer.removeAttribute('title');
+            if (!mediaContainer.querySelector('.censor-media-shield')) {
+              const shield = document.createElement('div');
+              shield.className = 'censor-media-shield';
+              shield.innerHTML = `
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div class="censor-media-shield-text">
+                  <strong>Imagen censurada por moderación</strong>
+                  <span>Contenido restringido por incumplimiento de normas</span>
+                </div>
+              `;
+              mediaContainer.appendChild(shield);
+            }
+          }
           if (label) label.textContent = 'Descensurar';
         } else {
           if (banner) banner.classList.add('d-none');
           if (contentWrap) contentWrap.classList.remove('is-censored');
+          if (postCard) {
+            postCard.dataset.censurado = 'false';
+            postCard.classList.remove('is-censored-card');
+          }
+          if (mediaContainer) {
+            mediaContainer.classList.remove('is-censored-media');
+            const shield = mediaContainer.querySelector('.censor-media-shield');
+            if (shield) shield.remove();
+            if (document.querySelector('.portal-main-detalle')) {
+              mediaContainer.classList.add('is-expandable-media');
+              mediaContainer.setAttribute('role', 'button');
+              mediaContainer.setAttribute('tabindex', '0');
+              mediaContainer.setAttribute('title', 'Haz clic para ampliar la imagen');
+            }
+          }
           if (label) label.textContent = 'Censurar';
         }
 
         // Cerrar menú dropdown
-        const dropdown = document.getElementById(`admin-mod-dropdown-${postId}`);
+        const dropdown = document.getElementById(`post-menu-dropdown-${postId}`) || document.getElementById(`admin-mod-dropdown-${postId}`);
         if (dropdown) dropdown.classList.remove('show');
 
         showToast(data.message);
@@ -2307,7 +2351,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Clic en imagen de publicación:
   // Si está en el feed (dentro de .post-clickable), el navegador va a detalles y comentarios.
-  // Si ya está en detalles y comentarios (sin .post-clickable), se amplía estilo Twitter.
+  // Si ya está en detalles y comentarios (sin .post-clickable), se amplía estilo Twitter...
+  // EXCEPTO si la publicación o la imagen están censuradas (bloqueo estricto de seguridad).
   document.addEventListener('click', (e) => {
     // Si el usuario hace clic sobre controles interactivos ajenos a la foto, ignorar
     if (e.target.closest('button, input, textarea, a, .post-menu-wrapper, .post-actions, .new-comment-form')) return;
@@ -2315,6 +2360,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const mediaContainer = e.target.closest('.post-media-container');
     const mediaImg = e.target.closest('.post-media-img');
     if (!mediaContainer && !mediaImg) return;
+
+    // BLOQUEO DE SEGURIDAD: Si la publicación o la imagen están censuradas, PROHIBIDO ampliar
+    const isCensored =
+      (mediaContainer && (
+        mediaContainer.classList.contains('is-censored-media') ||
+        mediaContainer.closest('.is-censored') ||
+        mediaContainer.closest('.is-censored-card') ||
+        mediaContainer.closest('[data-censurado="true"]')
+      )) ||
+      (mediaImg && (
+        mediaImg.classList.contains('popup-img-censored') ||
+        mediaImg.closest('.popup-media-censored') ||
+        mediaImg.closest('.is-censored') ||
+        mediaImg.closest('.is-censored-media') ||
+        mediaImg.closest('.is-censored-card') ||
+        mediaImg.closest('[data-censurado="true"]')
+      ));
+
+    if (isCensored) {
+      e.preventDefault();
+      e.stopPropagation();
+      showToast('Esta imagen ha sido censurada por moderación y no se puede ampliar.', true);
+      return;
+    }
 
     // Si está en el feed principal (dentro de .post-clickable), no interceptamos:
     // dejamos que el manejador existente lleve al usuario a detalles y comentarios
@@ -2333,7 +2402,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       const activeEl = document.activeElement;
-      if (activeEl && activeEl.classList.contains('is-expandable-media')) {
+      if (
+        activeEl &&
+        activeEl.classList.contains('is-expandable-media') &&
+        !activeEl.classList.contains('is-censored-media') &&
+        !activeEl.closest('.is-censored') &&
+        !activeEl.closest('[data-censurado="true"]')
+      ) {
         const img = activeEl.querySelector('img');
         if (img && img.src) {
           e.preventDefault();

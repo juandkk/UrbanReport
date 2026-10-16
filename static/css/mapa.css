@@ -557,6 +557,65 @@
   text-decoration: underline;
 }
 
+/* ── Publicaciones censuradas en el mapa ── */
+.popup-censored-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.popup-media-censored {
+  position: relative !important;
+  background: #020617 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.popup-img-censored {
+  filter: blur(45px) brightness(0.18) grayscale(80%) saturate(0.2) !important;
+  transform: scale(1.18) !important;
+  opacity: 0.35 !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
+
+.popup-censor-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.88) 0%, rgba(2, 6, 23, 0.95) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px;
+  z-index: 5;
+}
+
+.popup-censor-overlay svg {
+  color: #ef4444;
+}
+
+.popup-text-censored {
+  filter: blur(6px);
+  user-select: none;
+  opacity: 0.5;
+}
 
 /* -----------------------------------------------------------------------
    Responsive

@@ -130,9 +130,12 @@ def api_incidentes_mapa(request):
             'comentarios': inc.total_comentarios,
             'tiempo': timesince(inc.fecha_creacion) + ' atrás',
             'imagen_url': inc.imagen.url if inc.imagen else inc.imagen_url,
+            'censurado': inc.censurado,
+            'motivo_censura': inc.motivo_censura or '',
         })
 
     return JsonResponse({'incidentes': data})
+
 
 
 # ── Límites geográficos de Medellín ──

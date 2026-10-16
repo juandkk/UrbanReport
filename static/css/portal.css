@@ -1579,11 +1579,97 @@
 
 /* Censored Content Mask */
 .post-content-container.is-censored {
-  filter: blur(5px);
   user-select: none;
-  opacity: 0.4;
-  transition: filter 0.3s, opacity 0.3s;
+  transition: opacity 0.3s;
 }
+
+.post-content-container.is-censored .post-title-text,
+.post-content-container.is-censored .post-text {
+  filter: blur(8px);
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+/* Filtro de censura reforzado para imágenes */
+.post-media-container.is-censored-media,
+.is-censored .post-media-container,
+.is-censored-card .post-media-container {
+  position: relative !important;
+  background-color: #030712 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  overflow: hidden !important;
+}
+
+.post-media-container.is-censored-media .post-media-img,
+.is-censored .post-media-img,
+.is-censored-card .post-media-img {
+  filter: blur(45px) brightness(0.18) grayscale(80%) saturate(0.2) !important;
+  transform: scale(1.18) !important;
+  opacity: 0.35 !important;
+  user-select: none !important;
+  -webkit-user-drag: none;
+  pointer-events: none !important;
+}
+
+/* Escudo protector sobre la imagen censurada */
+.censor-media-shield {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.94) 0%, rgba(2, 6, 23, 0.98) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: var(--radius-sm);
+  color: #fca5a5;
+  text-align: center;
+  padding: 1.5rem;
+  z-index: 10;
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+
+.censor-media-shield svg {
+  color: #ef4444;
+  filter: drop-shadow(0 2px 10px rgba(239, 68, 68, 0.5));
+}
+
+.censor-media-shield-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.censor-media-shield-text strong {
+  font-size: 0.92rem;
+  color: #fee2e2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.censor-media-shield-text span {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* Deshabilitar botón de zoom/lightbox en imágenes censuradas */
+.portal-main-detalle .post-media-container.is-censored-media,
+.is-censored .post-media-container,
+.is-censored-card .post-media-container {
+  cursor: not-allowed !important;
+}
+
+.portal-main-detalle .post-media-container.is-censored-media::after,
+.is-censored .post-media-container::after,
+.is-censored-card .post-media-container::after,
+.is-censored-media::after {
+  display: none !important;
+}
+
 
 /* Menú de 3 Puntos en Publicaciones (Opciones Agrupadas) */
 .post-menu-wrapper,

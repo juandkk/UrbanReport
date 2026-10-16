@@ -153,6 +153,8 @@ class ApiTest(BaseUrbanReportTest):
         d = self._json(reverse('api_incidentes_mapa'))
         self.assertEqual(len(d['incidentes']), 4)
         self.assertIn('comentarios', d['incidentes'][0])
+        self.assertIn('censurado', d['incidentes'][0])
+        self.assertIn('motivo_censura', d['incidentes'][0])
         self._json(reverse('api_incidentes_mapa') + '?estado=RESUELTA')
         d = self._json(reverse('render_post_card_ajax', args=[self.pub.id]))
         self.assertIn('post-card', d['html'])
@@ -205,6 +207,24 @@ class ApiTest(BaseUrbanReportTest):
         self.assertTrue(d['censurado'])
         comentario.refresh_from_db()
         self.assertTrue(comentario.censurado)
+
+        # Moderar publicación: censurar post con imagen y verificar plantilla
+        self.pub.imagen_url = 'https://example.com/evidencia.jpg'
+        self.pub.save(update_fields=['imagen_url'])
+        pub_url = reverse('moderar_publicacion_ajax', args=[self.pub.id])
+        dp = self._json(pub_url, 'post', {'accion': 'CENSURAR'}, status=200)
+        self.assertTrue(dp['censurado'])
+        self.pub.refresh_from_db()
+        self.assertTrue(self.pub.censurado)
+
+        # La tarjeta renderizada debe incluir clases de censura reforzada
+        rendered = self._json(reverse('render_post_card_ajax', args=[self.pub.id]))
+        self.assertIn('is-censored-card', rendered['html'])
+        self.assertIn('is-censored-media', rendered['html'])
+        self.assertIn('censor-media-shield', rendered['html'])
+        self.assertNotIn('is-expandable-media', rendered['html'])
+
+
 
     def test_radicar_incidencia_valida_limites_medellin_y_sanitiza_imagen(self):
         """radicar_incidencia_ajax rechaza coordenadas fuera de Medellín y redimensiona imágenes grandes."""

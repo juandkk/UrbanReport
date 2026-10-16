@@ -151,17 +151,40 @@
     const rawContent = String(inc.contenido || '');
     const snippet = escapeHtml(rawContent.substring(0, 140) + (rawContent.length > 140 ? '...' : ''));
     const detailUrl = inc.id ? '/feed/publicacion/' + inc.id + '/' : '';
+    const isCensored = Boolean(inc.censurado);
 
     let imgHtml = '';
     if (inc.imagen_url) {
-      imgHtml = '<div class="popup-media-container">' +
-        (detailUrl
-          ? '<a href="' + detailUrl + '" class="popup-media-link" title="Ver detalles y comentarios">' +
-              '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">' +
-            '</a>'
-          : '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">') +
-      '</div>';
+      if (isCensored) {
+        // En el mapa: la imagen censurada tiene filtro reforzado, escudo y NO permite interacción
+        imgHtml = '<div class="popup-media-container popup-media-censored" title="Imagen censurada por moderación">' +
+            '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Contenido censurado" loading="lazy" decoding="async" class="popup-media-img popup-img-censored">' +
+            '<div class="popup-censor-overlay">' +
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+                '<line x1="12" y1="9" x2="12" y2="13"/>' +
+                '<line x1="12" y1="17" x2="12.01" y2="17"/>' +
+              '</svg>' +
+              '<span>Imagen censurada</span>' +
+            '</div>' +
+          '</div>';
+      } else {
+        imgHtml = '<div class="popup-media-container">' +
+          (detailUrl
+            ? '<a href="' + detailUrl + '" class="popup-media-link" title="Ver detalles y comentarios">' +
+                '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">' +
+              '</a>'
+            : '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">') +
+        '</div>';
+      }
     }
+
+    const censoredBadge = isCensored
+      ? '<div class="popup-censored-badge">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+          '<span>Publicación censurada</span>' +
+        '</div>'
+      : '';
 
     const titleHtml = inc.titulo
       ? '<div style="font-weight: 700; color: #ffffff; font-size: 0.95rem; margin-bottom: 4px;">' +
@@ -171,8 +194,13 @@
         '</div>'
       : '';
 
+    const contentParagraph = isCensored
+      ? '<p class="popup-content-text popup-text-censored">' + snippet + '</p>'
+      : '<p class="popup-content-text">' + snippet + '</p>';
+
     return (
       '<div class="popup-card">' +
+        censoredBadge +
         '<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">' +
           '<span class="popup-status ' + statusClass + '">' + escapeHtml(inc.estado_display || estado) + '</span>' +
           '<span style="font-size: 0.72rem; padding: 2px 6px; background: #1e293b; color: #93c5fd; border-radius: 4px; font-weight: 600;">' + catName + '</span>' +
@@ -185,7 +213,7 @@
             '</div>'
           : '') +
         imgHtml +
-        '<p class="popup-content-text">' + snippet + '</p>' +
+        contentParagraph +
         '<div class="popup-meta">' +
           '<span class="popup-author">' + escapeHtml(inc.autor) + '</span>' +
           '<span>' + escapeHtml(inc.tiempo || 'Hace un momento') + '</span>' +
