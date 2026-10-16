@@ -9,7 +9,7 @@
   background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 2500;
+  z-index: 3500;
   display: none;
   align-items: center;
   justify-content: center;
@@ -367,6 +367,23 @@
   color: #64748b;
 }
 
+.radicar-map-search-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.radicar-map-search-btn:hover {
+  background: #1d4ed8;
+}
+
 #radicarMiniMap {
   width: 100%;
   height: 240px;
@@ -516,7 +533,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 3000;
+  z-index: 4000;
   font-size: 0.9rem;
   font-weight: 500;
   transform: translateY(30px);
@@ -529,19 +546,140 @@
   opacity: 1;
 }
 
-/* Responsive */
+/* Responsive Mobile Bottom-Sheet Redesign */
 @media (max-width: 640px) {
-  .radicar-categories-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .radicar-modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
   }
+
   .radicar-modal {
-    max-height: 96vh;
-    border-radius: 12px;
+    width: 100%;
+    max-width: 100%;
+    height: 92vh;
+    height: 92dvh;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    margin: 0;
   }
-  .radicar-header,
-  .radicar-body,
+
+  .radicar-header {
+    padding: 14px 16px 12px;
+    align-items: center;
+  }
+
+  .radicar-header-titles h2 {
+    font-size: 1.18rem;
+  }
+
+  .radicar-header-titles p {
+    font-size: 0.78rem;
+    margin-top: 2px;
+  }
+
+  .radicar-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.4rem;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .radicar-body {
+    padding: 14px 16px 18px;
+    gap: 14px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Píldoras horizontales compactas en móvil para ahorrar espacio vertical */
+  .radicar-categories-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .radicar-category-card {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 9px 11px;
+    gap: 8px;
+    border-radius: 9px;
+  }
+
+  .radicar-category-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .radicar-category-card svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .radicar-category-card span {
+    font-size: 0.78rem;
+    text-align: left;
+    line-height: 1.2;
+  }
+
+  /* 16px en móvil evita el auto-zoom forzado de iOS Safari y Chrome Android */
+  .radicar-input,
+  .radicar-textarea,
+  .radicar-map-search-input {
+    font-size: 16px;
+  }
+
+  .radicar-textarea {
+    min-height: 64px;
+  }
+
+  .radicar-dropzone {
+    padding: 14px 12px;
+    gap: 6px;
+  }
+
+  .radicar-dropzone-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .radicar-map-search-bar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    height: 40px;
+    padding: 0 8px 0 10px;
+  }
+
+  #radicarMiniMap {
+    height: 195px;
+  }
+
+  .radicar-coords-hint {
+    font-size: 0.72rem;
+    align-items: flex-start;
+    line-height: 1.35;
+  }
+
+  .radicar-coords-hint svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
   .radicar-footer {
-    padding-left: 18px;
-    padding-right: 18px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    gap: 10px;
+  }
+
+  .radicar-btn-cancel,
+  .radicar-btn-submit {
+    flex: 1;
+    justify-content: center;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 0.88rem;
   }
 }

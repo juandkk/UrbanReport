@@ -914,13 +914,13 @@
 .inspect-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.78);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 3500;
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
 .inspect-modal-backdrop.active {
@@ -933,7 +933,10 @@
   border-radius: var(--radius-lg);
   max-width: 500px;
   width: 100%;
-  padding: 1.75rem;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 1.5rem;
   box-shadow: var(--shadow-popup);
 }
 
@@ -958,41 +961,104 @@
   font-size: 1.2rem;
 }
 
+/* Botón de búsqueda móvil y pestañas de búsqueda móvil: ocultos en escritorio (>1200px) */
+.mobile-search-trigger {
+  display: none;
+}
+.mobile-search-tabs {
+  display: none;
+  gap: 8px;
+  margin-bottom: 1.15rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.mobile-search-tabs::-webkit-scrollbar {
+  display: none;
+}
+.mobile-search-tabs .search-tab-btn {
+  width: auto;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  padding: 9px 12px;
+  font-size: 0.84rem;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .portal-widgets {
     display: none;
   }
+  .mobile-search-trigger {
+    display: flex;
+  }
+  .mobile-search-tabs {
+    display: flex;
+  }
 }
 
-/* Botón hamburguesa y overlay: ocultos en escritorio, visibles en móvil */
+/* Botón hamburguesa, overlay y FAB de reporte: ocultos en escritorio, visibles en móvil */
 .mobile-nav-toggle {
   display: none;
   position: fixed;
   top: 12px;
   left: 12px;
-  /* Muy alto para quedar SIEMPRE por encima del mapa de Leaflet y sus barras */
-  z-index: 3000;
+  /* Por encima del mapa de Leaflet (800-1200), pero debajo de los modales (3500) */
+  z-index: 2100;
   width: 42px;
   height: 42px;
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
-  background: #0e1117;
+  background: rgba(14, 17, 23, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #e2e8f0;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 .mobile-nav-toggle svg { width: 22px; height: 22px; }
 .mobile-nav-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.6);
-  z-index: 2900;
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 2200;
 }
 .mobile-nav-overlay.open { display: block; }
+
+.mobile-report-fab {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2050;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mobile-report-fab svg {
+  width: 24px;
+  height: 24px;
+}
+.mobile-report-fab:active {
+  transform: scale(0.94);
+}
+/* En la vista de mapa ocultamos el FAB para no tapar los botones de zoom/GPS */
+.portal-wrapper:has(.mapa-container) ~ .mobile-report-fab {
+  display: none !important;
+}
 
 @media (max-width: 768px) {
   .portal-wrapper {
@@ -1005,25 +1071,29 @@
     top: 0;
     left: 0;
     height: 100vh;
-    width: 260px;
-    max-width: 82vw;
-    /* Por encima del overlay (2900) y del botón (3000) cuando está abierto */
-    z-index: 3100;
+    height: 100dvh;
+    width: 268px;
+    max-width: 84vw;
+    z-index: 2300;
     transform: translateX(-100%);
-    transition: transform 0.25s ease;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
   }
   .portal-sidebar.open {
     transform: translateX(0);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.65);
   }
   .mobile-nav-toggle {
     display: flex;
   }
+  .mobile-report-fab {
+    display: flex;
+  }
   .portal-main {
     /* Deja espacio arriba para no quedar bajo el botón hamburguesa */
-    padding: 4.5rem 1rem 2rem;
+    padding: 4.25rem 1rem 5rem;
     max-width: 100%;
+    width: 100%;
   }
 }
 
@@ -4552,5 +4622,273 @@
   .cfg-save-btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   REDISEÑO RESPONSIVE PARA NAVEGADORES MÓVILES (<= 768px y <= 600px)
+   Corrige especificidad de .portal-main-panel, desahogo de tarjetas del feed,
+   badges largos, hilos de comentarios, perfil, modales y toasts.
+   ========================================================================== */
+.ur-modal-backdrop {
+  z-index: 3500;
+}
+
+@media (max-width: 768px) {
+  /* Sobrescribe .portal-main.portal-main-panel (definido en línea 2208) para que
+     NO imponga 2.5rem de padding lateral ni tape el título con el botón hamburguesa */
+  .portal-main,
+  .portal-main.portal-main-panel,
+  .portal-main.portal-main-wide,
+  .portal-main.portal-main-detalle {
+    padding: 4.25rem 0.95rem 5.25rem !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .feed-header {
+    margin-bottom: 1.15rem;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .feed-title-wrap h1 {
+    font-size: 1.45rem;
+  }
+
+  .feed-subtitle {
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
+
+  .feed-header-actions {
+    gap: 10px;
+  }
+
+  .header-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* Composer más compacto y cómodo al tacto */
+  .post-composer-card {
+    padding: 0.8rem 0.95rem;
+    margin-bottom: 1.15rem;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .composer-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .composer-input-btn {
+    font-size: 0.88rem;
+  }
+
+  /* Tarjetas del feed con respiración óptima en pantallas estrechas */
+  .post-card {
+    padding: 1rem;
+    margin-bottom: 1.1rem;
+    border-radius: 12px;
+  }
+
+  /* Evita que badges largos ("Redes eléctricas y telecomunicaciones") aplasten el nombre del autor */
+  .post-author-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-bottom: 0.75rem;
+  }
+
+  .post-badges-wrap {
+    flex-wrap: wrap;
+    gap: 6px !important;
+    max-width: 100%;
+  }
+
+  .post-category-badge {
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.68rem !important;
+    padding: 2px 7px !important;
+  }
+
+  .post-title-text {
+    font-size: 1rem;
+  }
+
+  .post-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 0.85rem;
+  }
+
+  /* Imagen proporcional en móvil en lugar de 380px fijos */
+  .post-media-container {
+    height: auto;
+    max-height: 270px;
+    aspect-ratio: 16 / 10;
+    margin-bottom: 0.85rem;
+    border-radius: 8px;
+  }
+
+  .post-actions {
+    padding-top: 0.65rem;
+  }
+
+  .actions-left {
+    gap: 8px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    min-height: 34px;
+    font-size: 0.84rem;
+  }
+
+  /* Desahogo de comentarios y respuestas anidadas en móvil */
+  .comment-card {
+    padding: 9px 11px;
+  }
+
+  .comment-body-text,
+  .reply-card .comment-body-text {
+    padding-left: 0;
+    font-size: 0.86rem;
+  }
+
+  .comment-actions-bar,
+  .reply-card .comment-actions-bar {
+    padding-left: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .comment-replies-thread {
+    margin-left: 8px;
+    padding-left: 10px;
+  }
+
+  .inline-reply-container {
+    padding-left: 0;
+  }
+
+  /* 16px evita el zoom automático al enfocar inputs en iOS Safari / Android */
+  .new-comment-input,
+  .inline-reply-input,
+  .search-input-expanded,
+  .ur-input,
+  .cfg-input,
+  .report-textarea {
+    font-size: 16px;
+  }
+
+  /* Vista Mi Perfil más compacta en móvil */
+  .profile-header {
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .profile-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .profile-card {
+    padding: 1.15rem 1rem;
+  }
+
+  .profile-avatar-wrap {
+    width: 82px;
+    height: 82px;
+  }
+
+  .profile-name {
+    margin-top: 0.75rem;
+    font-size: 1.15rem;
+  }
+
+  .profile-divider {
+    margin: 0.85rem 0;
+  }
+
+  .profile-tabs {
+    width: 100%;
+  }
+
+  .profile-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 0.86rem;
+  }
+
+  /* Modales y Toasts adaptados al ancho móvil */
+  .inspect-modal,
+  .ur-modal {
+    max-width: 100%;
+    padding: 1.2rem;
+    border-radius: 14px;
+  }
+
+  .report-modal-box,
+  .delete-modal-box,
+  .edit-modal-box {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .report-modal-footer,
+  .ur-modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .report-modal-footer button,
+  .ur-modal-footer button {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .urban-toast-container {
+    left: 14px;
+    right: 14px;
+    bottom: 18px;
+    z-index: 4000;
+  }
+
+  .urban-toast-body {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Configuración y Notificaciones */
+  .cfg-title,
+  .notif-header h1,
+  .detalle-header h1,
+  .search-mode-title {
+    font-size: 1.45rem;
+  }
+
+  .cfg-card {
+    padding: 1.1rem;
+  }
+
+  .notif-mark-read-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  /* En celulares angostos (<480px), colocar las píldoras de categoría/estado en su propia fila limpia */
+  .post-badges-wrap {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: flex-start;
   }
 }

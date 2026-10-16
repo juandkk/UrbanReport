@@ -2101,6 +2101,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Botón de búsqueda en móvil/tablet (visible cuando el panel derecho está oculto)
+  const mobileSearchTriggerBtn = document.getElementById('mobileSearchTriggerBtn');
+  if (mobileSearchTriggerBtn) {
+    mobileSearchTriggerBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      enterSearchMode('');
+    });
+  }
+
   // Evento para volver al feed normal (← Busqueda)
   if (searchModeBackBtn) {
     searchModeBackBtn.addEventListener('click', (e) => {
@@ -2139,17 +2148,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Pestañas (Historico, Más recientes, Media)
-  if (widgetSearchTabs) {
-    widgetSearchTabs.querySelectorAll('.search-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        widgetSearchTabs.querySelectorAll('.search-tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentSearchTab = btn.dataset.tab || 'historico';
-        runSearchFilter();
+  // Pestañas (Historico, Más recientes, Media) tanto en sidebar como en móvil
+  document.querySelectorAll('#widget-search-tabs .search-tab-btn, #mobileSearchTabs .search-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.dataset.tab || 'historico';
+      document.querySelectorAll('#widget-search-tabs .search-tab-btn, #mobileSearchTabs .search-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === targetTab);
       });
+      currentSearchTab = targetTab;
+      runSearchFilter();
     });
-  }
+  });
 
   // Filtros de personas (Radios)
   document.querySelectorAll('input[name="filter_personas"]').forEach(radio => {

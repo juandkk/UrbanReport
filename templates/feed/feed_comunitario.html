@@ -14,6 +14,14 @@
     </div>
 
     <div class="feed-header-actions">
+      <!-- Botón de búsqueda rápida (visible cuando el panel derecho se oculta en pantallas <=1200px) -->
+      <button type="button" class="header-icon-btn mobile-search-trigger" id="mobileSearchTriggerBtn" title="Buscar incidencias" aria-label="Buscar incidencias">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </button>
+
       <!-- Notification Bell con badge de no leídas -->
       <a href="{% url 'notificaciones' %}" class="header-icon-btn" title="Notificaciones" id="notif-bell">
         <span class="notif-bell-badge" id="notif-bell-badge" style="display:none;"></span>
@@ -93,6 +101,13 @@
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
+  </div>
+
+  <!-- Filtros rápidos en móvil/tablet (cuando el sidebar derecho de widgets está oculto) -->
+  <div class="mobile-search-tabs" id="mobileSearchTabs">
+    <button type="button" class="search-tab-btn active" data-tab="historico">Histórico</button>
+    <button type="button" class="search-tab-btn" data-tab="recientes">Más recientes</button>
+    <button type="button" class="search-tab-btn" data-tab="media">Con fotos</button>
   </div>
 </div>
 

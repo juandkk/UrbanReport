@@ -196,58 +196,69 @@
     marcarUbicacionFijada();
   }
 
-  // ── Búsqueda en el mini-mapa ──
+  // ── Búsqueda en el mini-mapa (Enter o botón "Ir" en móvil) ──
+  const miniMapSearchBtn = document.getElementById('miniMapSearchBtn');
+
+  function ejecutarBusquedaMiniMapa() {
+    if (!miniMapSearch) return;
+    const query = miniMapSearch.value.toLowerCase().trim();
+    if (!query) return;
+
+    // Comprobar lugares conocidos de Medellín
+    if (MEDELLIN_BARRIOS[query]) {
+      const coords = MEDELLIN_BARRIOS[query];
+      setMiniMapLocation(coords[0], coords[1]);
+      return;
+    }
+
+    // Búsqueda parcial en lugares de Medellín
+    for (const [key, coords] of Object.entries(MEDELLIN_BARRIOS)) {
+      if (query.includes(key) || key.includes(query)) {
+        setMiniMapLocation(coords[0], coords[1]);
+        return;
+      }
+    }
+
+    // Geocodificación OSM Nominatim acotada al bounding box de Medellín.
+    const viewbox = [
+      MEDELLIN_BOUNDS.lngMin, MEDELLIN_BOUNDS.latMax,
+      MEDELLIN_BOUNDS.lngMax, MEDELLIN_BOUNDS.latMin
+    ].join(',');
+    const nominatimUrl = 'https://nominatim.openstreetmap.org/search?format=json&bounded=1&viewbox=' +
+      encodeURIComponent(viewbox) + '&q=' +
+      encodeURIComponent(query + ', Medellin, Colombia');
+
+    fetch(nominatimUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          const item = data[0];
+          const lat = parseFloat(item.lat);
+          const lng = parseFloat(item.lon);
+          if (setMiniMapLocation(lat, lng) && ubicacionInput) {
+            ubicacionInput.value = item.display_name.split(',')[0];
+          }
+        } else {
+          showToast('No se encontró la dirección dentro de Medellín.');
+        }
+      })
+      .catch(() => {
+        showToast('No se pudo buscar la dirección.');
+      });
+  }
+
   if (miniMapSearch) {
     miniMapSearch.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        const query = this.value.toLowerCase().trim();
-        if (!query) return;
-
-        // Comprobar lugares conocidos de Medellín
-        if (MEDELLIN_BARRIOS[query]) {
-          const coords = MEDELLIN_BARRIOS[query];
-          setMiniMapLocation(coords[0], coords[1]);
-          return;
-        }
-
-        // Búsqueda parcial en lugares de Medellín
-        for (const [key, coords] of Object.entries(MEDELLIN_BARRIOS)) {
-          if (query.includes(key) || key.includes(query)) {
-            setMiniMapLocation(coords[0], coords[1]);
-            return;
-          }
-        }
-
-        // Geocodificación OSM Nominatim acotada al bounding box de Medellín.
-        // viewbox = izquierda,arriba,derecha,abajo (lng_min, lat_max, lng_max, lat_min)
-        const viewbox = [
-          MEDELLIN_BOUNDS.lngMin, MEDELLIN_BOUNDS.latMax,
-          MEDELLIN_BOUNDS.lngMax, MEDELLIN_BOUNDS.latMin
-        ].join(',');
-        const nominatimUrl = 'https://nominatim.openstreetmap.org/search?format=json&bounded=1&viewbox=' +
-          encodeURIComponent(viewbox) + '&q=' +
-          encodeURIComponent(query + ', Medellin, Colombia');
-
-        fetch(nominatimUrl)
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.length > 0) {
-              const item = data[0];
-              const lat = parseFloat(item.lat);
-              const lng = parseFloat(item.lon);
-              // Solo fijar y etiquetar si el resultado cae dentro de Medellín
-              if (setMiniMapLocation(lat, lng) && ubicacionInput) {
-                ubicacionInput.value = item.display_name.split(',')[0];
-              }
-            } else {
-              showToast('No se encontró la dirección dentro de Medellín.');
-            }
-          })
-          .catch(() => {
-            showToast('No se pudo buscar la dirección.');
-          });
+        ejecutarBusquedaMiniMapa();
       }
+    });
+  }
+  if (miniMapSearchBtn) {
+    miniMapSearchBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      ejecutarBusquedaMiniMapa();
     });
   }
 
@@ -387,12 +398,20 @@
   // ── Apertura y Cierre del Modal ──
   window.openRadicarModal = function () {
     if (!modalBackdrop) return;
+    if (typeof window.closeMobileNav === 'function') {
+      window.closeMobileNav();
+    }
     modalBackdrop.classList.add('active');
     document.body.style.overflow = 'hidden';
 
     // Reiniciar posición de scroll al inicio
     const bodyEl = document.querySelector('.radicar-body');
     if (bodyEl) bodyEl.scrollTop = 0;
+
+    // Si aún no hay coordenadas fijadas, inicializar en el punto predeterminado de Medellín
+    if (latInput && lngInput && (!latInput.value.trim() || !lngInput.value.trim())) {
+      updateCoordinates(MEDELLIN_LAT, MEDELLIN_LNG);
+    }
 
     // Inicializar o refrescar Leaflet mini-map
     initMiniMap();

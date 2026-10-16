@@ -20,11 +20,22 @@
     texto: '#94a3b8',
   };
 
+  function abreviarEtiqueta(label) {
+    var mapa = {
+      'Redes eléctricas y telecomunicaciones': 'Redes y Telecom.',
+      'Aseo y basuras': 'Aseo y Basuras',
+      'Infraestructura': 'Infraestruct.',
+    };
+    return mapa[label] || label;
+  }
+
   function iniciar() {
     if (typeof Chart === 'undefined') return setTimeout(iniciar, 60);
 
+    var esMovil = window.innerWidth <= 640;
     Chart.defaults.color = COLORS.texto;
     Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+    Chart.defaults.font.size = esMovil ? 11 : 12;
 
     // ---- Tendencia general (admin) ----
     var tendLabels = leer('g-tend-labels');
@@ -36,11 +47,20 @@
         data: { labels: tendLabels, datasets: [{
           label: 'Reportes', data: tendData,
           borderColor: COLORS.azul, backgroundColor: 'rgba(59,130,246,0.15)',
-          fill: true, tension: 0.35, pointRadius: 2,
+          fill: true, tension: 0.35, pointRadius: esMovil ? 2 : 3,
         }]},
-        options: { responsive: true, maintainAspectRatio: false,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } } } },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: esMovil ? 6 : 14 },
+            },
+            y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
+          },
+        },
       });
     }
 
@@ -57,25 +77,45 @@
           backgroundColor: [COLORS.gris, COLORS.ambar, COLORS.verde],
           borderColor: '#0f172a', borderWidth: 2,
         }]},
-        options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
-          plugins: { legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } } } },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: esMovil ? 10 : 12, boxWidth: esMovil ? 10 : 12, font: { size: esMovil ? 11 : 12 } },
+            },
+          },
+        },
       });
     }
 
-    // ---- Mis reportes por categoría: barras ----
+    // ---- Mis reportes por categoría: barras (horizontales en móvil para que las 7 etiquetas se lean completas) ----
     var catLabels = leer('m-cat-labels');
     var catData = leer('m-cat-data');
     var elCat = document.getElementById('chartMisCategorias');
     if (elCat && catLabels && catData) {
+      var catLabelsCortas = catLabels.map(abreviarEtiqueta);
       new Chart(elCat, {
         type: 'bar',
-        data: { labels: catLabels, datasets: [{
+        data: { labels: catLabelsCortas, datasets: [{
           label: 'Reportes', data: catData,
-          backgroundColor: COLORS.azul, borderRadius: 6, maxBarThickness: 48,
+          backgroundColor: COLORS.azul, borderRadius: 6, maxBarThickness: esMovil ? 22 : 44,
         }]},
-        options: { responsive: true, maintainAspectRatio: false,
+        options: {
+          indexAxis: esMovil ? 'y' : 'x',
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } } } },
+          scales: esMovil ? {
+            x: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
+            y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } },
+          } : {
+            x: { grid: { display: false }, ticks: { maxRotation: 25, minRotation: 0, autoSkip: false, font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
+          },
+        },
       });
     }
 
@@ -95,10 +135,19 @@
             backgroundColor: COLORS.verde, pointBackgroundColor: COLORS.verde,
             borderDash: [5, 4], fill: false, tension: 0.35, pointRadius: 3 },
         ]},
-        options: { responsive: true, maintainAspectRatio: false,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
           // Leyenda nativa desactivada: usamos la leyenda HTML con checkboxes.
           plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } } } },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: esMovil ? 6 : 12 },
+            },
+            y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
+          },
+        },
       });
 
       // Conecta los checkboxes de la leyenda personalizada con la visibilidad

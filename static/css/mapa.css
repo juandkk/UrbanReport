@@ -499,23 +499,52 @@
   .mapa-top-bar {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-    /* Deja hueco a la izquierda arriba para el botón hamburguesa del portal
-       (fixed en top:12 left:12, 42px). Así no queda tapado ni atrapa al usuario. */
-    padding: 12px 14px 12px 64px;
+    gap: 8px;
+    padding: 12px 12px 8px;
   }
 
   .mapa-search-box {
-    width: 100%;
-    max-width: 100%;
+    /* Deja hueco a la izquierda solo en la barra de búsqueda para el botón
+       hamburguesa (fixed top:12 left:12, 42px) sin desperdiciar ancho abajo. */
+    margin-left: 52px;
+    width: calc(100% - 52px);
+    max-width: calc(100% - 52px);
+  }
+
+  .mapa-search-box input {
+    height: 42px;
+    font-size: 16px;
   }
 
   .mapa-filters {
-    justify-content: center;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+
+  .mapa-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mapa-pill {
+    flex: 0 0 auto;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 0.78rem;
   }
 
   .mapa-custom-controls {
-    bottom: 20px;
-    right: 14px;
+    bottom: 84px;
+    right: 12px;
+  }
+
+  .leaflet-popup-content {
+    width: min(260px, 78vw) !important;
   }
 }
+

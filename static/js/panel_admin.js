@@ -20,9 +20,19 @@
     rojo: '#ef4444',
     indigo: '#6366f1',
     cian: '#06b6d4',
+    morado: '#8b5cf6',
     grid: 'rgba(148, 163, 184, 0.12)',
     texto: '#94a3b8',
   };
+
+  function abreviarEtiqueta(label) {
+    var mapa = {
+      'Redes eléctricas y telecomunicaciones': 'Redes y Telecom.',
+      'Aseo y basuras': 'Aseo y Basuras',
+      'Infraestructura': 'Infraestruct.',
+    };
+    return mapa[label] || label;
+  }
 
   function iniciar() {
     if (typeof Chart === 'undefined') {
@@ -30,9 +40,11 @@
       return setTimeout(iniciar, 60);
     }
 
+    var esMovil = window.innerWidth <= 640;
     // Estilos globales
     Chart.defaults.color = COLORS.texto;
     Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+    Chart.defaults.font.size = esMovil ? 11 : 12;
 
     // --- Dona: reportes por categoría ---
     var catLabels = leerJSON('data-cat-labels');
@@ -42,10 +54,10 @@
       new Chart(elCat, {
         type: 'doughnut',
         data: {
-          labels: catLabels,
+          labels: catLabels.map(abreviarEtiqueta),
           datasets: [{
             data: catData,
-            backgroundColor: [COLORS.azul, COLORS.ambar, COLORS.verde, COLORS.indigo, COLORS.cian, COLORS.rojo],
+            backgroundColor: [COLORS.azul, COLORS.ambar, COLORS.verde, COLORS.indigo, COLORS.cian, COLORS.morado, COLORS.rojo],
             borderColor: '#0f172a',
             borderWidth: 2,
           }],
@@ -55,7 +67,10 @@
           maintainAspectRatio: false,
           cutout: '60%',
           plugins: {
-            legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+            legend: {
+              position: 'bottom',
+              labels: { padding: esMovil ? 10 : 12, boxWidth: esMovil ? 10 : 12, font: { size: esMovil ? 10 : 12 } },
+            },
           },
         },
       });
@@ -76,7 +91,7 @@
             data: estData,
             backgroundColor: [COLORS.gris, COLORS.ambar, COLORS.verde],
             borderRadius: 6,
-            maxBarThickness: 56,
+            maxBarThickness: esMovil ? 42 : 56,
           }],
         },
         options: {
@@ -84,7 +99,7 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false } },
+            x: { grid: { display: false }, ticks: { maxRotation: 0 } },
             y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
           },
         },
@@ -107,7 +122,7 @@
             backgroundColor: 'rgba(59, 130, 246, 0.15)',
             fill: true,
             tension: 0.35,
-            pointRadius: 3,
+            pointRadius: esMovil ? 2 : 3,
             pointBackgroundColor: COLORS.azul,
           }],
         },
@@ -116,7 +131,10 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false } },
+            x: {
+              grid: { display: false },
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: esMovil ? 6 : 14 },
+            },
             y: { beginAtZero: true, grid: { color: COLORS.grid }, ticks: { precision: 0 } },
           },
         },

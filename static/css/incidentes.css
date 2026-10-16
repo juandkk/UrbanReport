@@ -224,8 +224,44 @@
 
 /* ---- Responsive ---- */
 @media (max-width: 760px) {
-  .inc-filter-field { min-width: 100%; }
-  .inc-filter-grow { min-width: 100%; }
+  .inc-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .inc-filter-field {
+    min-width: 0;
+  }
+  .inc-filter-grow {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .inc-filter-field input,
+  .inc-filter-field select {
+    font-size: 16px;
+    width: 100%;
+  }
+  .inc-filter-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .inc-filter-actions .inc-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .inc-results-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .inc-io-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .inc-io-actions .inc-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 /* ---- Modal de importación ---- */
@@ -236,7 +272,7 @@
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 2500;
+  z-index: 3500;
   padding: 20px;
 }
 .inc-modal-backdrop.open { display: flex; }

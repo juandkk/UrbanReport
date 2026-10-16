@@ -64,6 +64,14 @@
   </div>
 </div>
 
+<!-- Botón flotante (FAB) para reportar incidencia rápidamente desde móvil -->
+<button type="button" class="mobile-report-fab" id="mobileReportFab" data-open-radicar aria-label="Reportar Incidente" title="Reportar Incidente">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
 <!-- Modal Radicar Incidencia -->
 {% include 'includes/modal_radicar_incidencia.html' %}
 <!-- Modal Reportar y Moderar -->
@@ -96,14 +104,15 @@
       overlay.classList.remove('open');
       toggle.setAttribute('aria-expanded', 'false');
     }
+    window.closeMobileNav = cerrar;
 
     toggle.addEventListener('click', function () {
       if (sidebar.classList.contains('open')) { cerrar(); } else { abrir(); }
     });
     overlay.addEventListener('click', cerrar);
-    // Al tocar un enlace del menú, cerrar el drawer para ver el contenido.
-    sidebar.querySelectorAll('a').forEach(function (a) {
-      a.addEventListener('click', cerrar);
+    // Al tocar un enlace o el botón de reportar del menú, cerrar el drawer.
+    sidebar.querySelectorAll('a, .sidebar-report-btn').forEach(function (el) {
+      el.addEventListener('click', cerrar);
     });
     // Si se agranda la ventana a escritorio, asegurar que quede cerrado.
     window.addEventListener('resize', function () {
