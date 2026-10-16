@@ -33,8 +33,26 @@
         <input type="checkbox" name="recordarme" id="id_recordarme" class="auth-checkbox">
         <span>Recordarme</span>
       </label>
-      <a href="{% url 'recuperar_contrasena' %}" class="forgot-link">¿Olvidaste tu contraseña?</a>
+      <a href="{% url 'recuperar_contrasena' %}" class="forgot-link" id="forgotPasswordLink" title="Recuperar contraseña">¿Olvidaste tu contraseña?</a>
     </div>
+
+    <!-- Aviso de recuperación fuera de servicio -->
+    <div id="recoveryDisabledNotice" class="recovery-disabled-notice" style="display: none;" role="alert">
+      <div class="recovery-disabled-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="recovery-disabled-content">
+        <strong class="recovery-disabled-title">Servicio temporalmente fuera de servicio</strong>
+        <p class="recovery-disabled-desc">La recuperación de contraseñas se encuentra deshabilitada temporalmente por motivos de seguridad.</p>
+        <a href="{% url 'recuperar_contrasena' %}" class="recovery-disabled-link">Ver detalles del estado &rarr;</a>
+      </div>
+      <button type="button" class="recovery-disabled-close" id="recoveryNoticeClose" aria-label="Cerrar aviso">&times;</button>
+    </div>
+
     <button type="submit" class="auth-submit-btn">Ingresar</button>
 
 

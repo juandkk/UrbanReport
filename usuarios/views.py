@@ -14,54 +14,22 @@ from .forms import (
     ConfiguracionForm,
 )
 
-def recuperar_contrasena_view(request):
+def recuperar_contrasena_view(request, *args, **kwargs):
     """
-    Recuperación de contraseña (envío SIMULADO).
+    Recuperación de contraseña (temporalmente fuera de servicio).
 
-    Render free bloquea el SMTP saliente, así que no enviamos un correo real.
-    En su lugar generamos el enlace seguro de restablecimiento con el sistema
-    NATIVO de Django (uid + token con expiración y un solo uso) y lo guardamos
-    en la sesión para mostrarlo en la pantalla siguiente, dejando claro que es
-    una simulación del correo.
+    Por motivos de seguridad y para prevenir el restablecimiento no autorizado de cuentas,
+    la función de recuperación de contraseñas se encuentra deshabilitada de forma temporal.
+    No se aceptan solicitudes POST ni se generan tokens o enlaces de restablecimiento.
     """
-    if request.method == 'POST':
-        form = RecuperarContrasenaForm(request.POST)
-        if form.is_valid():
-            from django.contrib.auth.tokens import default_token_generator
-            from django.utils.http import urlsafe_base64_encode
-            from django.utils.encoding import force_bytes
-            from django.urls import reverse
-
-            email = form.cleaned_data['email'].strip()
-            # Buscamos el usuario; si no existe, no revelamos nada (igual que el
-            # flujo nativo), pero sin enlace.
-            usuario = Usuario.objects.filter(email__iexact=email).first()
-            if usuario is not None:
-                uid = urlsafe_base64_encode(force_bytes(usuario.pk))
-                token = default_token_generator.make_token(usuario)
-                ruta = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-                request.session['reset_link'] = request.build_absolute_uri(ruta)
-            else:
-                request.session['reset_link'] = None
-            request.session['reset_email'] = email
-            return redirect('password_reset_done')
-    else:
-        form = RecuperarContrasenaForm()
-
-    return render(request, 'usuarios/password_reset_form.html', {'form': form})
+    return render(request, 'usuarios/password_reset_form.html', {
+        'servicio_deshabilitado': True,
+    })
 
 
 def recuperar_contrasena_enviado_view(request):
-    """
-    Muestra el enlace de restablecimiento generado (simulación del correo).
-    Lee el enlace de la sesión y lo limpia para que no quede disponible luego.
-    """
-    reset_link = request.session.pop('reset_link', None)
-    reset_email = request.session.pop('reset_email', None)
-    return render(request, 'usuarios/password_reset_done.html', {
-        'reset_link': reset_link,
-        'reset_email': reset_email,
-    })
+    """Redirige a la vista de recuperación fuera de servicio."""
+    return redirect('recuperar_contrasena')
 
 
 def login_view(request):

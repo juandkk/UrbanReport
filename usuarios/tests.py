@@ -73,3 +73,36 @@ class UsuariosModelAndMiddlewareTest(TestCase):
         with self.assertRaises(IntegrityError):
             Seguimiento.objects.create(seguidor=self.user_completo, seguido=self.user_completo)
 
+    def test_recuperacion_contrasena_deshabilitada_get(self):
+        """GET /recuperar-contrasena/ muestra el mensaje de servicio temporalmente fuera de servicio."""
+        resp = self.client.get(reverse('recuperar_contrasena'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Servicio temporalmente fuera de servicio')
+        # No debe presentar el formulario vulnerable para solicitar restablecimiento
+        self.assertNotContains(resp, 'name="email"')
+
+    def test_recuperacion_contrasena_deshabilitada_post(self):
+        """POST /recuperar-contrasena/ no genera enlaces de restablecimiento ni envía correos."""
+        resp = self.client.post(reverse('recuperar_contrasena'), {'email': 'ok@test.com'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Servicio temporalmente fuera de servicio')
+        self.assertIsNone(self.client.session.get('reset_link'))
+
+    def test_rutas_recuperacion_protegidas_y_deshabilitadas(self):
+        """Todas las subrutas de reseteo muestran el aviso de servicio deshabilitado."""
+        for url in [
+            reverse('password_reset_done'),
+            reverse('password_reset_confirm', kwargs={'uidb64': 'MQ', 'token': 'dummy-token'}),
+            reverse('password_reset_complete'),
+        ]:
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, 'Servicio temporalmente fuera de servicio')
+
+    def test_login_page_incluye_aviso_y_enlace_recuperacion(self):
+        """La página de login incluye el identificador del aviso de servicio fuera de servicio."""
+        resp = self.client.get(reverse('login'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="recoveryDisabledNotice"')
+        self.assertContains(resp, 'Servicio temporalmente fuera de servicio')
+

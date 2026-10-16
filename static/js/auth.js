@@ -33,6 +33,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Manejo de clic en "¿Olvidaste tu contraseña?" (recuperación deshabilitada temporalmente)
+  const forgotLink = document.getElementById('forgotPasswordLink') || document.querySelector('.forgot-link');
+  const recoveryNotice = document.getElementById('recoveryDisabledNotice');
+  const recoveryClose = document.getElementById('recoveryNoticeClose');
+
+  if (forgotLink && recoveryNotice) {
+    forgotLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      recoveryNotice.style.display = 'flex';
+      recoveryNotice.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+
+  if (recoveryClose && recoveryNotice) {
+    recoveryClose.addEventListener('click', () => {
+      recoveryNotice.style.display = 'none';
+    });
+  }
+
   // Auto-dismiss alerts
   setTimeout(() => {
     document.querySelectorAll('.alert').forEach(alert => {

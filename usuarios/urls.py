@@ -15,21 +15,9 @@ urlpatterns = [
     path('registro/', views.registro_view, name='registro'),
     path('logout/', views.logout_view, name='logout'),
 
-    # ── Recuperación de contraseña ──
-    # El envío por SMTP no es viable en Render free (bloquea los puertos SMTP
-    # salientes), así que SIMULAMOS el envío: generamos el enlace seguro de
-    # Django (token nativo con expiración) y lo mostramos en pantalla.
-    # 1. Pedir el correo (vista propia que genera y muestra el enlace)
+    # ── Recuperación de contraseña (deshabilitada temporalmente por seguridad) ──
     path('recuperar-contrasena/', views.recuperar_contrasena_view, name='recuperar_contrasena'),
-    # 2. "Enlace generado" (muestra el enlace de restablecimiento)
-    path('recuperar-contrasena/enviado/', views.recuperar_contrasena_enviado_view, name='password_reset_done'),
-    # 3. Enlace del correo -> poner nueva contraseña
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
-        template_name='usuarios/password_reset_confirm.html',
-        success_url=reverse_lazy('password_reset_complete'),
-    ), name='password_reset_confirm'),
-    # 4. "Contraseña cambiada"
-    path('reset/completado/', auth_views.PasswordResetCompleteView.as_view(
-        template_name='usuarios/password_reset_complete.html',
-    ), name='password_reset_complete'),
+    path('recuperar-contrasena/enviado/', views.recuperar_contrasena_view, name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', views.recuperar_contrasena_view, name='password_reset_confirm'),
+    path('reset/completado/', views.recuperar_contrasena_view, name='password_reset_complete'),
 ]

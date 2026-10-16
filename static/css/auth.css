@@ -534,6 +534,7 @@
 }
 .auth-status-icon svg { width: 30px; height: 30px; }
 .auth-status-neutral { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.auth-status-warning { background: rgba(245,158,11,0.15); color: #f59e0b; }
 .auth-status-error { background: rgba(239,68,68,0.15); color: #f87171; }
 .auth-status-title {
   font-size: 1.3rem;
@@ -581,27 +582,75 @@
 }
 .auth-form input::placeholder { color: #4b5563; }
 
-/* Caja que muestra el enlace de recuperación simulado (demo sin correo real) */
-.reset-sim-box {
-  background: #0b1220;
-  border: 1px dashed var(--border-strong, #334155);
-  border-radius: 10px;
-  padding: 14px;
-  margin: 6px 0 14px;
+/* ── Aviso de servicio de recuperación deshabilitado ── */
+.recovery-disabled-notice {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-left: 4px solid #f59e0b;
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 1rem;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 12px;
+  animation: fadeInNotice 0.3s ease;
 }
-.reset-sim-label {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
+
+@keyframes fadeInNotice {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.recovery-disabled-icon {
   color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
-.reset-sim-link {
-  font-size: 0.8rem;
-  color: #60a5fa;
-  word-break: break-all;
+
+.recovery-disabled-content {
+  flex: 1;
+}
+
+.recovery-disabled-title {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fef3c7;
+  margin-bottom: 4px;
+}
+
+.recovery-disabled-desc {
+  font-size: 0.82rem;
+  color: #d1d5db;
   line-height: 1.4;
+  margin: 0 0 6px 0;
 }
+
+.recovery-disabled-link {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  font-weight: 500;
+  text-decoration: underline;
+  transition: color var(--transition-fast, 0.2s);
+}
+
+.recovery-disabled-link:hover {
+  color: #ffffff;
+}
+
+.recovery-disabled-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.2s;
+}
+
+.recovery-disabled-close:hover {
+  color: #ffffff;
+}
+
