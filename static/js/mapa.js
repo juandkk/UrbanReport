@@ -150,13 +150,26 @@
     const catName = escapeHtml(CATEGORY_NAMES[inc.categoria] || inc.categoria_display || inc.categoria || 'Incidente');
     const rawContent = String(inc.contenido || '');
     const snippet = escapeHtml(rawContent.substring(0, 140) + (rawContent.length > 140 ? '...' : ''));
+    const detailUrl = inc.id ? '/feed/publicacion/' + inc.id + '/' : '';
 
     let imgHtml = '';
     if (inc.imagen_url) {
-      imgHtml = '<div style="margin: 8px 0; border-radius: 6px; overflow: hidden; max-height: 140px; background: #0c0f15;">' +
-        '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" style="width: 100%; height: auto; display: block; object-fit: cover;">' +
+      imgHtml = '<div class="popup-media-container">' +
+        (detailUrl
+          ? '<a href="' + detailUrl + '" class="popup-media-link" title="Ver detalles y comentarios">' +
+              '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">' +
+            '</a>'
+          : '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" class="popup-media-img">') +
       '</div>';
     }
+
+    const titleHtml = inc.titulo
+      ? '<div style="font-weight: 700; color: #ffffff; font-size: 0.95rem; margin-bottom: 4px;">' +
+          (detailUrl
+            ? '<a href="' + detailUrl + '" class="popup-title-link" title="Ver detalles y comentarios">' + escapeHtml(inc.titulo) + '</a>'
+            : escapeHtml(inc.titulo)) +
+        '</div>'
+      : '';
 
     return (
       '<div class="popup-card">' +
@@ -164,7 +177,7 @@
           '<span class="popup-status ' + statusClass + '">' + escapeHtml(inc.estado_display || estado) + '</span>' +
           '<span style="font-size: 0.72rem; padding: 2px 6px; background: #1e293b; color: #93c5fd; border-radius: 4px; font-weight: 600;">' + catName + '</span>' +
         '</div>' +
-        (inc.titulo ? '<div style="font-weight: 700; color: #ffffff; font-size: 0.95rem; margin-bottom: 4px;">' + escapeHtml(inc.titulo) + '</div>' : '') +
+        titleHtml +
         (inc.ubicacion
           ? '<div class="popup-location">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
@@ -178,10 +191,12 @@
           '<span>' + escapeHtml(inc.tiempo || 'Hace un momento') + '</span>' +
           '<span>❤ ' + (Number(inc.likes) || 0) + '</span>' +
           '<span>💬 ' + (Number(inc.comentarios) || 0) + '</span>' +
+          (detailUrl ? '<a href="' + detailUrl + '" class="popup-detail-link" title="Ver publicación y comentarios">Detalles →</a>' : '') +
         '</div>' +
       '</div>'
     );
   }
+
 
   // ── Agregar o actualizar marcador en tiempo real ──
   window.addIncidentToMap = function (inc, focus) {

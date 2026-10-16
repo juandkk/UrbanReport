@@ -99,11 +99,13 @@
 
     <!-- Attached Image (if any) -->
     {% if post.imagen %}
-    <div class="post-media-container">
+    <div class="post-media-container {% if modo == 'detalle' %}is-expandable-media{% endif %}"
+         {% if modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
       <img src="{{ post.imagen.url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
     </div>
     {% elif post.imagen_url %}
-    <div class="post-media-container">
+    <div class="post-media-container {% if modo == 'detalle' %}is-expandable-media{% endif %}"
+         {% if modo == 'detalle' %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
       <img src="{{ post.imagen_url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
     </div>
     {% endif %}

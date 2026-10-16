@@ -2266,4 +2266,121 @@ document.addEventListener('DOMContentLoaded', () => {
     const qParam = urlParams.get('q') || '';
     enterSearchMode(qParam);
   }
+
+  // ── Visor de imagen ampliada estilo Twitter / X ──
+  const lightboxModal = document.getElementById('urImageLightbox');
+  const lightboxImg = document.getElementById('urLightboxImg');
+  const lightboxCloseBtn = document.getElementById('urLightboxClose');
+  const lightboxOverlay = document.getElementById('urLightboxOverlay');
+  const lightboxContainer = document.getElementById('urLightboxContainer');
+
+  function openLightbox(src, alt) {
+    if (!lightboxModal || !lightboxImg || !src) return;
+    lightboxImg.src = src;
+    lightboxImg.alt = alt || 'Evidencia urbana ampliada';
+    lightboxImg.classList.remove('is-zoomed');
+    lightboxModal.classList.add('active');
+    lightboxModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('lightbox-open');
+    if (lightboxCloseBtn) {
+      setTimeout(() => lightboxCloseBtn.focus(), 60);
+    }
+  }
+
+  function closeLightbox() {
+    if (!lightboxModal) return;
+    lightboxModal.classList.remove('active');
+    lightboxModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('lightbox-open');
+    if (lightboxImg) {
+      lightboxImg.classList.remove('is-zoomed');
+      setTimeout(() => {
+        if (!lightboxModal.classList.contains('active')) {
+          lightboxImg.src = '';
+        }
+      }, 250);
+    }
+  }
+
+  window.openUrbanLightbox = openLightbox;
+  window.closeUrbanLightbox = closeLightbox;
+
+  // Clic en imagen de publicación:
+  // Si está en el feed (dentro de .post-clickable), el navegador va a detalles y comentarios.
+  // Si ya está en detalles y comentarios (sin .post-clickable), se amplía estilo Twitter.
+  document.addEventListener('click', (e) => {
+    // Si el usuario hace clic sobre controles interactivos ajenos a la foto, ignorar
+    if (e.target.closest('button, input, textarea, a, .post-menu-wrapper, .post-actions, .new-comment-form')) return;
+
+    const mediaContainer = e.target.closest('.post-media-container');
+    const mediaImg = e.target.closest('.post-media-img');
+    if (!mediaContainer && !mediaImg) return;
+
+    // Si está en el feed principal (dentro de .post-clickable), no interceptamos:
+    // dejamos que el manejador existente lleve al usuario a detalles y comentarios
+    if (e.target.closest('.post-clickable')) return;
+
+    // Si está en detalles y comentarios, ampliamos la imagen
+    const targetImg = mediaImg || (mediaContainer ? mediaContainer.querySelector('img') : null);
+    if (!targetImg || !targetImg.src) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    openLightbox(targetImg.src, targetImg.alt || 'Evidencia urbana ampliada');
+  });
+
+  // Soporte de accesibilidad para teclado (Enter o Espacio en la imagen en vista detalle)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.classList.contains('is-expandable-media')) {
+        const img = activeEl.querySelector('img');
+        if (img && img.src) {
+          e.preventDefault();
+          openLightbox(img.src, img.alt || 'Evidencia urbana ampliada');
+        }
+      }
+    }
+  });
+
+  if (lightboxCloseBtn) {
+    lightboxCloseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeLightbox();
+    });
+  }
+
+  if (lightboxOverlay) {
+    lightboxOverlay.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeLightbox();
+    });
+  }
+
+  if (lightboxContainer) {
+    lightboxContainer.addEventListener('click', (e) => {
+      // Cierra si el clic fue en el fondo del contenedor fuera de la imagen
+      if (e.target === lightboxContainer) {
+        e.preventDefault();
+        closeLightbox();
+      }
+    });
+  }
+
+  // Alternar zoom ampliado al hacer clic sobre la imagen en el visor (estilo Twitter)
+  if (lightboxImg) {
+    lightboxImg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lightboxImg.classList.toggle('is-zoomed');
+    });
+  }
+
+  // Cerrar visor al presionar Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightboxModal && lightboxModal.classList.contains('active')) {
+      closeLightbox();
+    }
+  });
 });
+
