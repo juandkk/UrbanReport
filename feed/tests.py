@@ -188,6 +188,79 @@ class ApiTest(BaseUrbanReportTest):
         d = self._json(reverse('cambiar_estado_incidencia_ajax', args=[self.pubs[1].id]), 'post', {'estado': 'RESUELTA'})
         self.assertTrue(d['es_resuelta'])
 
+    def test_seguridad_censurar_comentario_solo_admin(self):
+        """Un ciudadano (incluso autor) no puede censurar comentarios (403); un admin sí puede (200)."""
+        comentario = Comentario.objects.filter(publicacion=self.pubs[0]).first()
+        url = reverse('moderar_comentario_ajax', args=[comentario.id])
+
+        # Ciudadano no puede censurar
+        self.client.force_login(self.ciudadano)
+        self._json(url, 'post', {'accion': 'CENSURAR'}, status=403)
+        comentario.refresh_from_db()
+        self.assertFalse(comentario.censurado)
+
+        # Admin sí puede censurar
+        self.client.force_login(self.admin)
+        d = self._json(url, 'post', {'accion': 'CENSURAR'}, status=200)
+        self.assertTrue(d['censurado'])
+        comentario.refresh_from_db()
+        self.assertTrue(comentario.censurado)
+
+    def test_radicar_incidencia_valida_limites_medellin_y_sanitiza_imagen(self):
+        """radicar_incidencia_ajax rechaza coordenadas fuera de Medellín y redimensiona imágenes grandes."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        import io
+        from feed.views import sanitizar_imagen, ImagenInvalida
+
+        self.client.force_login(self.ciudadano)
+        url = reverse('radicar_incidencia_ajax')
+
+        # Coordenadas en Bogotá -> debe ser rechazado (400)
+        self._json(url, 'post', {
+            'titulo': 'Fuera de rango',
+            'categoria': 'VIAS',
+            'contenido': 'Prueba fuera de Medellín',
+            'ubicacion': 'Bogotá',
+            'latitud': '4.6097100',
+            'longitud': '-74.0817500',
+            'ubicacion_fijada': '1',
+        }, status=400)
+
+        # Coordenadas válidas en Medellín (El Poblado) -> aceptado (200)
+        d = self._json(url, 'post', {
+            'titulo': 'Bache en El Poblado',
+            'categoria': 'REDES',
+            'contenido': 'Caja de telecomunicaciones sin tapa',
+            'ubicacion': 'Calle 10, El Poblado',
+            'latitud': '6.2090000',
+            'longitud': '-75.5700000',
+            'ubicacion_fijada': '1',
+        }, status=200)
+        self.assertEqual(d['incidente']['categoria'], 'REDES')
+
+        # Sanitización: rechaza archivo corrupto y redimensiona imagen > 1600px
+        with self.assertRaises(ImagenInvalida):
+            sanitizar_imagen(SimpleUploadedFile('falso.jpg', b'no es una imagen', content_type='image/jpeg'))
+
+        buf = io.BytesIO()
+        Image.new('RGB', (2400, 1800), (10, 20, 30)).save(buf, format='JPEG')
+        archivo_grande = SimpleUploadedFile('grande.jpg', buf.getvalue(), content_type='image/jpeg')
+        limpia = sanitizar_imagen(archivo_grande)
+        with Image.open(limpia) as img_out:
+            self.assertLessEqual(img_out.width, 1600)
+            self.assertLessEqual(img_out.height, 1600)
+
+    def test_plantillas_sin_cache_busting_dinamico_ni_ids_duplicados(self):
+        """Las plantillas no deben incluir ?v=<timestamp> ni duplicar id='urbanToast'."""
+        self.client.force_login(self.ciudadano)
+        r = self.client.get(reverse('feed_comunitario'))
+        html = r.content.decode('utf-8')
+        self.assertNotIn('.css?v=', html)
+        self.assertNotIn('.js?v=', html)
+        self.assertEqual(html.count('id="urbanToast"'), 1)
+
+
 
 class RendimientoTest(TestCase):
     """El número de consultas no debe crecer con la cantidad de publicaciones (sin N+1)."""
@@ -195,22 +268,26 @@ class RendimientoTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.u = Usuario.objects.create_user(username='u', email='u@t.co', password='x', **PERFIL_COMPLETO)
+        cls.admin = Usuario.objects.create_user(
+            username='admin_perf', email='ap@t.co', password='x',
+            rol=Usuario.Rol.ADMINISTRADOR, **PERFIL_COMPLETO,
+        )
         cls.o1 = Usuario.objects.create_user(username='o1', email='o1@t.co', password='x', **PERFIL_COMPLETO)
         cls.o2 = Usuario.objects.create_user(username='o2', email='o2@t.co', password='x', **PERFIL_COMPLETO)
 
-    def _contar(self, url):
-        self.client.force_login(self.u)
+    def _contar(self, url, user=None):
+        self.client.force_login(user or self.u)
         with CaptureQueriesContext(connection) as ctx:
             r = self.client.get(url)
         self.assertEqual(r.status_code, 200)
         return ctx.captured_queries
 
-    def _assert_constante(self, url):
+    def _assert_constante(self, url, user=None):
         crear_publicaciones(self.u, [self.o1, self.o2], 2)
-        q_pocas = self._contar(url)
+        q_pocas = self._contar(url, user=user)
         pocas = len(q_pocas)
         crear_publicaciones(self.u, [self.o1, self.o2], 8)
-        q_muchas = self._contar(url)
+        q_muchas = self._contar(url, user=user)
         muchas = len(q_muchas)
         print(f'\n  {url}: {pocas} consultas (2 pubs) -> {muchas} consultas (10 pubs)')
         if pocas != muchas:
@@ -233,3 +310,24 @@ class RendimientoTest(TestCase):
 
     def test_busqueda_sin_n_mas_1(self):
         self._assert_constante(reverse('api_buscar_publicaciones') + '?q=reporte')
+
+    def test_estadisticas_y_panel_admin_sin_n_mas_1(self):
+        """Estadísticas y Panel Admin deben mantener un número constante y reducido de consultas."""
+        self._assert_constante(reverse('estadisticas'), user=self.admin)
+        queries_panel = self._contar(reverse('panel_administrador'), user=self.admin)
+        self.assertLessEqual(len(queries_panel), 10)
+
+    def test_lista_seguidores_sin_n_mas_1(self):
+        """La lista de seguidores no debe ejecutar una consulta extra por cada seguidor."""
+        from usuarios.models import Seguimiento
+        Seg = [
+            Usuario.objects.create_user(username=f'seg_{i}', email=f's{i}@t.co', password='x', **PERFIL_COMPLETO)
+            for i in range(6)
+        ]
+        for s in Seg[:2]:
+            Seguimiento.objects.create(seguidor=s, seguido=self.u)
+        q_2 = len(self._contar(reverse('lista_seguidores', args=[self.u.username])))
+        for s in Seg[2:]:
+            Seguimiento.objects.create(seguidor=s, seguido=self.u)
+        q_6 = len(self._contar(reverse('lista_seguidores', args=[self.u.username])))
+        self.assertEqual(q_2, q_6)

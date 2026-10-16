@@ -32,7 +32,7 @@
       {# El avatar enlaza al perfil del autor; si soy yo, va a "Mi Perfil" #}
       {% if post.autor %}<a href="{% if post.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' post.autor.username %}{% endif %}" class="author-profile-link" title="Ver perfil de {{ post.nombre_autor }}">{% endif %}
       {% if post.autor.avatar %}
-      <img src="{{ post.autor.avatar.url }}" alt="{{ post.nombre_autor }}" class="author-avatar-img" style="margin-top: -3px;">
+      <img src="{{ post.autor.avatar.url }}" alt="{{ post.nombre_autor }}" class="author-avatar-img" style="margin-top: -3px;" loading="lazy" decoding="async">
       {% else %}
       <div class="author-avatar-img"
         style="display:flex;align-items:center;justify-content:center;background:#1e293b;color:#94a3b8;font-weight:700;font-size:0.85rem;margin-top:-3px;">
@@ -100,11 +100,11 @@
     <!-- Attached Image (if any) -->
     {% if post.imagen %}
     <div class="post-media-container">
-      <img src="{{ post.imagen.url }}" alt="Evidencia urbana" class="post-media-img">
+      <img src="{{ post.imagen.url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
     </div>
     {% elif post.imagen_url %}
     <div class="post-media-container">
-      <img src="{{ post.imagen_url }}" alt="Evidencia urbana" class="post-media-img">
+      <img src="{{ post.imagen_url }}" alt="Evidencia urbana" class="post-media-img" loading="lazy" decoding="async">
     </div>
     {% endif %}
   </div>

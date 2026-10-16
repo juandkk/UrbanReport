@@ -6,7 +6,8 @@ from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
 from django.utils.timesince import timesince
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from datetime import timedelta
@@ -15,7 +16,7 @@ import io
 import re
 from PIL import Image, UnidentifiedImageError
 from .models import (
-    Publicacion, Comentario, TrendingTopic, ActividadReciente,
+    Publicacion, Comentario,
     ReaccionPublicacion, ReaccionComentario, ReporteContenido, Notificacion, Reposteo
 )
 from usuarios.models import Usuario
@@ -99,10 +100,14 @@ def api_incidentes_mapa(request):
     """JSON API endpoint returning geolocated incidents for the map."""
     estado = request.GET.get('estado', '')
 
-    incidentes = Publicacion.objects.filter(
-        latitud__isnull=False,
-        longitud__isnull=False,
-    ).annotate(_total_comentarios=Count('comentarios'))
+    incidentes = (
+        Publicacion.objects.filter(
+            latitud__isnull=False,
+            longitud__isnull=False,
+        )
+        .select_related('autor')
+        .annotate(_total_comentarios=Count('comentarios'))
+    )
 
     if estado and estado != 'TODOS':
         incidentes = incidentes.filter(estado_incidencia=estado)
@@ -120,11 +125,11 @@ def api_incidentes_mapa(request):
             'ubicacion': inc.ubicacion or '',
             'estado': inc.estado_incidencia,
             'estado_display': inc.get_estado_incidencia_display(),
-            'autor': inc.autor_nombre,
+            'autor': inc.nombre_autor,
             'likes': inc.likes,
             'comentarios': inc.total_comentarios,
             'tiempo': timesince(inc.fecha_creacion) + ' atrás',
-            'imagen_url': inc.imagen.url if inc.imagen else None,
+            'imagen_url': inc.imagen.url if inc.imagen else inc.imagen_url,
         })
 
     return JsonResponse({'incidentes': data})
@@ -150,9 +155,10 @@ def coordenadas_en_medellin(lat, lng):
     )
 
 
-# ── Sanitización de imágenes ──
+# ── Sanitización y optimización de imágenes ──
 # Solo se aceptan PNG y JPG. Límite de tamaño (bytes) para evitar cargas abusivas.
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB
+MAX_IMAGE_DIMENSION = 1600  # Máximo ancho/alto en píxeles para carga rápida en web
 # Formatos permitidos (detectados por Pillow, NO por extensión) y su normalización de salida
 _FORMATOS_PERMITIDOS = {'JPEG', 'PNG'}
 
@@ -164,14 +170,16 @@ class ImagenInvalida(Exception):
 
 def sanitizar_imagen(archivo):
     """
-    Valida y neutraliza una imagen subida por el usuario.
+    Valida, redimensiona y neutraliza una imagen subida por el usuario.
 
-    Seguridad:
+    Seguridad y rendimiento:
       1. Rechaza archivos que superen el tamaño máximo.
       2. Verifica con Pillow que el contenido ES realmente una imagen (verify()),
          detectando el formato REAL, no confiando en la extensión ni el mimetype.
       3. Solo admite PNG y JPEG.
-      4. RE-CODIFICA la imagen desde sus píxeles a un archivo limpio. Esto descarta
+      4. Redimensiona proporcionalmente si supera MAX_IMAGE_DIMENSION para optimizar
+         el peso de transferencia en el feed y mapa.
+      5. RE-CODIFICA la imagen desde sus píxeles a un archivo limpio. Esto descarta
          cualquier carga maliciosa embebida (scripts, polyglots, metadatos EXIF con
          payloads, bytes extra tras el fin de la imagen, etc.), ya que la salida se
          reconstruye únicamente a partir de los datos de imagen decodificados.
@@ -199,12 +207,15 @@ def sanitizar_imagen(archivo):
     if formato not in _FORMATOS_PERMITIDOS:
         raise ImagenInvalida('Formato no permitido. Solo se aceptan imágenes PNG o JPG.')
 
-    # 4. Re-abrir (verify() invalida el objeto) y re-codificar limpiamente
+    # 4. Re-abrir (verify() invalida el objeto), acotar dimensiones y re-codificar limpiamente
     try:
         img = Image.open(io.BytesIO(datos))
         img.load()
     except (UnidentifiedImageError, OSError, ValueError):
         raise ImagenInvalida('No se pudo procesar la imagen.')
+
+    if img.width > MAX_IMAGE_DIMENSION or img.height > MAX_IMAGE_DIMENSION:
+        img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
 
     buffer = io.BytesIO()
     nombre_base = (archivo.name.rsplit('.', 1)[0] if archivo.name else 'evidencia')[:60]
@@ -308,12 +319,6 @@ def radicar_incidencia_ajax(request):
         estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO
     )
 
-    registrar_actividad_anti_saturacion(
-        titulo=f"Nuevo reporte ({publicacion.get_categoria_display()}): {titulo or contenido[:30]}",
-        tipo='incidente',
-        tiempo="Hace un momento"
-    )
-
     return JsonResponse({
         'status': 'ok',
         'message': '¡Incidencia radicada exitosamente!',
@@ -335,18 +340,6 @@ def radicar_incidencia_ajax(request):
             'imagen_url': publicacion.imagen.url if publicacion.imagen else None,
         }
     })
-
-
-def registrar_actividad_anti_saturacion(titulo, tipo='incidente', tiempo='Hace un momento'):
-    """
-    OBSOLETO: la "Actividad Reciente" ya no se persiste en una tabla aparte.
-    Ahora se deriva directamente de las publicaciones vivas (ver
-    obtener_actividades_recientes_balanceadas), de modo que el tiempo mostrado es
-    real y las publicaciones eliminadas desaparecen automáticamente de la cola.
-
-    Se conserva como no-op para no romper las llamadas existentes.
-    """
-    return None
 
 
 def _actividad_desde_publicacion(pub):
@@ -408,18 +401,24 @@ def obtener_actividades_recientes_balanceadas():
 
 # Etiquetas legibles y hashtags derivados para cada categoría de incidencia
 _CATEGORIA_HASHTAG = {
-    'VIAS': '#Vias',
-    'ALUMBRADO': '#Alumbrado',
-    'PARQUES': '#Parques',
-    'INFRAESTRUCTURA': '#Infraestructura',
+    Publicacion.Categoria.VIAS: '#Vias',
+    Publicacion.Categoria.ALUMBRADO: '#Alumbrado',
+    Publicacion.Categoria.PARQUES: '#Parques',
+    Publicacion.Categoria.INFRAESTRUCTURA: '#Infraestructura',
+    Publicacion.Categoria.REDES: '#RedesYServicios',
+    Publicacion.Categoria.ASEO: '#AseoYResiduos',
+    Publicacion.Categoria.OTROS: '#Otros',
 }
 
 # Etiqueta de "sección" mostrada en el widget según el tipo de tendencia
 _CATEGORIA_SECCION = {
-    'VIAS': 'MOVILIDAD',
-    'ALUMBRADO': 'SERVICIOS',
-    'PARQUES': 'COMUNIDAD',
-    'INFRAESTRUCTURA': 'INFRAESTRUCTURA',
+    Publicacion.Categoria.VIAS: 'MOVILIDAD',
+    Publicacion.Categoria.ALUMBRADO: 'SERVICIOS',
+    Publicacion.Categoria.PARQUES: 'COMUNIDAD',
+    Publicacion.Categoria.INFRAESTRUCTURA: 'INFRAESTRUCTURA',
+    Publicacion.Categoria.REDES: 'SERVICIOS',
+    Publicacion.Categoria.ASEO: 'AMBIENTE',
+    Publicacion.Categoria.OTROS: 'GENERAL',
 }
 
 # Regex para extraer hashtags reales escritos por los usuarios (#PalabraClave)
@@ -499,6 +498,44 @@ def api_trending_topics(request):
     return JsonResponse({'status': 'ok', 'trending_topics': topics})
 
 
+def _anotar_interacciones_usuario(publicaciones, user):
+    """
+    Anota en lote (O(1) consultas) las reacciones (LIKE/DISLIKE) y reposteos del
+    usuario autenticado sobre una lista de publicaciones y todos sus comentarios
+    y respuestas anidadas.
+    """
+    if not publicaciones:
+        return
+
+    user_post_reactions = {}
+    user_comment_reactions = {}
+    user_reposts = set()
+
+    if user and user.is_authenticated:
+        for r in ReaccionPublicacion.objects.filter(usuario=user, publicacion__in=publicaciones):
+            user_post_reactions[r.publicacion_id] = r.tipo
+        user_reposts = set(
+            Reposteo.objects.filter(usuario=user, publicacion__in=publicaciones)
+            .values_list('publicacion_id', flat=True)
+        )
+        all_comment_ids = [
+            c.id
+            for p in publicaciones
+            for c in p.comentarios.all()
+        ]
+        if all_comment_ids:
+            for r in ReaccionComentario.objects.filter(usuario=user, comentario_id__in=all_comment_ids):
+                user_comment_reactions[r.comentario_id] = r.tipo
+
+    for p in publicaciones:
+        p.user_reaction = user_post_reactions.get(p.id)
+        p.user_reposteo = p.id in user_reposts
+        for c in p.comentarios.all():
+            c.user_reaction = user_comment_reactions.get(c.id)
+            for rep in c.respuestas.all():
+                rep.user_reaction = user_comment_reactions.get(rep.id)
+
+
 @login_required
 def detalle_publicacion_view(request, publicacion_id):
     """
@@ -506,26 +543,12 @@ def detalle_publicacion_view(request, publicacion_id):
     completa con TODOS sus comentarios. Reutiliza post_card.html en modo 'detalle'.
     """
     publicacion = get_object_or_404(
-        Publicacion.objects.prefetch_related('comentarios__respuestas', 'comentarios__autor', 'autor'),
+        Publicacion.objects.select_related('autor').prefetch_related(
+            'comentarios__respuestas__autor', 'comentarios__autor', 'reposteos'
+        ),
         id=publicacion_id
     )
-
-    # Reacciones y reposteo del usuario para colorear los botones (como en el feed)
-    reaccion = ReaccionPublicacion.objects.filter(publicacion=publicacion, usuario=request.user).first()
-    publicacion.user_reaction = reaccion.tipo if reaccion else None
-    publicacion.user_reposteo = Reposteo.objects.filter(publicacion=publicacion, usuario=request.user).exists()
-
-    comment_ids = []
-    for c in publicacion.comentarios.all():
-        comment_ids.append(c.id)
-    user_comment_reactions = {}
-    if comment_ids:
-        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=comment_ids):
-            user_comment_reactions[r.comentario_id] = r.tipo
-    for c in publicacion.comentarios.all():
-        c.user_reaction = user_comment_reactions.get(c.id)
-        for rep in c.respuestas.all():
-            rep.user_reaction = user_comment_reactions.get(rep.id)
+    _anotar_interacciones_usuario([publicacion], request.user)
 
     context = {
         'post': publicacion,
@@ -536,7 +559,7 @@ def detalle_publicacion_view(request, publicacion_id):
 
 @login_required
 def feed_comunitario_view(request):
-    # El feed comunitario muestra TODAS las publicaciones recientes disponibles (sin limitación)
+    # El feed comunitario muestra las publicaciones recientes con sus relaciones precargadas
     publicaciones = list(Publicacion.objects.all().order_by('-id').select_related('autor').prefetch_related(
         'comentarios__respuestas__autor', 'comentarios__autor', 'reposteos'
     ))
@@ -546,32 +569,7 @@ def feed_comunitario_view(request):
     # El apartado 'Actividad Reciente' mantiene estrictamente 6 cupos (3 no resueltos + 3 resueltos)
     actividades = obtener_actividades_recientes_balanceadas()
 
-    # Mapear reacciones del usuario actual para colorear botones (Like / Dislike)
-    user_post_reactions = {}
-    user_comment_reactions = {}
-    user_reposts = set()
-    if request.user.is_authenticated:
-        for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
-            user_post_reactions[r.publicacion_id] = r.tipo
-        user_reposts = set(
-            Reposteo.objects.filter(usuario=request.user, publicacion__in=publicaciones)
-            .values_list('publicacion_id', flat=True)
-        )
-        all_comment_ids = []
-        for p in publicaciones:
-            for c in p.comentarios.all():
-                all_comment_ids.append(c.id)
-        if all_comment_ids:
-            for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=all_comment_ids):
-                user_comment_reactions[r.comentario_id] = r.tipo
-
-    for p in publicaciones:
-        p.user_reaction = user_post_reactions.get(p.id)
-        p.user_reposteo = p.id in user_reposts
-        for c in p.comentarios.all():
-            c.user_reaction = user_comment_reactions.get(c.id)
-            for rep in c.respuestas.all():
-                rep.user_reaction = user_comment_reactions.get(rep.id)
+    _anotar_interacciones_usuario(publicaciones, request.user)
 
     # Form handling for new community post
     if request.method == 'POST':
@@ -590,7 +588,7 @@ def feed_comunitario_view(request):
             user = request.user
             autor_nombre = f"{user.first_name} {user.last_name}".strip() or user.username
 
-            pub = Publicacion.objects.create(
+            Publicacion.objects.create(
                 autor=user,
                 autor_nombre=autor_nombre,
                 titulo=titulo,
@@ -598,11 +596,6 @@ def feed_comunitario_view(request):
                 contenido=contenido or titulo,
                 imagen=imagen_limpia,
                 estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO
-            )
-            # Registrar actividad con anti-saturación (3 no resueltos máx.)
-            registrar_actividad_anti_saturacion(
-                f"Nuevo reporte ({pub.get_categoria_display()}): {titulo or contenido[:32]}",
-                tipo='incidente'
             )
             return redirect('feed_comunitario')
 
@@ -948,35 +941,43 @@ def _estadisticas_usuario(usuario, dias=None):
     else:
         pubs = pubs_todas
 
-    total = pubs.count()
-    resueltos = pubs.filter(estado_incidencia=Estado.RESUELTA).count()
-    en_proceso = pubs.filter(estado_incidencia=Estado.EN_PROCESO).count()
-    reportados = pubs.filter(estado_incidencia=Estado.REPORTADO).count()
-
-    # Impacto = suma de likes recibidos en sus publicaciones (del periodo)
-    impacto = sum(p.likes for p in pubs)
+    # 1 sola consulta agregada para conteos por estado e impacto (suma de likes)
+    agregados = pubs.aggregate(
+        total=Count('id'),
+        resueltos=Count('id', filter=Q(estado_incidencia=Estado.RESUELTA)),
+        en_proceso=Count('id', filter=Q(estado_incidencia=Estado.EN_PROCESO)),
+        reportados=Count('id', filter=Q(estado_incidencia=Estado.REPORTADO)),
+        impacto=Coalesce(Sum('likes'), 0),
+    )
+    total = agregados['total'] or 0
+    resueltos = agregados['resueltos'] or 0
+    en_proceso = agregados['en_proceso'] or 0
+    reportados = agregados['reportados'] or 0
+    impacto = agregados['impacto'] or 0
 
     # El nivel de confianza es acumulado (todo el histórico), no del periodo.
-    confianza = usuario.nivel_confianza()
+    if dias is None:
+        confianza = usuario.nivel_confianza(total=total, resueltos=resueltos)
+    else:
+        confianza = usuario.nivel_confianza()
 
-    # Distribución por categoría (del periodo)
-    por_categoria = []
-    for valor, etiqueta in Cat.choices:
-        c = pubs.filter(categoria=valor).count()
-        por_categoria.append({'etiqueta': etiqueta, 'cantidad': c})
+    # Distribución por categoría (del periodo) en 1 sola consulta agrupada
+    conteo_cat = dict(
+        pubs.values('categoria').annotate(c=Count('id')).values_list('categoria', 'c')
+    )
+    por_categoria = [
+        {'etiqueta': etiqueta, 'cantidad': conteo_cat.get(valor, 0)}
+        for valor, etiqueta in Cat.choices
+    ]
 
     # Actividad reciente: últimas 6 publicaciones del usuario (independiente del rango)
     actividad_reciente = list(
         pubs_todas.order_by('-fecha_creacion')[:6]
     )
 
-    # Actividad mensual: últimos 6 meses (radicados vs resueltos)
+    # Actividad mensual: últimos 6 meses (radicados vs resueltos) en 1 sola consulta
     ahora = timezone.now()
-    meses_labels = []
-    radicados_mes = []
-    resueltos_mes = []
     MESES_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    # Construye los últimos 6 meses (incluido el actual)
     year = ahora.year
     month = ahora.month
     secuencia = []
@@ -987,15 +988,22 @@ def _estadisticas_usuario(usuario, dias=None):
             m += 12
             y -= 1
         secuencia.append((y, m))
-    for (y, m) in secuencia:
-        meses_labels.append(MESES_ES[m - 1])
-        radicados_mes.append(pubs.filter(fecha_creacion__year=y, fecha_creacion__month=m).count())
-        resueltos_mes.append(
-            pubs.filter(
-                estado_incidencia=Estado.RESUELTA,
-                fecha_creacion__year=y, fecha_creacion__month=m,
-            ).count()
-        )
+
+    secuencia_set = set(secuencia)
+    radicados_por_mes = Counter()
+    resueltos_por_mes = Counter()
+    for fecha_dt, estado_inc in pubs.values_list('fecha_creacion', 'estado_incidencia'):
+        if not fecha_dt:
+            continue
+        ym = (fecha_dt.year, fecha_dt.month)
+        if ym in secuencia_set:
+            radicados_por_mes[ym] += 1
+            if estado_inc == Estado.RESUELTA:
+                resueltos_por_mes[ym] += 1
+
+    meses_labels = [MESES_ES[m - 1] for (_, m) in secuencia]
+    radicados_mes = [radicados_por_mes[ym] for ym in secuencia]
+    resueltos_mes = [resueltos_por_mes[ym] for ym in secuencia]
 
     return {
         'total': total,
@@ -1053,13 +1061,19 @@ def _calcular_estadisticas_panel():
     Cat = Publicacion.Categoria
 
     qs = Publicacion.objects.all()
-    total = qs.count()
 
-    # --- Conteos por estado ---
+    # --- 1 sola consulta agregada para total y conteos por estado ---
+    agregados = qs.aggregate(
+        total=Count('id'),
+        reportados=Count('id', filter=Q(estado_incidencia=Estado.REPORTADO)),
+        en_proceso=Count('id', filter=Q(estado_incidencia=Estado.EN_PROCESO)),
+        resueltas=Count('id', filter=Q(estado_incidencia=Estado.RESUELTA)),
+    )
+    total = agregados['total'] or 0
     por_estado = {
-        Estado.REPORTADO: qs.filter(estado_incidencia=Estado.REPORTADO).count(),
-        Estado.EN_PROCESO: qs.filter(estado_incidencia=Estado.EN_PROCESO).count(),
-        Estado.RESUELTA: qs.filter(estado_incidencia=Estado.RESUELTA).count(),
+        Estado.REPORTADO: agregados['reportados'] or 0,
+        Estado.EN_PROCESO: agregados['en_proceso'] or 0,
+        Estado.RESUELTA: agregados['resueltas'] or 0,
     }
     activas = por_estado[Estado.REPORTADO] + por_estado[Estado.EN_PROCESO]
     resueltas = por_estado[Estado.RESUELTA]
@@ -1070,19 +1084,24 @@ def _calcular_estadisticas_panel():
 
     # --- Tiempo promedio de respuesta ---
     # Sin campo de fecha de resolución, aproximamos con la antigüedad promedio de
-    # los reportes resueltos (cuánto tardan en el sistema). Es una estimación.
+    # los reportes resueltos (cuánto tardan en el sistema), proyectando solo fecha_creacion.
     ahora = timezone.now()
-    resueltas_qs = qs.filter(estado_incidencia=Estado.RESUELTA)
+    fechas_resueltas = list(
+        qs.filter(estado_incidencia=Estado.RESUELTA).values_list('fecha_creacion', flat=True)
+    ) if resueltas else []
     horas = [
-        (ahora - p.fecha_creacion).total_seconds() / 3600.0
-        for p in resueltas_qs
+        (ahora - fc).total_seconds() / 3600.0
+        for fc in fechas_resueltas if fc
     ]
     tiempo_prom_horas = round(sum(horas) / len(horas), 1) if horas else 0.0
 
-    # --- Conteos por categoría (para la dona y "Carga por Departamento") ---
+    # --- Conteos por categoría en 1 sola consulta agrupada ---
+    conteo_cat = dict(
+        qs.values('categoria').annotate(c=Count('id')).values_list('categoria', 'c')
+    )
     por_categoria = []
     for valor, etiqueta in Cat.choices:
-        c = qs.filter(categoria=valor).count()
+        c = conteo_cat.get(valor, 0)
         por_categoria.append({
             'clave': valor,
             'etiqueta': etiqueta,
@@ -1092,19 +1111,25 @@ def _calcular_estadisticas_panel():
     # Orden descendente por cantidad para la "Carga por Departamento"
     carga_departamento = sorted(por_categoria, key=lambda x: x['cantidad'], reverse=True)
 
-    # --- Tendencia temporal: reportes por día en los últimos 14 días ---
+    # --- Tendencia temporal: reportes por día en los últimos 14 días (1 sola consulta) ---
     dias = 14
+    base = ahora.date() - timedelta(days=dias - 1)
+    conteo_dias = Counter()
+    for fc in qs.filter(fecha_creacion__date__gte=base).values_list('fecha_creacion', flat=True):
+        if fc:
+            conteo_dias[fc.date()] += 1
+
     serie_labels = []
     serie_valores = []
-    base = ahora.date() - timedelta(days=dias - 1)
     for i in range(dias):
         dia = base + timedelta(days=i)
         serie_labels.append(dia.strftime('%d/%m'))
-        serie_valores.append(qs.filter(fecha_creacion__date=dia).count())
+        serie_valores.append(conteo_dias.get(dia, 0))
 
     # --- Cola de atención prioritaria: activas, por más votos y antigüedad ---
     cola = list(
         qs.exclude(estado_incidencia=Estado.RESUELTA)
+          .select_related('autor')
           .order_by('-likes', 'fecha_creacion')[:6]
     )
 
@@ -1483,6 +1508,8 @@ def moderar_comentario_ajax(request, comentario_id):
             'message': 'Comentario eliminado correctamente.'
         })
     elif accion == 'CENSURAR':
+        if not es_admin:
+            return JsonResponse({'status': 'error', 'message': 'No tienes permiso para censurar este comentario.'}, status=403)
         comentario.censurado = not comentario.censurado
         comentario.save(update_fields=['censurado'])
         return JsonResponse({
@@ -1600,23 +1627,12 @@ def api_actividad_reciente(request):
 def render_post_card_ajax(request, publicacion_id):
     """Retorna el fragmento HTML renderizado de una publicación para inserción en tiempo real."""
     publicacion = get_object_or_404(
-        Publicacion.objects.prefetch_related('comentarios__respuestas', 'comentarios__autor', 'autor'),
+        Publicacion.objects.select_related('autor').prefetch_related(
+            'comentarios__respuestas__autor', 'comentarios__autor', 'reposteos'
+        ),
         id=publicacion_id
     )
-    reaccion = ReaccionPublicacion.objects.filter(publicacion=publicacion, usuario=request.user).first()
-    publicacion.user_reaction = reaccion.tipo if reaccion else None
-    publicacion.user_reposteo = Reposteo.objects.filter(publicacion=publicacion, usuario=request.user).exists()
-
-    # Anotar reacciones y reposteos del usuario en los comentarios/respuestas
-    comment_ids = [c.id for c in publicacion.comentarios.all()]
-    user_comment_reactions = {}
-    if comment_ids:
-        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=comment_ids):
-            user_comment_reactions[r.comentario_id] = r.tipo
-    for c in publicacion.comentarios.all():
-        c.user_reaction = user_comment_reactions.get(c.id)
-        for rep in c.respuestas.all():
-            rep.user_reaction = user_comment_reactions.get(rep.id)
+    _anotar_interacciones_usuario([publicacion], request.user)
 
     html = render_to_string('includes/post_card.html', {'post': publicacion, 'user': request.user}, request=request)
     return JsonResponse({
@@ -1805,19 +1821,7 @@ def api_buscar_publicaciones(request):
         qs = qs.filter(Q(autor=request.user) | Q(latitud__isnull=False))
 
     publicaciones = list(qs[:50])
-
-    user_post_reactions = {}
-    user_reposts = set()
-    if request.user.is_authenticated:
-        for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion__in=publicaciones):
-            user_post_reactions[r.publicacion_id] = r.tipo
-        user_reposts = set(
-            Reposteo.objects.filter(usuario=request.user, publicacion__in=publicaciones)
-            .values_list('publicacion_id', flat=True)
-        )
-    for p in publicaciones:
-        p.user_reaction = user_post_reactions.get(p.id)
-        p.user_reposteo = p.id in user_reposts
+    _anotar_interacciones_usuario(publicaciones, request.user)
 
     cards_html = []
     for p in publicaciones:
@@ -1833,200 +1837,9 @@ def api_buscar_publicaciones(request):
     })
 
 
-
-
-def _seed_demo_data():
-    """Initializes the database with the exact sample data seen in View 4 & View 5."""
-    user_ana, _ = Usuario.objects.get_or_create(
-        username='ana_garcia',
-        defaults={'email': 'ana.garcia@ciudad.gov', 'first_name': 'Ana', 'last_name': 'García', 'rol': Usuario.Rol.CIUDADANO}
-    )
-    user_luis, _ = Usuario.objects.get_or_create(
-        username='luis_rodriguez',
-        defaults={'email': 'luis.rodriguez@ciudad.gov', 'first_name': 'Luis', 'last_name': 'Rodríguez', 'rol': Usuario.Rol.ADMINISTRADOR}
-    )
-    user_maria, _ = Usuario.objects.get_or_create(
-        username='maria_lopez',
-        defaults={'email': 'maria.lopez@ciudad.gov', 'first_name': 'María', 'last_name': 'López', 'rol': Usuario.Rol.CIUDADANO}
-    )
-    user_carlos, _ = Usuario.objects.get_or_create(
-        username='carlos_martinez',
-        defaults={'email': 'carlos.martinez@ciudad.gov', 'first_name': 'Carlos', 'last_name': 'Martínez', 'rol': Usuario.Rol.CIUDADANO}
-    )
-
-    # Post 1 (Ana García) - REPORTADO - El Poblado
-    p1 = Publicacion.objects.create(
-        autor=user_ana,
-        autor_nombre='Ana García',
-        contenido='Gran bache en la Avenida Central, esquina con Calle 4. Está causando mucho tráfico y riesgo para los ciclistas. Por favor, precaución si pasan por ahí.',
-        likes=24,
-        estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO,
-        ubicacion='Avenida Central esquina con Calle 4',
-        latitud=6.2100000,
-        longitud=-75.5700000,
-    )
-    Comentario.objects.create(
-        publicacion=p1,
-        autor_nombre='Carlos M.',
-        texto='Ya reporté esto en la app también, ojalá lo arreglen pronto.'
-    )
-
-    # Post 2 (Luis Rodríguez) - RESUELTA - Parque de los Deseos
-    Publicacion.objects.create(
-        autor=user_luis,
-        autor_nombre='Luis Rodríguez',
-        contenido='La luminaria del Parque Los Pinos ya fue reparada. Gracias a las cuadrillas por la rápida atención.',
-        likes=112,
-        estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA,
-        ubicacion='Parque Los Pinos',
-        latitud=6.2560000,
-        longitud=-75.5660000,
-    )
-
-    # Post 3 (María López) - EN_PROCESO - Laureles
-    Publicacion.objects.create(
-        autor=user_maria,
-        autor_nombre='María López',
-        contenido='Fuga de agua potable en la Circular 73 con Calle 39B. Ya fue reportada y la cuadrilla de EPM está en camino.',
-        likes=37,
-        estado_incidencia=Publicacion.EstadoIncidencia.EN_PROCESO,
-        ubicacion='Circular 73 con Calle 39B, Laureles',
-        latitud=6.2460000,
-        longitud=-75.5930000,
-    )
-
-    # Post 4 (Carlos Martínez) - EN_PROCESO - Centro
-    Publicacion.objects.create(
-        autor=user_carlos,
-        autor_nombre='Carlos Martínez',
-        contenido='Semáforo dañado en la intersección de la Avenida Oriental con Calle 49. Genera congestión vehicular en hora pico.',
-        likes=58,
-        estado_incidencia=Publicacion.EstadoIncidencia.EN_PROCESO,
-        ubicacion='Avenida Oriental con Calle 49, Centro',
-        latitud=6.2510000,
-        longitud=-75.5640000,
-    )
-
-    # Post 5 (Ana García) - REPORTADO - Robledo
-    Publicacion.objects.create(
-        autor=user_ana,
-        autor_nombre='Ana García',
-        contenido='Árbol caído sobre la vía en la carrera 80 con calle 65. Impide el tránsito de vehículos.',
-        likes=15,
-        estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO,
-        ubicacion='Carrera 80 con Calle 65, Robledo',
-        latitud=6.2630000,
-        longitud=-75.6100000,
-    )
-
-    # Trending Topics
-    TrendingTopic.objects.get_or_create(
-        categoria='TRÁFICO',
-        hashtag='#CorteAvenidaSur',
-        defaults={'detalle': '45 reportes en la última hora', 'orden': 1}
-    )
-    TrendingTopic.objects.get_or_create(
-        categoria='SERVICIOS',
-        hashtag='#FallaElectricaNorte',
-        defaults={'detalle': '120 reportes', 'orden': 2}
-    )
-    TrendingTopic.objects.get_or_create(
-        categoria='COMUNIDAD',
-        hashtag='#JornadaLimpiezaParque',
-        defaults={'detalle': 'Evento activo', 'orden': 3}
-    )
-
-    # Actividad Reciente
-    ActividadReciente.objects.get_or_create(
-        titulo='Nuevo incidente reportado en Calle 8.',
-        defaults={'tiempo': 'Hace 2 min', 'tipo': 'incidente', 'orden': 1}
-    )
-    ActividadReciente.objects.get_or_create(
-        titulo='Incidencia #492 marcada como Resuelta.',
-        defaults={'tiempo': 'Hace 15 min', 'tipo': 'resuelta', 'orden': 2}
-    )
-
-
-def _ensure_demo_balance():
-    """Garantiza que existan al menos 3 publicaciones resueltas para los 3 espacios reservados."""
-    resueltas = Publicacion.objects.filter(estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA).count()
-    if resueltas < 3:
-        user_luis = Usuario.objects.filter(username='luis_rodriguez').first() or Usuario.objects.filter(rol=Usuario.Rol.ADMINISTRADOR).first()
-        if not user_luis:
-            user_luis = Usuario.objects.first()
-
-        nuevas_resueltas = [
-            {
-                'titulo': 'Luminarias LED instaladas en el Parque Los Pinos',
-                'categoria': Publicacion.Categoria.ALUMBRADO,
-                'contenido': 'Se completó con éxito el cambio e instalación de luminarias LED de alta potencia. El parque ahora cuenta con iluminación completa para la seguridad del sector.',
-                'ubicacion': 'Parque Los Pinos, Medellín',
-                'likes': 42,
-            },
-            {
-                'titulo': 'Repavimentación y sellado de bache en Av. Oriental',
-                'categoria': Publicacion.Categoria.VIAS,
-                'contenido': 'Cuadrilla de la Secretaría de Obras concluyó el bacheo asfáltico en la calzada oriental. El tránsito vehicular fluye con total normalidad.',
-                'ubicacion': 'Avenida Oriental con Calle 52, Medellín',
-                'likes': 78,
-            },
-            {
-                'titulo': 'Mantenimiento preventivo de juegos infantiles en Belén',
-                'categoria': Publicacion.Categoria.PARQUES,
-                'contenido': 'Los juegos infantiles y barandas de seguridad del parque barrial fueron reparados y pintados. Espacio habilitado para los niños.',
-                'ubicacion': 'Parque de Belén, Medellín',
-                'likes': 35,
-            }
-        ]
-
-        faltantes = 3 - resueltas
-        for item in nuevas_resueltas[:faltantes]:
-            Publicacion.objects.create(
-                autor=user_luis,
-                autor_nombre='Luis Rodríguez (Admin)' if user_luis and user_luis.rol == Usuario.Rol.ADMINISTRADOR else 'Gestión Municipal',
-                titulo=item['titulo'],
-                categoria=item['categoria'],
-                contenido=item['contenido'],
-                ubicacion=item['ubicacion'],
-                likes=item['likes'],
-                estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA
-            )
-
-
-
-
 # ==========================================================================
 # Notificaciones
 # ==========================================================================
-def _seed_notificaciones_demo(usuario):
-    """
-    Siembra unas notificaciones de ejemplo para 'usuario' si no tiene ninguna,
-    de modo que la vista no se vea vacía en la demo. Usa publicaciones reales
-    del usuario si existen; si no, crea notificaciones sin publicación asociada.
-    """
-    if Notificacion.objects.filter(destinatario=usuario).exists():
-        return
-
-    pub = Publicacion.objects.filter(autor=usuario).order_by('-id').first()
-    muestras = [
-        (Notificacion.Tipo.COMENTARIO, 'Ana García', Notificacion.Categoria.PUBLICACION, 'Gran bache, ya lo reporté también 👍'),
-        (Notificacion.Tipo.LIKE, 'Luis Rodríguez', Notificacion.Categoria.PUBLICACION, ''),
-        (Notificacion.Tipo.COMENTARIO, 'Sandra M.', Notificacion.Categoria.PUBLICACION, 'Ojalá lo arreglen pronto, llevo meses reportándolo'),
-        (Notificacion.Tipo.CAMBIO_ESTADO, 'Equipo UrbanReport', Notificacion.Categoria.REPORTE, 'Resuelta'),
-    ]
-    for tipo, nombre, categoria, extra in muestras:
-        Notificacion.objects.create(
-            destinatario=usuario,
-            actor=None,
-            actor_nombre=nombre,
-            tipo=tipo,
-            categoria=categoria,
-            publicacion=pub if categoria == Notificacion.Categoria.PUBLICACION else pub,
-            extra=extra,
-            leido=False,
-        )
-
-
 @login_required
 def notificaciones_view(request):
     """

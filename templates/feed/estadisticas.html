@@ -8,7 +8,7 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'css/estadisticas.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/estadisticas.css' %}">
 {% endblock %}
 
 {% block portal_content %}
@@ -175,5 +175,5 @@
 {% block extra_js %}
 {{ block.super }}
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script defer src="{% static 'js/estadisticas.js' %}?v={% now 'U' %}"></script>
+<script defer src="{% static 'js/estadisticas.js' %}"></script>
 {% endblock %}

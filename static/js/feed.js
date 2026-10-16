@@ -1035,18 +1035,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Generador de HTML para comentario nuevo ──
   function createCommentHtml(c, postId) {
+    const safeInitials = escapeHtml(c.initials || 'UR');
+    const safeAuthor = escapeHtml(c.autor_nombre);
+    const safeTime = escapeHtml(c.tiempo);
+    const safeText = escapeHtml(c.texto);
     return `
       <div class="comment-card" id="comment-card-${c.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle">${c.initials || 'UR'}</div>
-              <span class="comment-author-name">${c.autor_nombre}</span>
+              <div class="comment-avatar-circle">${safeInitials}</div>
+              <span class="comment-author-name">${safeAuthor}</span>
             </a>
           </div>
-          <span class="comment-timestamp">${c.tiempo}</span>
+          <span class="comment-timestamp">${safeTime}</span>
         </div>
-        <p class="comment-body-text" id="comment-text-${c.id}">${c.texto}</p>
+        <p class="comment-body-text" id="comment-text-${c.id}">${safeText}</p>
         <div class="comment-actions-bar">
           <button type="button" class="comment-act-btn comment-like-btn" data-comment-id="${c.id}" data-type="LIKE" title="Me gusta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1060,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </svg>
             <span class="com-dislike-count">0</span>
           </button>
-          <button type="button" class="comment-act-btn comment-reply-trigger" data-comment-id="${c.id}" data-author="${c.autor_nombre}">
+          <button type="button" class="comment-act-btn comment-reply-trigger" data-comment-id="${c.id}" data-author="${safeAuthor}">
             Responder
           </button>
 
@@ -1079,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </svg>
                 <span>Editar</span>
               </button>
-              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${c.id}" data-post-id="${postId}" data-author="${c.autor_nombre}">
+              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${c.id}" data-post-id="${postId}" data-author="${safeAuthor}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -1096,18 +1100,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Generador de HTML para respuesta nueva ──
   function createReplyHtml(rep, postId = '') {
+    const safeInitials = escapeHtml(rep.initials || 'UR');
+    const safeAuthor = escapeHtml(rep.autor_nombre);
+    const safeTime = escapeHtml(rep.tiempo);
+    const safeText = escapeHtml(rep.texto);
     return `
       <div class="reply-card" id="comment-card-${rep.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${rep.initials || 'UR'}</div>
-              <span class="comment-author-name" style="font-size:0.82rem;">${rep.autor_nombre}</span>
+              <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${safeInitials}</div>
+              <span class="comment-author-name" style="font-size:0.82rem;">${safeAuthor}</span>
             </a>
           </div>
-          <span class="comment-timestamp">${rep.tiempo}</span>
+          <span class="comment-timestamp">${safeTime}</span>
         </div>
-        <p class="comment-body-text" id="comment-text-${rep.id}" style="font-size:0.84rem;">${rep.texto}</p>
+        <p class="comment-body-text" id="comment-text-${rep.id}" style="font-size:0.84rem;">${safeText}</p>
         <div class="comment-actions-bar">
           <button type="button" class="comment-act-btn comment-like-btn" data-comment-id="${rep.id}" data-type="LIKE" title="Me gusta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1137,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </svg>
                 <span>Editar</span>
               </button>
-              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${rep.id}" data-post-id="${postId}" data-author="${rep.autor_nombre}">
+              <button type="button" class="comment-menu-item text-danger btn-action-delete-comment" data-comment-id="${rep.id}" data-post-id="${postId}" data-author="${safeAuthor}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -1167,12 +1175,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const activityContainer = document.getElementById('activity-list-container');
   const feedStreamContainer = document.getElementById('feed-posts-stream');
 
-  // Escapar texto para evitar inyección al construir HTML de la actividad
+  // Escapar texto y atributos para evitar inyección HTML/XSS
   function escapeHtml(str) {
     if (str == null) return '';
-    const div = document.createElement('div');
-    div.textContent = String(str);
-    return div.innerHTML;
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // Construye el nodo DOM de un item de actividad a partir de un objeto {id, titulo, tiempo, tipo, publicacion_id}

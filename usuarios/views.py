@@ -258,22 +258,22 @@ def perfil_view(request, username=None):
     total_publicaciones = len(publicaciones_propias)
 
     # Reposteos del usuario del perfil (publicaciones que él reposteó), en orden de reposteo
-    reposteos_qs = Reposteo.objects.filter(usuario=usuario).select_related('publicacion').order_by('-fecha_creacion')
+    reposteos_qs = Reposteo.objects.filter(usuario=usuario).order_by('-fecha_creacion')
     total_reposteos = reposteos_qs.count()
     publicaciones_reposteadas = []
-    for rp in reposteos_qs:
-        pub = rp.publicacion
-        pub.reposteado_por_perfil = True  # marca para mostrar la etiqueta "Reposteó"
-        publicaciones_reposteadas.append(pub)
-    # Prefetch de comentarios/autor para las reposteadas
-    if publicaciones_reposteadas:
-        ids = [p.id for p in publicaciones_reposteadas]
-        cache = {p.id: p for p in Publicacion.objects.filter(id__in=ids).select_related('autor').prefetch_related(*_prefetch)}
-        publicaciones_reposteadas = []
-        for rp in reposteos_qs:
+    if tab == 'reposteos' and total_reposteos > 0:
+        reposteos_list = list(reposteos_qs)
+        ids = [rp.publicacion_id for rp in reposteos_list]
+        cache = {
+            p.id: p
+            for p in Publicacion.objects.filter(id__in=ids)
+            .select_related('autor')
+            .prefetch_related(*_prefetch)
+        }
+        for rp in reposteos_list:
             p = cache.get(rp.publicacion_id)
             if p:
-                p.reposteado_por_perfil = True
+                p.reposteado_por_perfil = True  # marca para mostrar la etiqueta "Reposteó"
                 publicaciones_reposteadas.append(p)
 
     # Lista que se mostrará según la pestaña
@@ -316,7 +316,7 @@ def perfil_view(request, username=None):
 
     nombre_completo = f"{usuario.first_name} {usuario.last_name}".strip() or usuario.username
 
-    confianza = usuario.nivel_confianza()
+    confianza = usuario.nivel_confianza(total=total_publicaciones, resueltos=total_resueltas)
 
     context = {
         'perfil_usuario': usuario,
@@ -402,19 +402,21 @@ UBICACIONES_MEDELLIN = [
 ]
 
 
-def _serializar_usuario_relacion(u, viewer):
+def _serializar_usuario_relacion(u, viewer, seguidos_ids=None):
     """Datos mínimos de un usuario para las listas de seguidores/seguidos."""
+    from django.urls import reverse
     nombre = f"{u.first_name} {u.last_name}".strip() or u.username
+    lo_sigo = (u.id in seguidos_ids) if seguidos_ids is not None else viewer.sigue_a(u)
     return {
         'username': u.username,
         'nombre': nombre,
         'iniciales': (nombre[:2].upper() or 'UR'),
         'avatar_url': u.avatar.url if u.avatar else None,
         'rol': u.get_rol_display(),
-        'perfil_url': f'/perfil/{u.username}/',
-        'seguir_url': f'/perfil/{u.username}/seguir/',
-        'lo_sigo': viewer.sigue_a(u),
-        'es_yo': (u == viewer),
+        'perfil_url': reverse('perfil_usuario', args=[u.username]),
+        'seguir_url': reverse('toggle_seguir', args=[u.username]),
+        'lo_sigo': lo_sigo,
+        'es_yo': (u.id == viewer.id),
     }
 
 
@@ -422,9 +424,14 @@ def _serializar_usuario_relacion(u, viewer):
 def lista_seguidores_ajax(request, username):
     """Devuelve la lista de usuarios que siguen a <username> (estilo Instagram)."""
     from django.shortcuts import get_object_or_404
+    from .models import Seguimiento
     usuario = get_object_or_404(Usuario, username=username)
-    seguidores = usuario.seguidores.all().order_by('username')
-    data = [_serializar_usuario_relacion(u, request.user) for u in seguidores]
+    seguidores = list(usuario.seguidores.all().order_by('username'))
+    seguidos_ids = set(
+        Seguimiento.objects.filter(seguidor=request.user, seguido__in=seguidores)
+        .values_list('seguido_id', flat=True)
+    ) if seguidores else set()
+    data = [_serializar_usuario_relacion(u, request.user, seguidos_ids) for u in seguidores]
     return JsonResponse({'status': 'ok', 'titulo': 'Seguidores', 'usuarios': data})
 
 
@@ -432,9 +439,14 @@ def lista_seguidores_ajax(request, username):
 def lista_seguidos_ajax(request, username):
     """Devuelve la lista de usuarios que <username> sigue (estilo Instagram)."""
     from django.shortcuts import get_object_or_404
+    from .models import Seguimiento
     usuario = get_object_or_404(Usuario, username=username)
-    seguidos = usuario.seguidos.all().order_by('username')
-    data = [_serializar_usuario_relacion(u, request.user) for u in seguidos]
+    seguidos = list(usuario.seguidos.all().order_by('username'))
+    seguidos_ids = set(
+        Seguimiento.objects.filter(seguidor=request.user, seguido__in=seguidos)
+        .values_list('seguido_id', flat=True)
+    ) if seguidos else set()
+    data = [_serializar_usuario_relacion(u, request.user, seguidos_ids) for u in seguidos]
     return JsonResponse({'status': 'ok', 'titulo': 'Seguidos', 'usuarios': data})
 
 

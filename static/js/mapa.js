@@ -28,7 +28,20 @@
     ALUMBRADO: 'Alumbrado',
     PARQUES: 'Parques',
     INFRAESTRUCTURA: 'Infraestructura',
+    REDES: 'Redes y Telecom.',
+    ASEO: 'Aseo y Basuras',
+    OTROS: 'Otros',
   };
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // ── Base de datos de barrios, comunas, avenidas y lugares clave de Medellín ──
   const MEDELLIN_BARRIOS = {
@@ -133,36 +146,38 @@
   // ── Build popup HTML para incidencias ──
   function buildPopupHTML(inc) {
     const estado = inc.estado || 'REPORTADO';
-    const statusClass = 'status-' + estado.toLowerCase();
-    const catName = CATEGORY_NAMES[inc.categoria] || inc.categoria_display || inc.categoria || 'Incidente';
+    const statusClass = 'status-' + escapeHtml(estado.toLowerCase());
+    const catName = escapeHtml(CATEGORY_NAMES[inc.categoria] || inc.categoria_display || inc.categoria || 'Incidente');
+    const rawContent = String(inc.contenido || '');
+    const snippet = escapeHtml(rawContent.substring(0, 140) + (rawContent.length > 140 ? '...' : ''));
 
     let imgHtml = '';
     if (inc.imagen_url) {
       imgHtml = '<div style="margin: 8px 0; border-radius: 6px; overflow: hidden; max-height: 140px; background: #0c0f15;">' +
-        '<img src="' + inc.imagen_url + '" alt="Evidencia" style="width: 100%; height: auto; display: block; object-fit: cover;">' +
+        '<img src="' + escapeHtml(inc.imagen_url) + '" alt="Evidencia" loading="lazy" decoding="async" style="width: 100%; height: auto; display: block; object-fit: cover;">' +
       '</div>';
     }
 
     return (
       '<div class="popup-card">' +
         '<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">' +
-          '<span class="popup-status ' + statusClass + '">' + (inc.estado_display || estado) + '</span>' +
+          '<span class="popup-status ' + statusClass + '">' + escapeHtml(inc.estado_display || estado) + '</span>' +
           '<span style="font-size: 0.72rem; padding: 2px 6px; background: #1e293b; color: #93c5fd; border-radius: 4px; font-weight: 600;">' + catName + '</span>' +
         '</div>' +
-        (inc.titulo ? '<div style="font-weight: 700; color: #ffffff; font-size: 0.95rem; margin-bottom: 4px;">' + inc.titulo + '</div>' : '') +
+        (inc.titulo ? '<div style="font-weight: 700; color: #ffffff; font-size: 0.95rem; margin-bottom: 4px;">' + escapeHtml(inc.titulo) + '</div>' : '') +
         (inc.ubicacion
           ? '<div class="popup-location">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
-              inc.ubicacion +
+              escapeHtml(inc.ubicacion) +
             '</div>'
           : '') +
         imgHtml +
-        '<p class="popup-content-text">' + inc.contenido.substring(0, 140) + (inc.contenido.length > 140 ? '...' : '') + '</p>' +
+        '<p class="popup-content-text">' + snippet + '</p>' +
         '<div class="popup-meta">' +
-          '<span class="popup-author">' + inc.autor + '</span>' +
-          '<span>' + (inc.tiempo || 'Hace un momento') + '</span>' +
-          '<span>❤ ' + (inc.likes || 0) + '</span>' +
-          '<span>💬 ' + (inc.comentarios || 0) + '</span>' +
+          '<span class="popup-author">' + escapeHtml(inc.autor) + '</span>' +
+          '<span>' + escapeHtml(inc.tiempo || 'Hace un momento') + '</span>' +
+          '<span>❤ ' + (Number(inc.likes) || 0) + '</span>' +
+          '<span>💬 ' + (Number(inc.comentarios) || 0) + '</span>' +
         '</div>' +
       '</div>'
     );
@@ -286,9 +301,11 @@
     }
   });
 
-  // ── Polling en segundo plano cada 12 segundos ──
+  // ── Polling en segundo plano cada 12 segundos (solo si la pestaña está visible) ──
   setInterval(function () {
-    loadIncidents(activeEstado);
+    if (!document.hidden) {
+      loadIncidents(activeEstado);
+    }
   }, 12000);
 
   // ── Botones de Filtro (Todos, Pendientes, En Revisión, Resueltas) ──
@@ -341,15 +358,18 @@
       icon: createSearchPinIcon(),
     });
 
+    const safeName = escapeHtml(name);
+    const safeSub = escapeHtml(sub);
+    const jsSafeName = escapeHtml(String(name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
     const popupHtml = (
       '<div style="font-family: inherit; padding: 4px;">' +
         '<div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">' +
           '<span style="font-size:0.72rem; padding:2px 7px; background:#1e293b; color:#38bdf8; border-radius:4px; font-weight:700;">DIRECCIÓN ENCONTRADA</span>' +
         '</div>' +
-        '<div style="font-weight:700; color:#ffffff; font-size:0.95rem; margin-bottom:4px;">' + name + '</div>' +
-        (sub ? '<div style="color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">' + sub + '</div>' : '') +
+        '<div style="font-weight:700; color:#ffffff; font-size:0.95rem; margin-bottom:4px;">' + safeName + '</div>' +
+        (sub ? '<div style="color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">' + safeSub + '</div>' : '') +
         '<button type="button" class="btn-primary" style="width:100%; font-size:0.8rem; padding:8px 12px; border-radius:6px; cursor:pointer;" ' +
-          'onclick="if(window.openRadicarModal){window.openRadicarModal(); if(document.getElementById(\'radicarLat\')) document.getElementById(\'radicarLat\').value=\'' + Number(lat).toFixed(7) + '\'; if(document.getElementById(\'radicarLng\')) document.getElementById(\'radicarLng\').value=\'' + Number(lng).toFixed(7) + '\'; if(document.getElementById(\'radicarUbicacion\')) document.getElementById(\'radicarUbicacion\').value=\'' + name.replace(/'/g, "\\'") + '\';}">' +
+          'onclick="if(window.openRadicarModal){window.openRadicarModal(); if(document.getElementById(\'radicarLat\')) document.getElementById(\'radicarLat\').value=\'' + Number(lat).toFixed(7) + '\'; if(document.getElementById(\'radicarLng\')) document.getElementById(\'radicarLng\').value=\'' + Number(lng).toFixed(7) + '\'; if(document.getElementById(\'radicarUbicacion\')) document.getElementById(\'radicarUbicacion\').value=\'' + jsSafeName + '\';}">' +
           '+ Reportar Incidente Aquí' +
         '</button>' +
       '</div>'
@@ -499,7 +519,7 @@
     if (!results || results.length === 0) {
       searchDropdown.innerHTML = (
         '<div style="padding: 12px; font-size: 0.82rem; color: #94a3b8; text-align: center;">' +
-          'Presiona Enter para buscar "' + query + '" en Medellín' +
+          'Presiona Enter para buscar "' + escapeHtml(query) + '" en Medellín' +
         '</div>'
       );
       searchDropdown.style.display = 'flex';
@@ -516,10 +536,10 @@
         '<div class="mapa-search-item" data-index="' + index + '">' +
           iconSvg +
           '<div class="mapa-search-item-texts">' +
-            '<span class="mapa-search-item-title">' + item.name + '</span>' +
-            '<span class="mapa-search-item-sub">' + item.sub + '</span>' +
+            '<span class="mapa-search-item-title">' + escapeHtml(item.name) + '</span>' +
+            '<span class="mapa-search-item-sub">' + escapeHtml(item.sub) + '</span>' +
           '</div>' +
-          '<span class="mapa-search-item-badge">' + item.badge + '</span>' +
+          '<span class="mapa-search-item-badge">' + escapeHtml(item.badge) + '</span>' +
         '</div>'
       );
     });

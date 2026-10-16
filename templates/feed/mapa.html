@@ -4,9 +4,9 @@
 {% block title %}Mapa de Incidentes | UrbanReport{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/portal.css' %}?v={% now 'U' %}">
-<link rel="stylesheet" href="{% static 'css/mapa.css' %}?v={% now 'U' %}">
-<link rel="stylesheet" href="{% static 'css/modal_radicar.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/portal.css' %}">
+<link rel="stylesheet" href="{% static 'css/mapa.css' %}">
+<link rel="stylesheet" href="{% static 'css/modal_radicar.css' %}">
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -94,11 +94,11 @@
 
 {% block extra_js %}
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
-<script src="{% static 'js/mapa.js' %}?v={% now 'U' %}"></script>
-<script src="{% static 'js/modal_radicar.js' %}?v={% now 'U' %}"></script>
+<script defer src="{% static 'js/mapa.js' %}"></script>
+<script defer src="{% static 'js/modal_radicar.js' %}"></script>
 
 <!-- Menú lateral móvil (drawer): mismo comportamiento que en el resto del portal -->
 <script>

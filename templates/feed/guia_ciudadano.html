@@ -8,7 +8,7 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'css/guia.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/guia.css' %}">
 {% endblock %}
 
 {% block portal_content %}
@@ -46,7 +46,7 @@
     <ol class="guia-steps">
       <li>Pulsa el botón <strong>«Reportar Incidente»</strong> en el menú lateral.</li>
       <li>Escribe un <strong>título</strong> claro y una <strong>descripción</strong> detallada del problema.</li>
-      <li>Elige la <strong>categoría</strong>: Vías, Alumbrado, Parques o Infraestructura.</li>
+      <li>Elige la <strong>categoría</strong>: Vías, Alumbrado, Parques, Infraestructura, Redes y Servicios, Aseo y Basuras u Otros.</li>
       <li>Indica la <strong>ubicación</strong> en el mapa y, si puedes, adjunta una <strong>foto</strong> como evidencia.</li>
       <li>Envía el reporte. Aparecerá en el feed de la comunidad y en el mapa.</li>
     </ol>

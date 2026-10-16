@@ -11,7 +11,7 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}">
 {% endblock %}
 
 {% block portal_content %}
@@ -157,5 +157,5 @@
 {{ block.super }}
 <!-- Chart.js desde CDN (defer para no bloquear el render) -->
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script defer src="{% static 'js/panel_admin.js' %}?v={% now 'U' %}"></script>
+<script defer src="{% static 'js/panel_admin.js' %}"></script>
 {% endblock %}

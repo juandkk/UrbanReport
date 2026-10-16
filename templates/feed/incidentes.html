@@ -9,8 +9,8 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}?v={% now 'U' %}">
-<link rel="stylesheet" href="{% static 'css/incidentes.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}">
+<link rel="stylesheet" href="{% static 'css/incidentes.css' %}">
 {% endblock %}
 
 {% block portal_content %}
@@ -202,5 +202,5 @@
 
 {% block extra_js %}
 {{ block.super }}
-<script defer src="{% static 'js/incidentes.js' %}?v={% now 'U' %}"></script>
+<script defer src="{% static 'js/incidentes.js' %}"></script>
 {% endblock %}

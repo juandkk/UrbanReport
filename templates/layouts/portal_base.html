@@ -2,8 +2,8 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/portal.css' %}?v={% now 'U' %}">
-<link rel="stylesheet" href="{% static 'css/modal_radicar.css' %}?v={% now 'U' %}">
+<link rel="stylesheet" href="{% static 'css/portal.css' %}">
+<link rel="stylesheet" href="{% static 'css/modal_radicar.css' %}">
 <!-- Preconecta al CDN de Leaflet para acelerar su descarga -->
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <!-- Leaflet CSS (carga no bloqueante: no retrasa el render del feed/widgets) -->
@@ -75,8 +75,8 @@
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
-<script defer src="{% static 'js/feed.js' %}?v={% now 'U' %}"></script>
-<script defer src="{% static 'js/modal_radicar.js' %}?v={% now 'U' %}"></script>
+<script defer src="{% static 'js/feed.js' %}"></script>
+<script defer src="{% static 'js/modal_radicar.js' %}"></script>
 
 <!-- Menú lateral móvil (drawer): abre/cierra el sidebar en pantallas pequeñas -->
 <script>

@@ -75,7 +75,7 @@ class Usuario(AbstractUser):
             return False
         return Seguimiento.objects.filter(seguidor=self, seguido=otro_usuario).exists()
 
-    def nivel_confianza(self):
+    def nivel_confianza(self, total=None, resueltos=None):
         """
         Calcula el nivel de confianza del usuario a partir de su historial de
         reportes: cuántos ha hecho y qué proporción se ha resuelto. Un mayor
@@ -87,14 +87,20 @@ class Usuario(AbstractUser):
           - 'resueltos': reportes marcados como resueltos
           - 'tasa': porcentaje de resolución (0-100)
         """
-        # Import local para evitar dependencia circular entre apps
-        from feed.models import Publicacion
+        if total is None or resueltos is None:
+            # Import local para evitar dependencia circular entre apps
+            from feed.models import Publicacion
 
-        reportes = Publicacion.objects.filter(autor=self)
-        total = reportes.count()
-        resueltos = reportes.filter(
-            estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA
-        ).count()
+            agregados = Publicacion.objects.filter(autor=self).aggregate(
+                total=models.Count('id'),
+                resueltos=models.Count(
+                    'id',
+                    filter=models.Q(estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA),
+                ),
+            )
+            total = agregados['total'] or 0
+            resueltos = agregados['resueltos'] or 0
+
         tasa = round((resueltos / total) * 100) if total else 0
 
         if total == 0:
