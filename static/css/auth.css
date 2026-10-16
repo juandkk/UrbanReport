@@ -26,15 +26,15 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: -6px;
-  bottom: 6px;
+  top: 0;
+  bottom: 0;
   background-image: 
     linear-gradient(to right, transparent 90%, #05070a 90%),
-    url("../img/logo_login.png");
+    url("../img/logo_login.jpg");
   background-size: cover;
   background-position: center left;
   mix-blend-mode: luminosity;
-  opacity: 0.4;
+  opacity: 0.45;
   flex: none;
   order: 0;
   flex-grow: 0;
