@@ -1265,6 +1265,12 @@
   font-size: 0.72rem;
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.comment-avatar-img {
+  object-fit: cover;
+  display: block;
 }
 
 .comment-author-name {

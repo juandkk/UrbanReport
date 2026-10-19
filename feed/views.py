@@ -839,6 +839,7 @@ def agregar_comentario_ajax(request, publicacion_id):
             'id': comentario.id,
             'autor_nombre': comentario.nombre_autor,
             'initials': initials,
+            'avatar_url': autor.avatar.url if getattr(autor, 'avatar', None) else None,
             'texto': comentario.texto,
             'imagen_url': comentario.imagen.url if comentario.imagen else None,
             'tiempo': 'Hace un momento',

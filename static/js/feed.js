@@ -1216,6 +1216,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeTime = escapeHtml(c.tiempo);
     const safeText = escapeHtml(c.texto);
     const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
+    const avatarHtml = c.avatar_url
+      ? `<img src="${escapeHtml(c.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" loading="lazy" decoding="async">`
+      : `<div class="comment-avatar-circle">${safeInitials}</div>`;
     const mediaHtml = c.imagen_url
       ? `<div class="comment-media-container is-expandable-media" id="comment-media-${c.id}" title="Haz clic para ampliar la imagen" role="button" tabindex="0">
            <img src="${escapeHtml(c.imagen_url)}" alt="Imagen de comentario" class="comment-media-img post-media-img" loading="lazy" decoding="async">
@@ -1226,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle">${safeInitials}</div>
+              ${avatarHtml}
               <span class="comment-author-name">${safeAuthor}</span>
             </a>
           </div>
@@ -1288,6 +1291,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeTime = escapeHtml(rep.tiempo);
     const safeText = escapeHtml(rep.texto);
     const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
+    const avatarHtml = rep.avatar_url
+      ? `<img src="${escapeHtml(rep.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" style="width:22px; height:22px;" loading="lazy" decoding="async">`
+      : `<div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${safeInitials}</div>`;
     const mediaHtml = rep.imagen_url
       ? `<div class="comment-media-container is-expandable-media" id="comment-media-${rep.id}" title="Haz clic para ampliar la imagen" role="button" tabindex="0">
            <img src="${escapeHtml(rep.imagen_url)}" alt="Imagen de respuesta" class="comment-media-img post-media-img" loading="lazy" decoding="async">
@@ -1298,7 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${safeInitials}</div>
+              ${avatarHtml}
               <span class="comment-author-name" style="font-size:0.82rem;">${safeAuthor}</span>
             </a>
           </div>

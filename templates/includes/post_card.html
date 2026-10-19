@@ -384,7 +384,11 @@
         <div class="comment-header">
           <div class="comment-author-wrap">
             {% if com.autor %}<a class="comment-author-link" href="{% if com.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' com.autor.username %}{% endif %}" title="Ver perfil de {{ com.nombre_autor }}">{% endif %}
+            {% if com.autor and com.autor.avatar %}
+            <img src="{{ com.autor.avatar.url }}" alt="{{ com.nombre_autor }}" class="comment-avatar-circle comment-avatar-img" loading="lazy" decoding="async">
+            {% else %}
             <div class="comment-avatar-circle">{{ com.nombre_autor|slice:":2"|upper }}</div>
+            {% endif %}
             <span class="comment-author-name">{{ com.nombre_autor }}</span>
             {% if com.autor %}</a>{% endif %}
           </div>
@@ -530,7 +534,11 @@
             <div class="comment-header">
               <div class="comment-author-wrap">
                 {% if rep.autor %}<a class="comment-author-link" href="{% if rep.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' rep.autor.username %}{% endif %}" title="Ver perfil de {{ rep.nombre_autor }}">{% endif %}
+                {% if rep.autor and rep.autor.avatar %}
+                <img src="{{ rep.autor.avatar.url }}" alt="{{ rep.nombre_autor }}" class="comment-avatar-circle comment-avatar-img" style="width:22px; height:22px;" loading="lazy" decoding="async">
+                {% else %}
                 <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.nombre_autor|slice:":2"|upper }}</div>
+                {% endif %}
                 <span class="comment-author-name" style="font-size:0.82rem;">{{ rep.nombre_autor }}</span>
                 {% if rep.autor %}</a>{% endif %}
               </div>
