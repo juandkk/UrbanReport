@@ -106,3 +106,131 @@ class UsuariosModelAndMiddlewareTest(TestCase):
         self.assertContains(resp, 'id="recoveryDisabledNotice"')
         self.assertContains(resp, 'Servicio temporalmente fuera de servicio')
 
+    def test_ciudadano_puede_eliminar_su_cuenta(self):
+        """El ciudadano puede eliminar su cuenta desde Configuración confirmando con 'ELIMINAR'."""
+        self.client.force_login(self.user_completo)
+        Publicacion.objects.create(
+            autor=self.user_completo,
+            autor_nombre='Ciudadano OK',
+            contenido='Reporte antes de borrar cuenta',
+        )
+
+        # Sin confirmación válida no borra la cuenta
+        resp_fail = self.client.post(
+            reverse('eliminar_cuenta'),
+            {'confirmacion': 'cancelar'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(resp_fail.status_code, 400)
+        self.assertTrue(Usuario.objects.filter(pk=self.user_completo.pk).exists())
+
+        # Con confirmación exacta 'ELIMINAR' borra la cuenta y sus publicaciones y redirige a login
+        user_id = self.user_completo.pk
+        resp_ok = self.client.post(reverse('eliminar_cuenta'), {'confirmacion': 'ELIMINAR'})
+        self.assertEqual(resp_ok.status_code, 302)
+        self.assertIn(reverse('login'), resp_ok['Location'])
+        self.assertFalse(Usuario.objects.filter(pk=user_id).exists())
+        self.assertEqual(Publicacion.objects.filter(autor_id=user_id).count(), 0)
+
+    def test_estado_en_linea_y_ultima_conexion_administradores(self):
+        """La tabla de administradores refleja correctamente quién está en línea, desconectado o sin acceso."""
+        from django.test import Client
+
+        admin1 = Usuario.objects.create_user(
+            username='admin_activo',
+            email='admin1@test.com',
+            password='Password123',
+            rol=Usuario.Rol.ADMINISTRADOR,
+            is_staff=True,
+            telefono='3001112233',
+            direccion='Calle 1',
+            barrio_vereda='Centro',
+            codigo_postal='050001',
+        )
+        admin2 = Usuario.objects.create_user(
+            username='admin_otro',
+            email='admin2@test.com',
+            password='Password123',
+            rol=Usuario.Rol.ADMINISTRADOR,
+            is_staff=True,
+            telefono='3001112234',
+            direccion='Calle 2',
+            barrio_vereda='Centro',
+            codigo_postal='050001',
+        )
+        admin_nuevo = Usuario.objects.create_user(
+            username='admin_sin_login',
+            email='admin3@test.com',
+            password='Password123',
+            rol=Usuario.Rol.ADMINISTRADOR,
+            is_staff=True,
+        )
+
+        client1 = Client()
+        client2 = Client()
+        client1.force_login(admin1)
+        client2.force_login(admin2)
+
+        # Ambos tienen sesión activa y acaban de iniciar sesión -> ambos en línea
+        r = client1.get(reverse('estado_administradores'))
+        self.assertEqual(r.status_code, 200)
+        mapa = {a['username']: a for a in r.json()['administradores']}
+        self.assertTrue(mapa['admin_activo']['en_linea'])
+        self.assertEqual(mapa['admin_activo']['ultimo_acceso'], 'Ahora mismo')
+        self.assertTrue(mapa['admin_otro']['en_linea'])
+        self.assertFalse(mapa['admin_sin_login']['en_linea'])
+        self.assertEqual(mapa['admin_sin_login']['ultimo_acceso'], 'Nunca')
+
+        # Cuando admin2 cierra sesión, pasa inmediatamente a Inactivo conservando su última conexión
+        client2.get(reverse('logout'))
+        r2 = client1.get(reverse('estado_administradores'))
+        mapa2 = {a['username']: a for a in r2.json()['administradores']}
+        self.assertFalse(mapa2['admin_otro']['en_linea'])
+        self.assertNotEqual(mapa2['admin_otro']['ultimo_acceso'], 'Nunca')
+
+    def test_modo_mantenimiento_bloquea_ciudadanos_y_permite_admins(self):
+        """Cuando modo_mantenimiento está activo, ciudadanos reciben 503 y los admins operan normalmente."""
+        from django.test import Client
+        from usuarios.models import ConfiguracionSistema
+
+        admin = Usuario.objects.create_user(
+            username='admin_maint',
+            email='maint@test.com',
+            password='Password123',
+            rol=Usuario.Rol.ADMINISTRADOR,
+            is_staff=True,
+            telefono='3009998877',
+            direccion='Cra 50',
+            barrio_vereda='Laureles',
+            codigo_postal='050030',
+        )
+
+        admin_client = Client()
+        admin_client.force_login(admin)
+
+        # Activar modo mantenimiento vía AJAX
+        resp_toggle = admin_client.post(reverse('toggle_modo_mantenimiento'), {'activar': 'on'})
+        self.assertEqual(resp_toggle.status_code, 200)
+        self.assertTrue(ConfiguracionSistema.esta_en_mantenimiento())
+
+        # Ciudadano autenticado recibe 503 en vistas HTML y JSON en endpoints AJAX
+        ciu_client = Client()
+        ciu_client.force_login(self.user_completo)
+        resp_feed = ciu_client.get(reverse('feed_comunitario'))
+        self.assertEqual(resp_feed.status_code, 503)
+        self.assertContains(resp_feed, 'Sistema en mantenimiento', status_code=503)
+
+        resp_api = ciu_client.get(reverse('api_incidentes_mapa'), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp_api.status_code, 503)
+        self.assertTrue(resp_api.json().get('modo_mantenimiento'))
+
+        # El administrador sí puede navegar normalmente por el feed y configuración
+        self.assertEqual(admin_client.get(reverse('feed_comunitario')).status_code, 200)
+        self.assertEqual(admin_client.get(reverse('configuracion_admin')).status_code, 200)
+
+        # Desactivar modo mantenimiento restaura el acceso al ciudadano
+        admin_client.post(reverse('toggle_modo_mantenimiento'), {'activar': ''})
+        self.assertFalse(ConfiguracionSistema.esta_en_mantenimiento())
+        self.assertEqual(ciu_client.get(reverse('feed_comunitario')).status_code, 200)
+
+

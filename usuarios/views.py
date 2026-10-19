@@ -46,9 +46,12 @@ def recuperar_contrasena_enviado_view(request):
 
 
 def login_view(request):
+    en_mantenimiento = ConfiguracionSistema.esta_en_mantenimiento()
     if request.user.is_authenticated:
-        if request.user.rol == Usuario.Rol.ADMINISTRADOR or request.user.is_staff or request.user.is_superuser:
+        if _es_administrador(request.user):
             return redirect('panel_administrador')
+        if en_mantenimiento:
+            return render(request, 'usuarios/mantenimiento.html', status=503)
         return redirect('feed_comunitario')
 
     if request.method == 'POST':
@@ -69,15 +72,22 @@ def login_view(request):
                     user = None
 
             if user is not None:
-                login(request, user)
-                if not recordarme:
-                    request.session.set_expiry(0)
+                # Si el sistema está en modo mantenimiento, solo los administradores pueden ingresar
+                if en_mantenimiento and not _es_administrador(user):
+                    messages.error(
+                        request,
+                        'El sistema se encuentra en modo mantenimiento. El acceso para ciudadanos está suspendido temporalmente.',
+                    )
                 else:
-                    request.session.set_expiry(1209600)  # 2 semanas
-                # Redirigir según el rol del usuario
-                if user.rol == Usuario.Rol.ADMINISTRADOR or user.is_staff or user.is_superuser:
-                    return redirect('panel_administrador')
-                return redirect('feed_comunitario')
+                    login(request, user)
+                    if not recordarme:
+                        request.session.set_expiry(0)
+                    else:
+                        request.session.set_expiry(1209600)  # 2 semanas
+                    # Redirigir según el rol del usuario
+                    if _es_administrador(user):
+                        return redirect('panel_administrador')
+                    return redirect('feed_comunitario')
             else:
                 messages.error(request, 'Credenciales incorrectas. Verifica tu correo y contraseña.')
     else:
@@ -85,7 +95,8 @@ def login_view(request):
 
     return render(request, 'usuarios/login.html', {
         'form': form,
-        'active_tab': 'login'
+        'active_tab': 'login',
+        'modo_mantenimiento': en_mantenimiento,
     })
 
 
@@ -145,6 +156,9 @@ def registro_view(request):
 
 
 def logout_view(request):
+    if request.user.is_authenticated:
+        # Registrar el instante exacto de desconexión para reflejar "Último Acceso" real
+        Usuario.objects.filter(pk=request.user.pk).update(last_login=timezone.now())
     logout(request)
     return redirect('login')
 
@@ -213,6 +227,63 @@ def configuracion_view(request):
     return render(request, 'usuarios/configuracion.html', context)
 
 
+@login_required
+@require_POST
+def eliminar_cuenta_view(request):
+    """
+    Elimina permanentemente la cuenta del ciudadano autenticado.
+    - Exclusivo para cuentas de ciudadano (los administradores no pueden borrarse desde aquí).
+    - Exige confirmación explícita escribiendo 'ELIMINAR'.
+    - Limpia archivos multimedia (avatar e imágenes de publicaciones propias) antes de eliminar.
+    - Cierra la sesión y elimina el usuario dentro de una transacción atómica.
+    """
+    from django.urls import reverse
+    from feed.models import Publicacion
+
+    es_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    usuario = request.user
+
+    if _es_administrador(usuario):
+        msg = 'Las cuentas de administrador no pueden eliminarse desde esta sección.'
+        if es_ajax:
+            return JsonResponse({'status': 'error', 'message': msg}, status=403)
+        messages.error(request, msg)
+        return redirect('configuracion_admin')
+
+    confirmacion = (request.POST.get('confirmacion') or '').strip()
+    if confirmacion != 'ELIMINAR':
+        msg = 'Debes escribir exactamente «ELIMINAR» para confirmar la eliminación de tu cuenta.'
+        if es_ajax:
+            return JsonResponse({'status': 'error', 'message': msg}, status=400)
+        messages.error(request, msg)
+        return redirect('configuracion')
+
+    try:
+        with transaction.atomic():
+            for pub in Publicacion.objects.filter(autor=usuario).only('imagen'):
+                if pub.imagen:
+                    pub.imagen.delete(save=False)
+            if usuario.avatar:
+                usuario.avatar.delete(save=False)
+            logout(request)
+            usuario.delete()
+    except Exception:
+        msg = 'Ocurrió un error al intentar eliminar la cuenta. Inténtalo de nuevo.'
+        if es_ajax:
+            return JsonResponse({'status': 'error', 'message': msg}, status=500)
+        messages.error(request, msg)
+        return redirect('configuracion')
+
+    messages.success(request, 'Tu cuenta ha sido eliminada permanentemente.')
+    if es_ajax:
+        return JsonResponse({
+            'status': 'ok',
+            'message': 'Tu cuenta ha sido eliminada permanentemente.',
+            'redirect_url': reverse('login'),
+        })
+    return redirect('login')
+
+
 # ==========================================================================
 # Configuración del ADMINISTRADOR
 # ==========================================================================
@@ -223,8 +294,6 @@ def _tiempo_relativo(dt):
         return 'Nunca'
     delta = timezone.now() - dt
     segundos = int(delta.total_seconds())
-    if segundos < 0:
-        return 'Hace un momento'
     if segundos < 60:
         return 'Hace un momento'
     minutos = segundos // 60
@@ -237,35 +306,89 @@ def _tiempo_relativo(dt):
     return f'Hace {dias} d'
 
 
-def _listar_administradores():
+def _ids_usuarios_con_sesion_activa():
+    """Devuelve el conjunto de IDs (int) de usuarios con al menos una sesión activa no expirada."""
+    from django.contrib.sessions.models import Session
+    ids = set()
+    ahora = timezone.now()
+    for sesion in Session.objects.filter(expire_date__gt=ahora).only('session_data'):
+        try:
+            datos = sesion.get_decoded()
+            uid = datos.get('_auth_user_id')
+            if uid is not None:
+                ids.add(int(uid))
+        except Exception:
+            continue
+    return ids
+
+
+def _formatear_ultimo_acceso(dt, en_linea=False):
+    """
+    Devuelve una tupla (etiqueta_relativa, fecha_exacta) para la última conexión del administrador.
+    """
+    if not dt:
+        return ('Nunca', 'Sin conexiones registradas')
+    fecha_local = timezone.localtime(dt).strftime('%d/%m/%Y %H:%M')
+    segundos = int((timezone.now() - dt).total_seconds())
+    if en_linea and segundos < 60:
+        return ('Ahora mismo', fecha_local)
+    return (_tiempo_relativo(dt), fecha_local)
+
+
+def _serializar_admin_estado(admin_user, sesiones_activas=None, usuario_actual=None, ahora=None):
+    """Construye la fila de estado de conexión y metadatos de un administrador."""
+    if ahora is None:
+        ahora = timezone.now()
+    if sesiones_activas is None:
+        sesiones_activas = _ids_usuarios_con_sesion_activa()
+
+    es_actual = bool(usuario_actual and admin_user.id == usuario_actual.id)
+    tiene_sesion = es_actual or (admin_user.id in sesiones_activas)
+    ultimo_dt = ahora if es_actual else admin_user.last_login
+    actividad_reciente = bool(ultimo_dt and (ahora - ultimo_dt).total_seconds() <= 300)
+    en_linea = bool(tiene_sesion and actividad_reciente)
+
+    ultimo_acceso, ultimo_acceso_fecha = _formatear_ultimo_acceso(ultimo_dt, en_linea=en_linea)
+    nombre = f"{admin_user.first_name} {admin_user.last_name}".strip() or admin_user.username
+    rol_label = 'Super Admin' if admin_user.is_superuser else 'Administrador'
+
+    return {
+        'id': admin_user.id,
+        'username': admin_user.username,
+        'nombre': nombre,
+        'rol_label': rol_label,
+        'ultimo_acceso': ultimo_acceso,
+        'ultimo_acceso_fecha': ultimo_acceso_fecha,
+        'en_linea': en_linea,
+        'es_superuser': admin_user.is_superuser,
+        'es_actual': es_actual,
+    }
+
+
+def _listar_administradores(usuario_actual=None):
     """
     Lista de administradores activos para la tabla inferior de la vista.
     Criterio de admin: rol ADMINISTRADOR o is_staff o is_superuser.
-    'En línea' si tuvo actividad en los últimos 5 minutos.
+    'En línea' si posee sesión activa y tuvo actividad en los últimos 5 minutos.
     """
     from django.db.models import Q
-    admins = Usuario.objects.filter(
-        Q(rol=Usuario.Rol.ADMINISTRADOR) | Q(is_staff=True) | Q(is_superuser=True)
-    ).distinct().order_by('-last_login')
-
     ahora = timezone.now()
-    filas = []
-    for a in admins:
-        nombre = f"{a.first_name} {a.last_name}".strip() or a.username
-        if a.is_superuser:
-            rol_label = 'Super Admin'
-        else:
-            rol_label = 'Administrador'
-        en_linea = bool(a.last_login and (ahora - a.last_login).total_seconds() <= 300)
-        filas.append({
-            'id': a.id,
-            'username': a.username,
-            'nombre': nombre,
-            'rol_label': rol_label,
-            'ultimo_acceso': _tiempo_relativo(a.last_login),
-            'en_linea': en_linea,
-            'es_superuser': a.is_superuser,
-        })
+    if usuario_actual and usuario_actual.is_authenticated:
+        if not usuario_actual.last_login or (ahora - usuario_actual.last_login).total_seconds() >= 10:
+            Usuario.objects.filter(pk=usuario_actual.pk).update(last_login=ahora)
+            usuario_actual.last_login = ahora
+
+    admins = list(
+        Usuario.objects.filter(
+            Q(rol=Usuario.Rol.ADMINISTRADOR) | Q(is_staff=True) | Q(is_superuser=True)
+        ).distinct().order_by('-last_login', 'username')
+    )
+    sesiones_activas = _ids_usuarios_con_sesion_activa()
+    filas = [
+        _serializar_admin_estado(a, sesiones_activas=sesiones_activas, usuario_actual=usuario_actual, ahora=ahora)
+        for a in admins
+    ]
+    filas.sort(key=lambda x: (not x['en_linea'], x['ultimo_acceso'] == 'Nunca'))
     return filas
 
 
@@ -302,7 +425,10 @@ def configuracion_admin_view(request):
             try:
                 with transaction.atomic():
                     form.save()
-                    alerta_form.save()
+                    cfg_inst = alerta_form.save(commit=False)
+                    if 'modo_mantenimiento' in request.POST or 'modo_mantenimiento_present' in request.POST:
+                        cfg_inst.modo_mantenimiento = request.POST.get('modo_mantenimiento') in ('on', '1', 'true', 'True')
+                    cfg_inst.save()
             except Exception:
                 messages.error(request, 'Ocurrió un error al guardar. Inténtalo de nuevo.')
             else:
@@ -319,11 +445,22 @@ def configuracion_admin_view(request):
         'alerta_form': alerta_form,
         'config': config,
         'ultimo_backup_rel': _tiempo_relativo(config.ultimo_backup),
-        'administradores': _listar_administradores(),
+        'administradores': _listar_administradores(usuario_actual=usuario),
         'nuevo_admin_form': NuevoAdminForm(),
         'active_menu': 'perfil',
     }
     return render(request, 'usuarios/configuracion_admin.html', context)
+
+
+@login_required
+def estado_administradores_ajax(request):
+    """Devuelve en JSON la lista actualizada de administradores, su última conexión y estado en línea."""
+    if not _es_administrador(request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+    return JsonResponse({
+        'status': 'ok',
+        'administradores': _listar_administradores(usuario_actual=request.user),
+    })
 
 
 @login_required
@@ -339,7 +476,7 @@ def toggle_modo_mantenimiento_ajax(request):
     return JsonResponse({
         'status': 'ok',
         'modo_mantenimiento': config.modo_mantenimiento,
-        'message': 'Modo mantenimiento activado.' if activar else 'Modo mantenimiento desactivado.',
+        'message': 'Modo mantenimiento activado. El acceso para ciudadanos está suspendido.' if activar else 'Modo mantenimiento desactivado. El acceso público está habilitado.',
     })
 
 
@@ -377,15 +514,7 @@ def crear_admin_ajax(request):
         return JsonResponse({
             'status': 'ok',
             'message': f'Administrador «{nuevo.username}» creado correctamente.',
-            'admin': {
-                'id': nuevo.id,
-                'username': nuevo.username,
-                'nombre': (f"{nuevo.first_name} {nuevo.last_name}".strip() or nuevo.username),
-                'rol_label': 'Administrador',
-                'ultimo_acceso': 'Nunca',
-                'en_linea': False,
-                'es_superuser': False,
-            },
+            'admin': _serializar_admin_estado(nuevo, usuario_actual=request.user),
         })
     # Devolver el primer error legible
     errores = []
@@ -424,19 +553,10 @@ def promover_ciudadano_ajax(request):
     objetivo.is_staff = True
     objetivo.save(update_fields=['rol', 'is_staff'])
 
-    nombre = f"{objetivo.first_name} {objetivo.last_name}".strip() or objetivo.username
     return JsonResponse({
         'status': 'ok',
         'message': f'«{objetivo.username}» ahora es administrador.',
-        'admin': {
-            'id': objetivo.id,
-            'username': objetivo.username,
-            'nombre': nombre,
-            'rol_label': 'Administrador',
-            'ultimo_acceso': _tiempo_relativo(objetivo.last_login),
-            'en_linea': False,
-            'es_superuser': objetivo.is_superuser,
-        },
+        'admin': _serializar_admin_estado(objetivo, usuario_actual=request.user),
     })
 
 

@@ -12,6 +12,20 @@
     <a href="{% url 'registro' %}" class="auth-tab">Registrarse</a>
   </div>
 
+  {% if modo_mantenimiento %}
+  <div class="recovery-disabled-notice" role="status" style="margin-bottom: 1.1rem;">
+    <div class="recovery-disabled-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+      </svg>
+    </div>
+    <div class="recovery-disabled-content">
+      <strong class="recovery-disabled-title">Modo mantenimiento activo</strong>
+      <p class="recovery-disabled-desc" style="margin-bottom:0;">El acceso público se encuentra suspendido. Solo los administradores pueden iniciar sesión en este momento.</p>
+    </div>
+  </div>
+  {% endif %}
+
   <form method="POST" action="{% url 'login' %}" class="auth-form">
     {% csrf_token %}
 
