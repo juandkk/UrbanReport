@@ -1532,6 +1532,120 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── Declinar Reporte de Incidencia con Motivo Predeterminado (Administrador) ──
+  const declineReportModal = document.getElementById('declineReportModal');
+  const declineReportForm = document.getElementById('declineReportForm');
+  const declineReportPostId = document.getElementById('declineReportPostId');
+  const declineReportTitle = document.getElementById('declineReportTitle');
+  const declineReportAuthor = document.getElementById('declineReportAuthor');
+  const declineReportDetalle = document.getElementById('declineReportDetalle');
+  const closeDeclineReportModalBtn = document.getElementById('closeDeclineReportModalBtn');
+  const cancelDeclineReportBtn = document.getElementById('cancelDeclineReportBtn');
+
+  function closeDeclineReportModal() {
+    if (declineReportModal) {
+      declineReportModal.classList.remove('active');
+    }
+  }
+
+  if (closeDeclineReportModalBtn) closeDeclineReportModalBtn.addEventListener('click', closeDeclineReportModal);
+  if (cancelDeclineReportBtn) cancelDeclineReportBtn.addEventListener('click', closeDeclineReportModal);
+  if (declineReportModal) {
+    declineReportModal.addEventListener('click', (e) => {
+      if (e.target === declineReportModal) closeDeclineReportModal();
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-action-decline-post');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const postId = btn.dataset.postId;
+    if (!postId || !declineReportModal) return;
+
+    document.querySelectorAll('.post-menu-dropdown.show').forEach(d => d.classList.remove('show'));
+
+    if (declineReportPostId) declineReportPostId.value = postId;
+    if (declineReportTitle) declineReportTitle.textContent = `#REP-${postId}`;
+    if (declineReportAuthor) declineReportAuthor.textContent = btn.dataset.author || 'Ciudadano';
+    if (declineReportDetalle) declineReportDetalle.value = '';
+    const defaultRadio = declineReportModal.querySelector('input[name="declineMotivo"][value="DUPLICADO"]');
+    if (defaultRadio) defaultRadio.checked = true;
+
+    declineReportModal.classList.add('active');
+  });
+
+  if (declineReportForm) {
+    declineReportForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const postId = declineReportPostId ? declineReportPostId.value : '';
+      if (!postId) return;
+
+      const selectedRadio = declineReportForm.querySelector('input[name="declineMotivo"]:checked');
+      const motivo = selectedRadio ? selectedRadio.value : 'NO_PROCEDE';
+      const detalle = declineReportDetalle ? declineReportDetalle.value.trim() : '';
+
+      const submitBtn = document.getElementById('confirmDeclineReportBtn');
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        const formData = new FormData();
+        formData.append('estado', 'DECLINADO');
+        formData.append('motivo', motivo);
+        if (detalle) formData.append('detalle', detalle);
+
+        const res = await fetch(`/feed/publicacion/${postId}/cambiar-estado/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          closeDeclineReportModal();
+          showToast(data.message || 'Reporte declinado y ciudadano notificado');
+
+          try {
+            const chan = new BroadcastChannel('urbanreport_realtime_incidents');
+            chan.postMessage({
+              type: 'CAMBIO_ESTADO',
+              id: data.id,
+              estado: data.estado,
+              es_resuelta: data.es_resuelta,
+              actividad: data.actividad,
+            });
+          } catch (_) {}
+
+          const cardRes = await fetch(`/feed/api/post-card/${postId}/`);
+          if (cardRes.ok) {
+            const cardData = await cardRes.json();
+            const existingCard = document.getElementById(`post-card-${postId}`);
+            if (existingCard) {
+              const temp = document.createElement('div');
+              temp.innerHTML = cardData.html.trim();
+              if (temp.firstElementChild) {
+                existingCard.replaceWith(temp.firstElementChild);
+              }
+            }
+          }
+          refreshActivityFromServer();
+        } else {
+          showToast((data && data.message) || 'No se pudo declinar el reporte', true);
+        }
+      } catch (err) {
+        console.error('Error al declinar reporte:', err);
+        showToast('Error de conexión al declinar el reporte', true);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
   // ── Conexión en Tiempo Real via BroadcastChannel ──
   const feedRealtimeChannel = (typeof BroadcastChannel !== 'undefined') ?
     new BroadcastChannel('urbanreport_realtime_incidents') : null;

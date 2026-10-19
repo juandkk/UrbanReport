@@ -123,12 +123,23 @@
             <td class="inc-fecha">{{ post.fecha_creacion|date:'d/m/Y' }}</td>
             <td class="inc-votos">👍 {{ post.likes }}</td>
             <td>
-              <select class="inc-estado-select inc-estado-{{ post.estado_incidencia|lower }}"
-                      data-post-id="{{ post.id }}" data-estado-actual="{{ post.estado_incidencia }}">
-                {% for valor, etiqueta in estados %}
-                <option value="{{ valor }}" {% if post.estado_incidencia == valor %}selected{% endif %}>{{ etiqueta }}</option>
-                {% endfor %}
-              </select>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <select class="inc-estado-select inc-estado-{{ post.estado_incidencia|lower }}"
+                        data-post-id="{{ post.id }}" data-estado-actual="{{ post.estado_incidencia }}"
+                        data-autor="{{ post.nombre_autor }}">
+                  {% for valor, etiqueta in estados %}
+                  <option value="{{ valor }}" {% if post.estado_incidencia == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                  {% endfor %}
+                </select>
+                {% if post.estado_incidencia != 'DECLINADO' %}
+                <button type="button" class="inc-btn-declinar" data-post-id="{{ post.id }}" data-autor="{{ post.nombre_autor }}" title="Declinar reporte con motivo">
+                  Declinar
+                </button>
+                {% endif %}
+              </div>
+              {% if post.estado_incidencia == 'DECLINADO' and post.motivo_declinacion %}
+              <div class="inc-motivo-declinado" title="{{ post.motivo_declinacion }}">{{ post.motivo_declinacion|truncatechars:42 }}</div>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -159,6 +170,42 @@
     {% endif %}
   </nav>
   {% endif %}
+</div>
+
+<!-- Modal para Declinar Reporte con Motivos Predeterminados -->
+<div class="inc-modal-backdrop" id="incDeclinarModal">
+  <div class="inc-modal">
+    <div class="inc-modal-header">
+      <h3 style="color:#f87171;">Declinar reporte <span id="incDeclinarIdLabel"></span></h3>
+      <button type="button" class="inc-modal-close" id="btnCerrarDeclinar">&times;</button>
+    </div>
+    <div class="inc-modal-body">
+      <p class="inc-modal-help">
+        Selecciona el motivo predeterminado por el cual se declina el reporte de <strong id="incDeclinarAutorLabel" style="color:#60a5fa;"></strong>. Se enviará una notificación automática al ciudadano.
+      </p>
+      <form id="incDeclinarForm">
+        <input type="hidden" id="incDeclinarPostId" value="">
+        <div class="inc-declinar-reasons">
+          {% for codigo, etiqueta in motivos_declinacion %}
+          <label class="inc-declinar-option">
+            <input type="radio" name="incMotivoDeclinar" value="{{ codigo }}" {% if forloop.first %}checked{% endif %}>
+            <span>{{ etiqueta }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="incDeclinarDetalle" style="display:block; font-size:0.78rem; color:#94a3b8; margin-bottom:5px; font-weight:600;">
+            Observación adicional (opcional)
+          </label>
+          <textarea id="incDeclinarDetalle" rows="2" class="inc-declinar-textarea" placeholder="Ej. Ya existe un reporte previo atendido por la cuadrilla..."></textarea>
+        </div>
+        <div class="inc-modal-actions" style="margin-top: 14px;">
+          <button type="button" class="inc-btn inc-btn-ghost" id="btnCancelarDeclinar">Cancelar</button>
+          <button type="submit" class="inc-btn inc-btn-danger" id="btnConfirmarDeclinar">Declinar y Notificar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <!-- Modal de importación CSV -->

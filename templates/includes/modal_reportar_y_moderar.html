@@ -231,3 +231,81 @@
     </form>
   </div>
 </div>
+
+<!-- Modal para Declinar Reporte con Motivos Predeterminados (Solo Administrador) -->
+<div class="inspect-modal-backdrop" id="declineReportModal">
+  <div class="inspect-modal report-modal-box">
+    <div class="inspect-modal-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="modal-header-icon delete-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#ef4444;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <h3 class="inspect-modal-title" style="margin: 0; font-size: 1.1rem; color: #f87171;">Declinar Reporte de Incidencia</h3>
+      </div>
+      <button type="button" class="close-modal-btn" id="closeDeclineReportModalBtn">&times;</button>
+    </div>
+
+    <form id="declineReportForm">
+      <input type="hidden" id="declineReportPostId" value="">
+
+      <div class="report-modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 12px 0;">
+        <p style="font-size: 0.86rem; color: #94a3b8; margin: 0;">
+          Selecciona el motivo por el cual se declina el reporte <strong id="declineReportTitle" style="color: #ffffff;"></strong> de <strong id="declineReportAuthor" style="color: #60a5fa;"></strong>. Se enviará una notificación automática al ciudadano con este motivo:
+        </p>
+
+        <div class="report-reasons-group">
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="DUPLICADO" checked>
+            <span class="report-reason-label">Reporte duplicado (ya fue radicado anteriormente)</span>
+          </label>
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="FUERA_COMPETENCIA">
+            <span class="report-reason-label">Fuera de competencia municipal</span>
+          </label>
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="EVIDENCIA_INSUFICIENTE">
+            <span class="report-reason-label">Información o evidencia insuficiente / imprecisa</span>
+          </label>
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="UBICACION_INEXACTA">
+            <span class="report-reason-label">Ubicación inexacta o no verificable en terreno</span>
+          </label>
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="NO_PROCEDE">
+            <span class="report-reason-label">Incidencia falsa, inexistente o improcedente</span>
+          </label>
+          <label class="report-reason-option">
+            <input type="radio" name="declineMotivo" value="OTRO">
+            <span class="report-reason-label">Otro motivo administrativo</span>
+          </label>
+        </div>
+
+        <div>
+          <label for="declineReportDetalle" style="display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; font-weight: 600;">
+            Observación adicional para el ciudadano (opcional):
+          </label>
+          <textarea id="declineReportDetalle"
+                    rows="2"
+                    class="report-textarea"
+                    placeholder="Ej. Ya existe el radicado #42 en atención por la cuadrilla..."></textarea>
+        </div>
+      </div>
+
+      <div class="report-modal-footer">
+        <button type="button" class="btn-cancel-report" id="cancelDeclineReportBtn">Cancelar</button>
+        <button type="submit" class="btn-confirm-delete" id="confirmDeclineReportBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <span>Declinar y Notificar</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

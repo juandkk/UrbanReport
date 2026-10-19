@@ -26,6 +26,21 @@
     </div>
   </div>
 
+  <!-- Declined Report Banner (Shown if status is DECLINADO) -->
+  <div class="post-declined-banner {% if post.estado_incidencia != 'DECLINADO' %}d-none{% endif %}" id="declined-banner-{{ post.id }}">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+      <span>
+        <strong>Reporte declinado:</strong>
+        <span class="declined-reason-inline">{% if post.motivo_declinacion %}{{ post.motivo_declinacion }}{% else %}No procede según revisión administrativa.{% endif %}</span>
+      </span>
+    </div>
+  </div>
+
   <!-- Author Header -->
   <div class="post-author-row"
     style="display: flex; align-items: flex-start; justify-content: space-between; width: 100%;">
@@ -69,6 +84,14 @@
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         Resuelto
+      </span>
+      {% elif post.estado_incidencia == 'DECLINADO' %}
+      <span class="incident-status-pill pill-declined" id="incident-pill-{{ post.id }}" title="Incidencia Declinada{% if post.motivo_declinacion %}: {{ post.motivo_declinacion }}{% endif %}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        Declinado
       </span>
       {% elif post.estado_incidencia == 'EN_PROCESO' %}
       <span class="incident-status-pill pill-review" id="incident-pill-{{ post.id }}" title="Incidencia en Revisión">
@@ -236,7 +259,8 @@
             </svg>
             <span>Marcar como Resuelta</span>
           </button>
-          {% else %}
+          {% endif %}
+          {% if post.estado_incidencia == 'RESUELTA' or post.estado_incidencia == 'DECLINADO' %}
           <button type="button" class="post-menu-item text-warning btn-action-change-status"
             data-post-id="{{ post.id }}" data-estado="EN_PROCESO" title="Reabrir incidencia a En Proceso">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -244,6 +268,18 @@
               <polyline points="12 6 12 12 16 14" />
             </svg>
             <span>Reabrir a En Proceso</span>
+          </button>
+          {% endif %}
+          {% if post.estado_incidencia != 'DECLINADO' %}
+          <button type="button" class="post-menu-item text-danger btn-action-decline-post"
+            data-post-id="{{ post.id }}" data-author="{{ post.nombre_autor }}"
+            data-titulo="{{ post.titulo|default:post.contenido|truncatechars:60 }}" title="Declinar este reporte con motivo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <span>Declinar reporte</span>
           </button>
           {% endif %}
 

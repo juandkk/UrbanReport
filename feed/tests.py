@@ -190,6 +190,46 @@ class ApiTest(BaseUrbanReportTest):
         d = self._json(reverse('cambiar_estado_incidencia_ajax', args=[self.pubs[1].id]), 'post', {'estado': 'RESUELTA'})
         self.assertTrue(d['es_resuelta'])
 
+    def test_admin_declina_reporte_con_motivo_y_notifica_al_autor(self):
+        target_pub = self.pubs[1]
+        url = reverse('cambiar_estado_incidencia_ajax', args=[target_pub.id])
+
+        # Un ciudadano no puede declinar
+        self.client.force_login(self.ciudadano)
+        self._json(url, 'post', {'estado': 'DECLINADO', 'motivo': 'DUPLICADO'}, status=403)
+
+        # El administrador declina con motivo predeterminado + observación
+        self.client.force_login(self.admin)
+        d = self._json(url, 'post', {
+            'estado': 'DECLINADO',
+            'motivo': 'DUPLICADO',
+            'detalle': 'Ya existe el radicado #1 en atención',
+        }, status=200)
+        self.assertEqual(d['estado'], 'DECLINADO')
+        self.assertTrue(d['es_declinada'])
+        self.assertIn('Reporte duplicado', d['motivo_declinacion'])
+        self.assertIn('Ya existe el radicado #1', d['motivo_declinacion'])
+
+        target_pub.refresh_from_db()
+        self.assertEqual(target_pub.estado_incidencia, Publicacion.EstadoIncidencia.DECLINADO)
+        self.assertIn('Reporte duplicado', target_pub.motivo_declinacion)
+
+        # Verificar que el dueño del reporte recibió la notificación con el motivo
+        notif = Notificacion.objects.filter(
+            destinatario=self.ciudadano,
+            publicacion=target_pub,
+            tipo=Notificacion.Tipo.CAMBIO_ESTADO,
+        ).order_by('-id').first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Declinado', notif.extra)
+        self.assertIn('Reporte duplicado', notif.extra)
+
+        # Si el admin reabre a EN_PROCESO, se limpia el motivo de declinación
+        d_reopen = self._json(url, 'post', {'estado': 'EN_PROCESO'}, status=200)
+        self.assertEqual(d_reopen['estado'], 'EN_PROCESO')
+        target_pub.refresh_from_db()
+        self.assertEqual(target_pub.motivo_declinacion, '')
+
     def test_seguridad_censurar_comentario_solo_admin(self):
         """Un ciudadano (incluso autor) no puede censurar comentarios (403); un admin sí puede (200)."""
         comentario = Comentario.objects.filter(publicacion=self.pubs[0]).first()

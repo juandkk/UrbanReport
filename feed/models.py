@@ -7,6 +7,15 @@ class Publicacion(models.Model):
         REPORTADO = 'REPORTADO', 'Reportado'
         EN_PROCESO = 'EN_PROCESO', 'En Proceso'
         RESUELTA = 'RESUELTA', 'Resuelta'
+        DECLINADO = 'DECLINADO', 'Declinado'
+
+    class MotivoDeclinacion(models.TextChoices):
+        DUPLICADO = 'DUPLICADO', 'Reporte duplicado (ya fue radicado anteriormente)'
+        FUERA_COMPETENCIA = 'FUERA_COMPETENCIA', 'Fuera de competencia municipal'
+        EVIDENCIA_INSUFICIENTE = 'EVIDENCIA_INSUFICIENTE', 'Información o evidencia insuficiente / imprecisa'
+        UBICACION_INEXACTA = 'UBICACION_INEXACTA', 'Ubicación inexacta o no verificable en terreno'
+        NO_PROCEDE = 'NO_PROCEDE', 'Incidencia falsa, inexistente o improcedente'
+        OTRO = 'OTRO', 'Otro motivo administrativo'
 
     autor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -21,6 +30,7 @@ class Publicacion(models.Model):
     dislikes = models.PositiveIntegerField(default=0)
     censurado = models.BooleanField(default=False)
     motivo_censura = models.CharField(max_length=255, blank=True, default='')
+    motivo_declinacion = models.CharField(max_length=255, blank=True, default='')
     estado_incidencia = models.CharField(
         max_length=20,
         choices=EstadoIncidencia.choices,

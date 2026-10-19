@@ -197,6 +197,7 @@
 .stats-dot-reportado { background: #94a3b8; }
 .stats-dot-en_proceso { background: #f59e0b; }
 .stats-dot-resuelta { background: #22c55e; }
+.stats-dot-declinado { background: #ef4444; }
 .stats-activity-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .stats-activity-title {
   color: #e2e8f0; font-size: 0.9rem; font-weight: 500;
@@ -210,6 +211,7 @@
 .stats-badge-reportado { background: rgba(148,163,184,0.15); color: #94a3b8; }
 .stats-badge-en_proceso { background: rgba(245,158,11,0.15); color: #fbbf24; }
 .stats-badge-resuelta { background: rgba(34,197,94,0.15); color: #22c55e; }
+.stats-badge-declinado { background: rgba(239,68,68,0.16); color: #f87171; }
 .stats-activity-time { font-size: 0.76rem; color: var(--text-muted, #94a3b8); flex-shrink: 0; white-space: nowrap; }
 .stats-activity-empty { color: var(--text-muted, #94a3b8); font-size: 0.88rem; padding: 10px 4px; }
 

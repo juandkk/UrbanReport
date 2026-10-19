@@ -21,6 +21,7 @@
     REPORTADO: '#94a3b8',
     EN_PROCESO: '#f59e0b',
     RESUELTA: '#22c55e',
+    DECLINADO: '#ef4444',
   };
 
   const CATEGORY_NAMES = {

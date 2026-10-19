@@ -48,9 +48,18 @@
 
     <div class="notif-avatar">
       {% if n.tipo == 'CAMBIO_ESTADO' %}
+      {% if 'Declinado' in n.extra %}
+      <span class="notif-avatar-report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      </span>
+      {% else %}
       <span class="notif-avatar-status">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
       </span>
+      {% endif %}
       {% elif n.tipo == 'REPORTE_CONTENIDO' %}
       <span class="notif-avatar-report">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -70,7 +79,11 @@
     <div class="notif-content">
       <p class="notif-text">
         {% if n.tipo == 'CAMBIO_ESTADO' %}
+        {% if 'Declinado' in n.extra %}
+        Tu reporte {% if n.publicacion %}<strong>#REP-{{ n.publicacion.id }}</strong>{% endif %} fue declinado por un administrador
+        {% else %}
         Tu reporte {% if n.publicacion %}<strong>#REP-{{ n.publicacion.id }}</strong>{% endif %} cambió de estado
+        {% endif %}
         {% elif n.tipo == 'REPORTE_CONTENIDO' %}
         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %}
         reportó {% if n.comentario %}un comentario{% else %}una publicación{% endif %} para moderación
@@ -88,7 +101,7 @@
         {% endif %}
       {% elif n.extra %}
         {% if n.tipo == 'CAMBIO_ESTADO' %}
-        <span class="notif-badge notif-badge-resolved">{{ n.extra }}</span>
+        <span class="notif-badge {% if 'Declinado' in n.extra %}notif-badge-report{% else %}notif-badge-resolved{% endif %}">{{ n.extra }}</span>
         {% elif n.tipo == 'LIKE' %}
         <span class="notif-badge notif-badge-like">👍 Me Gusta</span>
         {% else %}

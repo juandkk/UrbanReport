@@ -5818,3 +5818,21 @@ body.lightbox-open {
   padding: 0.75rem !important;
   gap: 6px !important;
 }
+
+/* ── Reporte Declinado (Badge y Banner informativo) ── */
+.incident-status-pill.pill-declined {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.post-declined-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
