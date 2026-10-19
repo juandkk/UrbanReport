@@ -33,6 +33,7 @@ class Publicacion(models.Model):
         INFRAESTRUCTURA = 'INFRAESTRUCTURA', 'Infraestructura'
         REDES = 'REDES', 'Redes eléctricas y telecomunicaciones'
         ASEO = 'ASEO', 'Aseo y basuras'
+        ACUEDUCTO = 'ACUEDUCTO', 'Acueducto y alcantarillado'
         OTROS = 'OTROS', 'Otros'
 
     titulo = models.CharField(max_length=200, blank=True, default='')
@@ -120,7 +121,8 @@ class Comentario(models.Model):
         blank=True
     )
     autor_nombre = models.CharField(max_length=100)
-    texto = models.TextField()
+    texto = models.TextField(blank=True, default='')
+    imagen = models.ImageField(upload_to='comentarios/', blank=True, null=True)
     likes = models.PositiveIntegerField(default=0)
     dislikes = models.PositiveIntegerField(default=0)
     censurado = models.BooleanField(default=False)

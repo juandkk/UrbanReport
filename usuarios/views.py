@@ -238,7 +238,7 @@ def eliminar_cuenta_view(request):
     - Cierra la sesión y elimina el usuario dentro de una transacción atómica.
     """
     from django.urls import reverse
-    from feed.models import Publicacion
+    from feed.models import Comentario, Publicacion
 
     es_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     usuario = request.user
@@ -263,6 +263,9 @@ def eliminar_cuenta_view(request):
             for pub in Publicacion.objects.filter(autor=usuario).only('imagen'):
                 if pub.imagen:
                     pub.imagen.delete(save=False)
+            for com in Comentario.objects.filter(autor=usuario).only('imagen'):
+                if com.imagen:
+                    com.imagen.delete(save=False)
             if usuario.avatar:
                 usuario.avatar.delete(save=False)
             logout(request)

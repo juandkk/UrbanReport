@@ -179,6 +179,8 @@
   font-size: 0.78rem;
   font-weight: 500;
   color: #cbd5e1;
+  text-align: center;
+  line-height: 1.2;
   transition: color 0.18s ease;
 }
 

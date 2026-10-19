@@ -20,6 +20,7 @@
     rojo: '#ef4444',
     indigo: '#6366f1',
     cian: '#06b6d4',
+    celeste: '#0ea5e9',
     morado: '#8b5cf6',
     grid: 'rgba(148, 163, 184, 0.12)',
     texto: '#94a3b8',
@@ -29,6 +30,7 @@
     var mapa = {
       'Redes eléctricas y telecomunicaciones': 'Redes y Telecom.',
       'Aseo y basuras': 'Aseo y Basuras',
+      'Acueducto y alcantarillado': 'Acueducto y Alcant.',
       'Infraestructura': 'Infraestruct.',
     };
     return mapa[label] || label;
@@ -57,7 +59,7 @@
           labels: catLabels.map(abreviarEtiqueta),
           datasets: [{
             data: catData,
-            backgroundColor: [COLORS.azul, COLORS.ambar, COLORS.verde, COLORS.indigo, COLORS.cian, COLORS.morado, COLORS.rojo],
+            backgroundColor: [COLORS.azul, COLORS.ambar, COLORS.verde, COLORS.indigo, COLORS.cian, COLORS.morado, COLORS.celeste, COLORS.rojo],
             borderColor: '#0f172a',
             borderWidth: 2,
           }],

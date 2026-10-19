@@ -417,6 +417,7 @@ _CATEGORIA_HASHTAG = {
     Publicacion.Categoria.INFRAESTRUCTURA: '#Infraestructura',
     Publicacion.Categoria.REDES: '#RedesYServicios',
     Publicacion.Categoria.ASEO: '#AseoYResiduos',
+    Publicacion.Categoria.ACUEDUCTO: '#AcueductoYAlcantarillado',
     Publicacion.Categoria.OTROS: '#Otros',
 }
 
@@ -428,6 +429,7 @@ _CATEGORIA_SECCION = {
     Publicacion.Categoria.INFRAESTRUCTURA: 'INFRAESTRUCTURA',
     Publicacion.Categoria.REDES: 'SERVICIOS',
     Publicacion.Categoria.ASEO: 'AMBIENTE',
+    Publicacion.Categoria.ACUEDUCTO: 'SERVICIOS',
     Publicacion.Categoria.OTROS: 'GENERAL',
 }
 
@@ -775,17 +777,26 @@ def toggle_repost_ajax(request, publicacion_id):
 @login_required
 @require_POST
 def agregar_comentario_ajax(request, publicacion_id):
-    """Crea un comentario en la publicación o una respuesta anidada si se especifica padre_id."""
+    """Crea un comentario en la publicación o una respuesta anidada si se especifica padre_id, con imagen opcional."""
     publicacion = get_object_or_404(Publicacion, id=publicacion_id)
     texto = request.POST.get('texto', '').strip()
     padre_id = request.POST.get('padre_id')
+    imagen = request.FILES.get('imagen')
 
-    if not texto:
+    if not texto and imagen is None:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
 
     # ── Moderación de lenguaje ──
-    if contiene_lenguaje_inapropiado(texto):
+    if texto and contiene_lenguaje_inapropiado(texto):
         return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
+
+    # ── Validación y sanitización de imagen adjunta (si la hay) ──
+    imagen_limpia = None
+    if imagen is not None:
+        try:
+            imagen_limpia = sanitizar_imagen(imagen)
+        except ImagenInvalida as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     padre = None
     if padre_id:
@@ -799,11 +810,12 @@ def agregar_comentario_ajax(request, publicacion_id):
         padre=padre,
         autor=autor,
         autor_nombre=autor_nombre,
-        texto=texto
+        texto=texto,
+        imagen=imagen_limpia,
     )
 
     # Notificar: si es respuesta, al autor del comentario padre; si no, al autor de la publicación
-    fragmento = texto[:80]
+    fragmento = texto[:80] if texto else '📷 Imagen adjunta'
     if padre and padre.autor:
         crear_notificacion(
             destinatario=padre.autor, actor=autor,
@@ -824,6 +836,7 @@ def agregar_comentario_ajax(request, publicacion_id):
             'autor_nombre': comentario.nombre_autor,
             'initials': initials,
             'texto': comentario.texto,
+            'imagen_url': comentario.imagen.url if comentario.imagen else None,
             'tiempo': 'Hace un momento',
             'padre_id': comentario.padre_id,
             'likes': 0,
@@ -1564,11 +1577,11 @@ def editar_comentario_ajax(request, comentario_id):
         return JsonResponse({'status': 'error', 'message': 'No tienes permiso para editar este comentario.'}, status=403)
 
     texto = request.POST.get('texto', '').strip()
-    if not texto:
+    if not texto and not comentario.imagen:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
 
     # ── Moderación de lenguaje ──
-    if contiene_lenguaje_inapropiado(texto):
+    if texto and contiene_lenguaje_inapropiado(texto):
         return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
 
     comentario.texto = texto
