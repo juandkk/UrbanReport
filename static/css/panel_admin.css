@@ -271,3 +271,120 @@
     height: 44px;
   }
 }
+
+
+/* ==========================================================================
+   Ciudadanos activos / inactivos (tabla inferior del Panel)
+   Reutiliza las clases .cfg-table-wrap, .cfg-admins-table y .cfg-badge de
+   portal.css (misma estética que la tabla de administradores).
+   ========================================================================== */
+.ciudadanos-card {
+  margin-top: 1.5rem;
+}
+
+.ciudadanos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.ciudadanos-online-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.presence-dot-inline {
+  position: static;
+  width: 9px;
+  height: 9px;
+  border: none;
+  box-shadow: none;
+}
+
+/* Nombre principal + subtítulo (@usuario, fecha/hora) dentro de las celdas */
+.ciudadanos-table .cel-nombre {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.ciudadanos-table .cel-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.ciudadanos-empty {
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  padding: 1.5rem 0;
+}
+
+/* ==========================================================================
+   Indicador de presencia (círculo verde) sobre fotos de perfil
+   ========================================================================== */
+.presence-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.presence-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 28%;
+  min-width: 9px;
+  max-width: 16px;
+  aspect-ratio: 1 / 1;
+  background: #22c55e;
+  border: 2px solid #0b1220;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+  pointer-events: none;
+}
+
+
+/* Barra de búsqueda de la tabla de ciudadanos */
+.ciudadanos-search {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.ciudadanos-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.ciudadanos-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px 10px 36px;
+  background: #0b1220;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ciudadanos-search-input::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.ciudadanos-search-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}

@@ -142,6 +142,73 @@
       </div>
     </div>
   </section>
+
+  <!-- Ciudadanos activos / inactivos -->
+  <section class="panel-card ciudadanos-card">
+    <div class="ciudadanos-head">
+      <h3 class="panel-card-title">Ciudadanos activos</h3>
+      <span class="ciudadanos-online-count">
+        <span class="presence-dot presence-dot-inline"></span>
+        <span id="ciudadanosOnlineCount">{{ ciudadanos_en_linea_count }}</span> en línea
+      </span>
+    </div>
+
+    <!-- Barra de búsqueda de ciudadanos (por nombre de perfil o correo) -->
+    <div class="ciudadanos-search">
+      <svg class="ciudadanos-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="ciudadanosSearch" class="ciudadanos-search-input"
+             placeholder="Buscar ciudadano por nombre o correo..." autocomplete="off">
+    </div>
+
+    <div class="cfg-table-wrap">
+      <table class="cfg-admins-table ciudadanos-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Última conexión</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="ciudadanosTbody">
+          {% for c in ciudadanos_presencia %}
+          <tr>
+            <td>
+              <div class="cel-nombre">{{ c.nombre }}</div>
+              <div class="cel-sub">@{{ c.username }}</div>
+            </td>
+            <td>
+              <div class="cel-nombre">{{ c.direccion }}</div>
+              {% if c.barrio_vereda %}
+              <div class="cel-sub">{{ c.barrio_vereda }}{% if c.numero_finca %} · Finca {{ c.numero_finca }}{% endif %}</div>
+              {% elif c.numero_finca %}
+              <div class="cel-sub">Finca {{ c.numero_finca }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="cel-nombre">{{ c.ultima_rel }}</div>
+              {% if c.ultima_abs %}<div class="cel-sub">{{ c.ultima_abs }}</div>{% endif %}
+            </td>
+            <td>
+              {% if c.en_linea %}
+              <span class="cfg-badge cfg-badge-online">En línea</span>
+              {% else %}
+              <span class="cfg-badge cfg-badge-offline">Inactivo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="ciudadanos-empty">Aún no hay ciudadanos registrados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
 {# Datos para Chart.js, pasados de forma segura con json_script #}
@@ -158,4 +225,81 @@
 <!-- Chart.js desde CDN (defer para no bloquear el render) -->
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script defer src="{% static 'js/panel_admin.js' %}"></script>
+
+<!-- Refresco ligero de la tabla de ciudadanos (presencia) sin recargar la página -->
+<script>
+(function () {
+  'use strict';
+  var URL = "{% url 'api_presencia_ciudadanos' %}";
+  var tbody = document.getElementById('ciudadanosTbody');
+  var contador = document.getElementById('ciudadanosOnlineCount');
+  var buscador = document.getElementById('ciudadanosSearch');
+  if (!tbody) return;
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  function filaHtml(c) {
+    var estado = c.en_linea
+      ? '<span class="cfg-badge cfg-badge-online">En línea</span>'
+      : '<span class="cfg-badge cfg-badge-offline">Inactivo</span>';
+    var abs = c.ultima_abs ? '<div class="cel-sub">' + escapeHtml(c.ultima_abs) + '</div>' : '';
+
+    // Subtexto de la dirección: barrio/vereda y, si existe, el número de finca.
+    var dirSub = '';
+    if (c.barrio_vereda) {
+      dirSub = escapeHtml(c.barrio_vereda) +
+        (c.numero_finca ? ' · Finca ' + escapeHtml(c.numero_finca) : '');
+    } else if (c.numero_finca) {
+      dirSub = 'Finca ' + escapeHtml(c.numero_finca);
+    }
+    var dirSubHtml = dirSub ? '<div class="cel-sub">' + dirSub + '</div>' : '';
+
+    return '<tr>' +
+      '<td><div class="cel-nombre">' + escapeHtml(c.nombre) + '</div>' +
+      '<div class="cel-sub">@' + escapeHtml(c.username) + '</div></td>' +
+      '<td><div class="cel-nombre">' + escapeHtml(c.direccion) + '</div>' + dirSubHtml + '</td>' +
+      '<td><div class="cel-nombre">' + escapeHtml(c.ultima_rel) + '</div>' + abs + '</td>' +
+      '<td>' + estado + '</td></tr>';
+  }
+
+  function refrescar() {
+    var q = buscador ? buscador.value.trim() : '';
+    var url = URL + (q ? ('?q=' + encodeURIComponent(q)) : '');
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || data.status !== 'ok') return;
+        if (data.ciudadanos.length) {
+          tbody.innerHTML = data.ciudadanos.map(filaHtml).join('');
+        } else {
+          var msg = q
+            ? 'No se encontraron ciudadanos para «' + escapeHtml(q) + '».'
+            : 'Aún no hay ciudadanos registrados.';
+          tbody.innerHTML = '<tr><td colspan="4" class="ciudadanos-empty">' + msg + '</td></tr>';
+        }
+        if (contador) contador.textContent = data.en_linea_count;
+      })
+      .catch(function () { /* silencioso: si falla, se conserva la tabla actual */ });
+  }
+
+  // Búsqueda en vivo con debounce (espera 300 ms tras dejar de escribir).
+  if (buscador) {
+    var t = null;
+    buscador.addEventListener('input', function () {
+      clearTimeout(t);
+      t = setTimeout(refrescar, 300);
+    });
+  }
+
+  // Refresco automático cada 20 s mientras la pestaña está visible
+  // (estado de presencia casi en tiempo real).
+  setInterval(function () {
+    if (document.visibilityState === 'visible') refrescar();
+  }, 20000);
+})();
+</script>
 {% endblock %}

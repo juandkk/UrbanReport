@@ -134,4 +134,46 @@
     });
   })();
 </script>
+
+{% if user.is_authenticated %}
+<!-- Heartbeat de presencia: mantiene el estado "en línea" en tiempo casi real
+     mientras la página está abierta y visible. No envía datos de otros usuarios. -->
+<script>
+  (function () {
+    'use strict';
+    var URL = "{% url 'api_heartbeat' %}";
+    var INTERVALO = 25000; // 25 s (menor que la ventana de presencia del backend)
+
+    function getCookie(name) {
+      var v = null;
+      if (document.cookie) {
+        document.cookie.split(';').forEach(function (c) {
+          var t = c.trim();
+          if (t.indexOf(name + '=') === 0) v = decodeURIComponent(t.substring(name.length + 1));
+        });
+      }
+      return v;
+    }
+    var csrftoken = getCookie('csrftoken');
+
+    function latir() {
+      // Solo si la pestaña está visible: si está en segundo plano, el usuario
+      // no está "presente" y dejará de contar como activo de forma natural.
+      if (document.visibilityState !== 'visible') return;
+      fetch(URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+        keepalive: true,
+      }).catch(function () { /* silencioso */ });
+    }
+
+    latir();                        // latido inmediato al cargar
+    setInterval(latir, INTERVALO);  // y luego cada 25 s
+    // Al volver a enfocar la pestaña, latir de inmediato (recupera presencia rápido).
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') latir();
+    });
+  })();
+</script>
+{% endif %}
 {% endblock %}

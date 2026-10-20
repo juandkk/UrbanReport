@@ -107,7 +107,16 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     # Obliga a los usuarios con perfil incompleto (p. ej. SSO) a completarlo
     'usuarios.middleware.CompletarPerfilMiddleware',
+    # Registra la última actividad del usuario (presencia "en línea"), throttled
+    'usuarios.middleware.ActividadUsuarioMiddleware',
 ]
+
+# Ventana (en segundos) para considerar a un usuario "en línea" según su última
+# actividad. Corta (60s) para reflejar presencia casi en tiempo real: el navegador
+# envía un "heartbeat" cada 25s mientras la página está abierta, así que un usuario
+# presente siempre cae dentro de la ventana, y al cerrar la pestaña pasa a inactivo
+# en ~1 minuto. Debe ser mayor que el intervalo del heartbeat del frontend.
+PRESENCIA_VENTANA_SEGUNDOS = 60
 
 # allauth necesita django.contrib.sites
 SITE_ID = 1

@@ -397,6 +397,206 @@ class ModeracionLenguajeTest(BaseUrbanReportTest):
         self.assertEqual(d['status'], 'error')
 
 
+class PresenciaYCiudadanosTest(BaseUrbanReportTest):
+    """
+    Sección "Ciudadanos activos" del Panel + indicador de presencia.
+    Verifica acceso por rol, dirección, cálculo de actividad y privacidad.
+    """
+
+    def setUp(self):
+        from django.utils import timezone
+        self.ahora = timezone.now()
+
+    def test_admin_ve_seccion_ciudadanos_en_panel(self):
+        """El administrador ve la sección 'Ciudadanos activos' dentro del Panel."""
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('panel_administrador'))
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('Ciudadanos activos', html)
+        self.assertIn('ciudadanosTbody', html)
+        # La tabla usa usuarios REALES: aparece el ciudadano de prueba.
+        self.assertIn('@ciudadano', html)
+
+    def test_ciudadano_no_accede_al_panel(self):
+        """Un ciudadano no puede ver el Panel (403), por tanto tampoco la tabla."""
+        self.client.force_login(self.ciudadano)
+        self.assertEqual(self.client.get(reverse('panel_administrador')).status_code, 403)
+
+    def test_endpoint_presencia_solo_admin(self):
+        """El endpoint JSON de presencia es exclusivo de administradores."""
+        # Ciudadano -> 403, sin datos
+        self.client.force_login(self.ciudadano)
+        self.assertEqual(self.client.get(reverse('api_presencia_ciudadanos')).status_code, 403)
+        # Admin -> 200 con datos
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('api_presencia_ciudadanos'))
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertEqual(d['status'], 'ok')
+        self.assertTrue(any(c['username'] == 'ciudadano' for c in d['ciudadanos']))
+
+    def test_direccion_real_o_no_registrada(self):
+        """La columna Dirección muestra el campo real; si está vacío, 'No registrada'."""
+        from feed.views import _listar_ciudadanos_presencia
+        # El ciudadano de prueba tiene direccion en PERFIL_COMPLETO.
+        self.ciudadano.direccion = 'Calle 123 # 45-67'
+        self.ciudadano.save(update_fields=['direccion'])
+        # Un ciudadano sin dirección:
+        sin_dir = Usuario.objects.create_user(
+            username='sindir', email='sindir@t.co', password='x', rol=Usuario.Rol.CIUDADANO,
+        )
+        sin_dir.direccion = ''
+        sin_dir.save(update_fields=['direccion'])
+
+        filas = {c['username']: c for c in _listar_ciudadanos_presencia()}
+        self.assertEqual(filas['ciudadano']['direccion'], 'Calle 123 # 45-67')
+        self.assertEqual(filas['sindir']['direccion'], 'No registrada')
+
+    def test_barrio_y_numero_finca_en_tabla(self):
+        """La fila incluye barrio/vereda y número de finca según lo registrado."""
+        from feed.views import _listar_ciudadanos_presencia
+        # Con barrio y finca
+        self.ciudadano.barrio_vereda = 'Laureles'
+        self.ciudadano.numero_finca = '12'
+        self.ciudadano.save(update_fields=['barrio_vereda', 'numero_finca'])
+        # Con barrio pero SIN finca
+        sin_finca = Usuario.objects.create_user(
+            username='sinfinca', email='sf@t.co', password='x', rol=Usuario.Rol.CIUDADANO,
+        )
+        sin_finca.barrio_vereda = 'Belén'
+        sin_finca.numero_finca = ''
+        sin_finca.save(update_fields=['barrio_vereda', 'numero_finca'])
+
+        filas = {c['username']: c for c in _listar_ciudadanos_presencia()}
+        self.assertEqual(filas['ciudadano']['barrio_vereda'], 'Laureles')
+        self.assertEqual(filas['ciudadano']['numero_finca'], '12')
+        self.assertEqual(filas['sinfinca']['barrio_vereda'], 'Belén')
+        self.assertEqual(filas['sinfinca']['numero_finca'], '')
+
+    def test_calculo_actividad_en_linea_e_inactivo(self):
+        """esta_en_linea(): activo dentro de la ventana, inactivo fuera; sin registro = inactivo."""
+        from datetime import timedelta
+        # Activo: actividad hace 30 segundos (dentro de la ventana de 60s)
+        self.ciudadano.ultima_actividad = self.ahora - timedelta(seconds=30)
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.assertTrue(self.ciudadano.esta_en_linea())
+        # Inactivo: actividad hace 5 minutos (fuera de la ventana de 60s)
+        self.ciudadano.ultima_actividad = self.ahora - timedelta(minutes=5)
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.assertFalse(self.ciudadano.esta_en_linea())
+        # Sin registro
+        self.ciudadano.ultima_actividad = None
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.assertFalse(self.ciudadano.esta_en_linea())
+
+    def test_busqueda_ciudadanos_por_nombre_y_correo(self):
+        """El filtro de la tabla encuentra por nombre de perfil, usuario o correo."""
+        from feed.views import _listar_ciudadanos_presencia
+        # Por username
+        r = _listar_ciudadanos_presencia(busqueda='ciudadano')
+        self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
+        # Por correo (el ciudadano tiene email c@test.co)
+        r = _listar_ciudadanos_presencia(busqueda='c@test.co')
+        self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
+        # Por nombre (first_name 'Ciu')
+        r = _listar_ciudadanos_presencia(busqueda='Ciu')
+        self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
+        # Búsqueda sin coincidencias -> lista vacía
+        self.assertEqual(_listar_ciudadanos_presencia(busqueda='zzzznoexiste'), [])
+
+    def test_endpoint_presencia_acepta_busqueda(self):
+        """El endpoint admin filtra por el parámetro q."""
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('api_presencia_ciudadanos') + '?q=ciudadano')
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertTrue(all('ciudadano' in c['username'].lower()
+                            or 'ciudadano' in c['nombre'].lower() for c in d['ciudadanos']))
+
+    def test_estado_presencia_por_usuario(self):
+        """El endpoint de presencia individual devuelve solo el booleano en_linea."""
+        from datetime import timedelta
+        self.client.force_login(self.ciudadano)
+        # En línea
+        Usuario.objects.filter(pk=self.otro.pk).update(ultima_actividad=self.ahora - timedelta(seconds=10))
+        r = self.client.get(reverse('api_estado_presencia', args=['otro']))
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertTrue(d['en_linea'])
+        # No debe exponer datos sensibles: solo status y en_linea
+        self.assertEqual(set(d.keys()), {'status', 'en_linea'})
+        # Fuera de línea
+        Usuario.objects.filter(pk=self.otro.pk).update(ultima_actividad=self.ahora - timedelta(minutes=10))
+        d = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
+        self.assertFalse(d['en_linea'])
+        # Requiere autenticación
+        self.client.logout()
+        self.assertNotEqual(self.client.get(reverse('api_estado_presencia', args=['otro'])).status_code, 200)
+
+    def test_heartbeat_marca_actividad_y_requiere_login(self):
+        """El heartbeat actualiza la actividad del propio usuario; exige sesión y POST."""
+        # Sin sesión -> redirige a login (no 200)
+        self.assertNotEqual(self.client.post(reverse('api_heartbeat')).status_code, 200)
+        # Autenticado -> 200 y actualiza ultima_actividad
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(ultima_actividad=None)
+        self.client.force_login(self.ciudadano)
+        r = self.client.post(reverse('api_heartbeat'))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['status'], 'ok')
+        self.assertIsNotNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+        # El heartbeat no acepta GET
+        self.assertEqual(self.client.get(reverse('api_heartbeat')).status_code, 405)
+
+    def test_tiempo_relativo_y_sin_registro(self):
+        """_tiempo_relativo cubre 'Ahora mismo', minutos/horas/días y 'Sin registro'."""
+        from datetime import timedelta
+        from feed.views import _tiempo_relativo, _listar_ciudadanos_presencia
+        self.assertEqual(_tiempo_relativo(None), 'Sin registro')
+        self.assertEqual(_tiempo_relativo(self.ahora - timedelta(seconds=10), self.ahora), 'Ahora mismo')
+        self.assertEqual(_tiempo_relativo(self.ahora - timedelta(minutes=5), self.ahora), 'Hace 5 min')
+        self.assertEqual(_tiempo_relativo(self.ahora - timedelta(hours=1), self.ahora), 'Hace 1 h')
+        self.assertEqual(_tiempo_relativo(self.ahora - timedelta(days=4), self.ahora), 'Hace 4 d')
+        # Usuario sin actividad -> 'Sin registro' en la tabla, sin fecha absoluta.
+        self.ciudadano.ultima_actividad = None
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        fila = next(c for c in _listar_ciudadanos_presencia() if c['username'] == 'ciudadano')
+        self.assertEqual(fila['ultima_rel'], 'Sin registro')
+        self.assertEqual(fila['ultima_abs'], '')
+
+    def test_middleware_actualiza_actividad(self):
+        """Una solicitud autenticada registra ultima_actividad del usuario."""
+        self.assertIsNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+        self.client.force_login(self.ciudadano)
+        self.client.get(reverse('feed_comunitario'))
+        self.assertIsNotNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+
+    def test_indicador_presencia_en_feed_por_estado(self):
+        """El círculo verde aparece si el autor está en línea y desaparece si no."""
+        from datetime import timedelta
+        # Autor del post (ciudadano) EN LÍNEA -> aparece el dot.
+        self.ciudadano.ultima_actividad = self.ahora - timedelta(seconds=30)
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.client.force_login(self.admin)  # quien ve el feed no afecta el dot del autor
+        html = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertIn('presence-dot', html)
+        # Autor INACTIVO -> no aparece.
+        self.ciudadano.ultima_actividad = self.ahora - timedelta(hours=2)
+        self.ciudadano.save(update_fields=['ultima_actividad'])
+        # El admin tampoco debe tener actividad reciente para esta comprobación.
+        Usuario.objects.filter(pk=self.admin.pk).update(ultima_actividad=self.ahora - timedelta(hours=2))
+        html2 = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertNotIn('presence-dot', html2)
+
+    def test_direccion_no_se_expone_en_feed(self):
+        """La dirección de residencia no debe aparecer en el feed (solo en la tabla admin)."""
+        self.ciudadano.direccion = 'Calle Secreta 999'
+        self.ciudadano.save(update_fields=['direccion'])
+        self.client.force_login(self.ciudadano)
+        html = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertNotIn('Calle Secreta 999', html)
+
+
 class RendimientoTest(TestCase):
     """El número de consultas no debe crecer con la cantidad de publicaciones (sin N+1)."""
 
@@ -412,6 +612,10 @@ class RendimientoTest(TestCase):
 
     def _contar(self, url, user=None):
         self.client.force_login(user or self.u)
+        # Petición de "calentamiento": deja que ActividadUsuarioMiddleware registre
+        # la actividad y quede throttled (vía la sesión), para que la medición real
+        # no incluya esa escritura puntual O(1) y siga detectando cualquier N+1.
+        self.client.get(url)
         with CaptureQueriesContext(connection) as ctx:
             r = self.client.get(url)
         self.assertEqual(r.status_code, 200)

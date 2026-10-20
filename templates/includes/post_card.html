@@ -32,14 +32,17 @@
     <div style="display: flex; align-items: center; gap: 11px;">
       {# El avatar enlaza al perfil del autor; si soy yo, va a "Mi Perfil" #}
       {% if post.autor %}<a href="{% if post.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' post.autor.username %}{% endif %}" class="author-profile-link" title="Ver perfil de {{ post.nombre_autor }}">{% endif %}
-      {% if post.autor.avatar %}
-      <img src="{{ post.autor.avatar.url }}" alt="{{ post.nombre_autor }}" class="author-avatar-img" style="margin-top: -3px;" loading="lazy" decoding="async">
-      {% else %}
-      <div class="author-avatar-img"
-        style="display:flex;align-items:center;justify-content:center;background:#1e293b;color:#94a3b8;font-weight:700;font-size:0.85rem;margin-top:-3px;">
-        {{ post.nombre_autor|slice:":2"|upper|default:"UR" }}
-      </div>
-      {% endif %}
+      <span class="presence-wrap">
+        {% if post.autor.avatar %}
+        <img src="{{ post.autor.avatar.url }}" alt="{{ post.nombre_autor }}" class="author-avatar-img" style="margin-top: -3px;" loading="lazy" decoding="async">
+        {% else %}
+        <div class="author-avatar-img"
+          style="display:flex;align-items:center;justify-content:center;background:#1e293b;color:#94a3b8;font-weight:700;font-size:0.85rem;margin-top:-3px;">
+          {{ post.nombre_autor|slice:":2"|upper|default:"UR" }}
+        </div>
+        {% endif %}
+        {% if post.autor and post.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+      </span>
       {% if post.autor %}</a>{% endif %}
 
       <div class="author-info" style="display: flex; flex-direction: column; justify-content: center; gap: 2px;">
@@ -335,7 +338,10 @@
         <div class="comment-header">
           <div class="comment-author-wrap">
             {% if com.autor %}<a class="comment-author-link" href="{% if com.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' com.autor.username %}{% endif %}" title="Ver perfil de {{ com.nombre_autor }}">{% endif %}
-            <div class="comment-avatar-circle">{{ com.nombre_autor|slice:":2"|upper }}</div>
+            <span class="presence-wrap">
+              <div class="comment-avatar-circle">{{ com.nombre_autor|slice:":2"|upper }}</div>
+              {% if com.autor and com.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+            </span>
             <span class="comment-author-name">{{ com.nombre_autor }}</span>
             {% if com.autor %}</a>{% endif %}
           </div>
@@ -461,7 +467,10 @@
             <div class="comment-header">
               <div class="comment-author-wrap">
                 {% if rep.autor %}<a class="comment-author-link" href="{% if rep.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' rep.autor.username %}{% endif %}" title="Ver perfil de {{ rep.nombre_autor }}">{% endif %}
-                <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.nombre_autor|slice:":2"|upper }}</div>
+                <span class="presence-wrap">
+                  <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.nombre_autor|slice:":2"|upper }}</div>
+                  {% if rep.autor and rep.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+                </span>
                 <span class="comment-author-name" style="font-size:0.82rem;">{{ rep.nombre_autor }}</span>
                 {% if rep.autor %}</a>{% endif %}
               </div>

@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
 from django.http import JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST, require_GET
@@ -7,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils.timesince import timesince
 from django.utils import timezone
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, Sum, F
 from django.db.models.functions import Coalesce
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
@@ -1187,21 +1188,173 @@ def _calcular_estadisticas_panel():
     }
 
 
+def _tiempo_relativo(dt, ahora=None):
+    """
+    Etiqueta de tiempo relativo para la última conexión:
+    'Ahora mismo', 'Hace 5 min', 'Hace 1 h', 'Hace 4 d'. Devuelve 'Sin registro'
+    si no hay fecha. El parámetro `ahora` permite reutilizar un solo timestamp.
+    """
+    if not dt:
+        return 'Sin registro'
+    ahora = ahora or timezone.now()
+    segundos = int((ahora - dt).total_seconds())
+    if segundos < 60:
+        return 'Ahora mismo'
+    minutos = segundos // 60
+    if minutos < 60:
+        return f'Hace {minutos} min'
+    horas = minutos // 60
+    if horas < 24:
+        return f'Hace {horas} h'
+    dias = horas // 24
+    return f'Hace {dias} d'
+
+
+def _listar_ciudadanos_presencia(busqueda=''):
+    """
+    Construye la lista de CIUDADANOS para la tabla "Ciudadanos activos" del Panel.
+
+    Devuelve datos reales (no de ejemplo) y de forma eficiente: una sola consulta,
+    sin N+1. Cada fila trae nombre, usuario, dirección real (o "No registrada"),
+    última conexión en formato relativo + fecha/hora, y si está en línea.
+
+    Si `busqueda` tiene texto, filtra por nombre de perfil (nombre/apellido o
+    nombre de usuario) o por correo electrónico.
+
+    Solo se incluyen usuarios con rol CIUDADANO (los administradores tienen su
+    propia tabla en Configuración). Ordenados por actividad más reciente.
+    """
+    ahora = timezone.now()
+    ventana = getattr(settings, 'PRESENCIA_VENTANA_SEGUNDOS', 300)
+
+    ciudadanos = (
+        Usuario.objects
+        .filter(rol=Usuario.Rol.CIUDADANO, is_staff=False, is_superuser=False)
+        .only(
+            'id', 'first_name', 'last_name', 'username',
+            'direccion', 'barrio_vereda', 'numero_finca', 'ultima_actividad',
+        )
+    )
+
+    busqueda = (busqueda or '').strip()
+    if busqueda:
+        ciudadanos = ciudadanos.filter(
+            Q(username__icontains=busqueda)
+            | Q(email__icontains=busqueda)
+            | Q(first_name__icontains=busqueda)
+            | Q(last_name__icontains=busqueda)
+        )
+
+    ciudadanos = ciudadanos.order_by(F('ultima_actividad').desc(nulls_last=True), 'username')
+
+    filas = []
+    for u in ciudadanos:
+        nombre = f"{u.first_name} {u.last_name}".strip() or u.username
+        en_linea = bool(u.ultima_actividad and (ahora - u.ultima_actividad).total_seconds() <= ventana)
+        if u.ultima_actividad:
+            ultima_rel = _tiempo_relativo(u.ultima_actividad)
+            ultima_abs = timezone.localtime(u.ultima_actividad).strftime('%d/%m/%Y %H:%M')
+        else:
+            ultima_rel = 'Sin registro'
+            ultima_abs = ''
+        filas.append({
+            'nombre': nombre,
+            'username': u.username,
+            'direccion': (u.direccion or '').strip() or 'No registrada',
+            'barrio_vereda': (u.barrio_vereda or '').strip(),
+            'numero_finca': (u.numero_finca or '').strip(),
+            'ultima_rel': ultima_rel,
+            'ultima_abs': ultima_abs,
+            'en_linea': en_linea,
+        })
+    return filas
+
+
 @login_required
 @_solo_administrador
 def panel_administrador_view(request):
     """
     Panel de Control Municipal (RF-005, Fase 1).
-    Vista exclusiva de administradores con KPIs, estadísticas en Chart.js y la
-    cola de atención prioritaria. Las métricas se calculan de datos reales.
+    Vista exclusiva de administradores con KPIs, estadísticas en Chart.js, la
+    cola de atención prioritaria y la tabla de ciudadanos activos/inactivos.
+    Las métricas se calculan de datos reales.
     """
     stats = _calcular_estadisticas_panel()
+    ciudadanos_presencia = _listar_ciudadanos_presencia()
 
     context = {
         'active_menu': 'panel',
         'stats': stats,
+        'ciudadanos_presencia': ciudadanos_presencia,
+        'ciudadanos_en_linea_count': sum(1 for c in ciudadanos_presencia if c['en_linea']),
     }
     return render(request, 'feed/panel_admin.html', context)
+
+
+@login_required
+@_solo_administrador
+@require_GET
+def api_presencia_ciudadanos(request):
+    """
+    Endpoint JSON (solo administradores) que devuelve el estado de presencia
+    actualizado de los ciudadanos, para refrescar la tabla del Panel sin recargar
+    toda la página.
+
+    La restricción de rol se aplica en el backend con @_solo_administrador: un
+    ciudadano que llame directamente a esta URL recibe 403 y NUNCA ve estos datos.
+
+    Acepta el parámetro GET `q` para filtrar por nombre de perfil o correo.
+    """
+    busqueda = request.GET.get('q', '')
+    ciudadanos = _listar_ciudadanos_presencia(busqueda=busqueda)
+    return JsonResponse({
+        'status': 'ok',
+        'ciudadanos': ciudadanos,
+        'en_linea_count': sum(1 for c in ciudadanos if c['en_linea']),
+    })
+
+
+@login_required
+@require_GET
+def api_estado_presencia(request, username):
+    """
+    Devuelve SOLO el estado de presencia (en línea / fuera de línea) de un usuario
+    concreto, para refrescar el círculo verde del perfil sin recargar.
+
+    Expone únicamente el booleano `en_linea` —exactamente la misma información que
+    ya muestra públicamente el círculo— y nada más (ni dirección, ni última
+    conexión, ni otros datos sensibles). Disponible para cualquier usuario
+    autenticado, igual que el propio indicador.
+    """
+    from django.shortcuts import get_object_or_404
+    usuario = get_object_or_404(
+        Usuario.objects.only('id', 'ultima_actividad'), username=username
+    )
+    return JsonResponse({
+        'status': 'ok',
+        'en_linea': usuario.esta_en_linea(),
+    })
+
+
+@login_required
+@require_POST
+def api_heartbeat(request):
+    """
+    "Latido" de presencia: el navegador lo llama periódicamente (cada ~25s)
+    mientras el usuario tiene la página abierta. Marca al usuario autenticado
+    como activo actualizando su `ultima_actividad`.
+
+    Disponible para CUALQUIER usuario autenticado (ciudadano o admin), porque
+    cada quien solo actualiza SU PROPIA marca (request.user). No expone datos de
+    otros usuarios: responde únicamente con un 'ok'. Así la presencia refleja el
+    estado real en tiempo casi real, sin depender de que el usuario navegue.
+    """
+    ahora = timezone.now()
+    Usuario.objects.filter(pk=request.user.pk).update(ultima_actividad=ahora)
+    # Sincronizar la marca de la sesión que usa el middleware para su throttle,
+    # evitando una escritura doble inmediata en la siguiente petición.
+    request.session['_ultima_actividad_ts'] = ahora.timestamp()
+    return JsonResponse({'status': 'ok'})
 
 
 def _filtrar_incidentes(request):

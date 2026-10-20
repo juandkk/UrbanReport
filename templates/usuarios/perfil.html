@@ -88,7 +88,8 @@
   <aside class="profile-side-col">
     <div class="profile-card">
       <!-- Avatar -->
-      <div class="profile-avatar-wrap" id="profile-avatar-wrap">
+      <div class="profile-avatar-wrap presence-wrap" id="profile-avatar-wrap"
+           data-presence-url="{% url 'api_estado_presencia' perfil_usuario.username %}">
         {% if perfil_usuario.avatar %}
         <img src="{{ perfil_usuario.avatar.url }}" alt="{{ nombre_completo }}" class="profile-avatar-img">
         {% else %}
@@ -98,6 +99,8 @@
           </svg>
         </div>
         {% endif %}
+        <span class="presence-dot presence-dot-profile" id="profilePresenceDot"
+              title="En línea" {% if not perfil_usuario.esta_en_linea %}hidden{% endif %}></span>
       </div>
 
       <!-- Nombre y rol -->
@@ -535,6 +538,31 @@
           })
           .catch(function () {})
           .finally(function () { b.disabled = false; });
+      });
+    }
+
+    // ── Presencia del perfil en vivo ──
+    // Refresca el círculo verde del avatar sin recargar: si la persona se conecta
+    // o desconecta mientras miras su perfil, el indicador se actualiza solo.
+    var avatarWrap = document.getElementById('profile-avatar-wrap');
+    var presenceDot = document.getElementById('profilePresenceDot');
+    if (avatarWrap && presenceDot && avatarWrap.dataset.presenceUrl) {
+      var presenceUrl = avatarWrap.dataset.presenceUrl;
+
+      function refrescarPresencia() {
+        if (document.visibilityState !== 'visible') return;
+        fetch(presenceUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data || data.status !== 'ok') return;
+            presenceDot.hidden = !data.en_linea;
+          })
+          .catch(function () { /* silencioso: se conserva el estado actual */ });
+      }
+
+      setInterval(refrescarPresencia, 20000); // cada 20 s mientras la pestaña está visible
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') refrescarPresencia();
       });
     }
   });

@@ -55,7 +55,7 @@
           var h1 = header.querySelector('h1');
           if (h1) h1.textContent = 'Comentario';
           var sub = header.querySelector('.detalle-subtitle');
-          if (sub) sub.innerHTML = '<a href="{% url 'detalle_publicacion' post.id %}" style="color:inherit;text-decoration:underline">Ver publicación completa</a>';
+          if (sub) sub.innerHTML = '<a href="{% url "detalle_publicacion" post.id %}" style="color:inherit;text-decoration:underline">Ver publicación completa</a>';
         }
       }
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -5500,3 +5500,56 @@ body.lightbox-open {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
+
+
+/* ==========================================================================
+   INDICADOR DE PRESENCIA (círculo verde) sobre fotos de perfil
+   Disponible en todo el portal (feed, comentarios, perfil). Solo se muestra
+   para usuarios con actividad reciente; el backend decide cuándo renderizarlo.
+   ========================================================================== */
+.presence-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.presence-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 30%;
+  min-width: 9px;
+  max-width: 16px;
+  aspect-ratio: 1 / 1;
+  background: #22c55e;
+  border: 2px solid #0b1220;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Variante en línea de la lista (sin posición absoluta) */
+.presence-dot-inline {
+  position: static;
+  width: 9px;
+  height: 9px;
+  min-width: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Variante para el avatar grande del perfil: tamaño fijo y borde más visible */
+.presence-dot-profile {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  right: 6px;
+  bottom: 6px;
+  border-width: 3px;
+}
+
+/* El atributo [hidden] debe ocultar el punto aunque tenga position: absolute. */
+.presence-dot[hidden] {
+  display: none;
+}
