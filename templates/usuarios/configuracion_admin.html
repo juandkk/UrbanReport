@@ -130,25 +130,28 @@
         <div class="cfg-toggle-text">
           <div class="cfg-toggle-title-wrap">
             <span class="cfg-toggle-title">Modo Mantenimiento</span>
-            <span id="mantenimientoBadge" class="cfg-badge {% if config.modo_mantenimiento %}cfg-badge-warn{% else %}cfg-badge-offline{% endif %}">
+            <span id="mantenimientoBadge"
+              class="cfg-badge {% if config.modo_mantenimiento %}cfg-badge-warn{% else %}cfg-badge-offline{% endif %}">
               {% if config.modo_mantenimiento %}Activo{% else %}Inactivo{% endif %}
             </span>
           </div>
-          <span class="cfg-toggle-desc">Suspende temporalmente el acceso público de ciudadanos para actualizaciones.</span>
+          <span class="cfg-toggle-desc">Suspende temporalmente el acceso público de ciudadanos para
+            actualizaciones.</span>
         </div>
         <label class="cfg-switch">
           <input type="hidden" name="modo_mantenimiento_present" value="1">
           <input type="checkbox" name="modo_mantenimiento" id="id_modo_mantenimiento"
-                 data-url="{% url 'toggle_modo_mantenimiento' %}"
-                 {% if config.modo_mantenimiento %}checked{% endif %}>
+            data-url="{% url 'toggle_modo_mantenimiento' %}" {% if config.modo_mantenimiento %}checked{% endif %}>
           <span class="cfg-switch-slider"></span>
         </label>
       </div>
 
-      <div id="mantenimientoBanner" class="cfg-maint-banner" {% if not config.modo_mantenimiento %}style="display:none;"{% endif %}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+      <div id="mantenimientoBanner" class="cfg-maint-banner" {% if not config.modo_mantenimiento %}style="display:none;"
+        {% endif %}>
+        <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="#f59e0b">
+          <path
+            d="m40-120 440-760 440 760H40Zm138-80h604L480-720 178-200Zm330.5-51.5Q520-263 520-280t-11.5-28.5Q497-320 480-320t-28.5 11.5Q440-297 440-280t11.5 28.5Q463-240 480-240t28.5-11.5ZM440-360h80v-200h-80v200Zm40-100Z">
+          </path>
         </svg>
         <span>El modo mantenimiento está activo. Solo los administradores pueden navegar en la plataforma.</span>
       </div>
@@ -160,18 +163,18 @@
             Último respaldo: <span id="ultimoBackupLabel">{{ ultimo_backup_rel }}</span>
           </span>
         </div>
-        <button type="button" class="cfg-mini-btn" id="btnBackupManual"
-                data-url="{% url 'ejecutar_backup' %}">Ejecutar Manual</button>
+        <button type="button" class="cfg-mini-btn" id="btnBackupManual" data-url="{% url 'ejecutar_backup' %}">Ejecutar
+          Manual</button>
       </div>
     </section>
 
     <!-- Parámetros de Alerta -->
     <section class="cfg-card">
       <h2 class="cfg-card-title cfg-card-title-warn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
+        <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="#f59e0b">
+          <path
+            d="m40-120 440-760 440 760H40Zm138-80h604L480-720 178-200Zm330.5-51.5Q520-263 520-280t-11.5-28.5Q497-320 480-320t-28.5 11.5Q440-297 440-280t11.5 28.5Q463-240 480-240t28.5-11.5ZM440-360h80v-200h-80v200Zm40-100Z">
+          </path>
         </svg>
         Parámetros de Alerta
       </h2>
@@ -208,7 +211,8 @@
         </button>
         <button type="button" class="cfg-new-admin-btn" id="btnNuevoAdmin">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Nuevo Admin
         </button>
@@ -261,8 +265,8 @@
               {% elif a.es_actual %}
               <span class="cfg-action-protected" title="No puedes revocar tu propia cuenta">Sesión actual</span>
               {% else %}
-              <button type="button" class="cfg-icon-btn cfg-revoke-btn"
-                      data-url="{% url 'revocar_admin' a.id %}" title="Revocar administrador">
+              <button type="button" class="cfg-icon-btn cfg-revoke-btn" data-url="{% url 'revocar_admin' a.id %}"
+                title="Revocar administrador">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -307,11 +311,12 @@
       </div>
       <div class="cfg-field">
         <label class="cfg-label">Contraseña<span class="cfg-req">*</span></label>
-        <input type="password" class="cfg-input" id="na_password" placeholder="Mínimo 8 caracteres, con letras y números">
+        <input type="password" class="cfg-input" id="na_password"
+          placeholder="Mínimo 8 caracteres, con letras y números">
       </div>
       <p class="cfg-modal-error" id="crearError"></p>
       <button type="button" class="cfg-save-btn cfg-modal-submit" id="submitCrearAdmin"
-              data-url="{% url 'crear_admin' %}">Crear administrador</button>
+        data-url="{% url 'crear_admin' %}">Crear administrador</button>
     </div>
 
     <!-- Promover ciudadano existente -->
@@ -323,7 +328,7 @@
       <p class="cfg-modal-hint">Cambia el rol de un ciudadano existente a administrador.</p>
       <p class="cfg-modal-error" id="promoverError"></p>
       <button type="button" class="cfg-save-btn cfg-modal-submit" id="submitPromover"
-              data-url="{% url 'promover_ciudadano' %}">Convertir en administrador</button>
+        data-url="{% url 'promover_ciudadano' %}">Convertir en administrador</button>
     </div>
   </div>
 </div>
@@ -332,288 +337,290 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-(function () {
-  'use strict';
+  (function () {
+    'use strict';
 
-  function getCookie(name) {
-    var value = null;
-    if (document.cookie) {
-      document.cookie.split(';').forEach(function (c) {
-        var t = c.trim();
-        if (t.indexOf(name + '=') === 0) value = decodeURIComponent(t.substring(name.length + 1));
+    function getCookie(name) {
+      var value = null;
+      if (document.cookie) {
+        document.cookie.split(';').forEach(function (c) {
+          var t = c.trim();
+          if (t.indexOf(name + '=') === 0) value = decodeURIComponent(t.substring(name.length + 1));
+        });
+      }
+      return value;
+    }
+    var csrftoken = getCookie('csrftoken');
+
+    function post(url, data) {
+      var body = new URLSearchParams(data || {});
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: body.toString(),
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); });
+    }
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    function notify(msg, isError) {
+      if (typeof window.mostrarToast === 'function') {
+        window.mostrarToast(msg, isError ? 'error' : 'success');
+      }
+    }
+
+    var mainForm = document.getElementById('cfgAdminForm');
+    var saveBtn = document.getElementById('cfgAdminSaveBtn');
+    if (mainForm && saveBtn) {
+      mainForm.addEventListener('submit', function () {
+        saveBtn.disabled = true;
+        saveBtn.classList.add('is-loading');
+        var label = saveBtn.querySelector('.cfg-save-label');
+        if (label) label.textContent = 'Guardando...';
       });
     }
-    return value;
-  }
-  var csrftoken = getCookie('csrftoken');
 
-  function post(url, data) {
-    var body = new URLSearchParams(data || {});
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest',
-                 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, data: j }; }); });
-  }
+    // ── Modo mantenimiento (toggle instantáneo + feedback visual) ──
+    var mantenimiento = document.getElementById('id_modo_mantenimiento');
+    var maintBadge = document.getElementById('mantenimientoBadge');
+    var maintBanner = document.getElementById('mantenimientoBanner');
 
-  function escapeHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s == null ? '' : String(s);
-    return d.innerHTML;
-  }
-
-  function notify(msg, isError) {
-    if (typeof window.mostrarToast === 'function') {
-      window.mostrarToast(msg, isError ? 'error' : 'success');
+    function syncMaintenanceUI(activo) {
+      if (maintBadge) {
+        maintBadge.textContent = activo ? 'Activo' : 'Inactivo';
+        maintBadge.className = 'cfg-badge ' + (activo ? 'cfg-badge-warn' : 'cfg-badge-offline');
+      }
+      if (maintBanner) {
+        maintBanner.style.display = activo ? 'flex' : 'none';
+      }
     }
-  }
 
-  var mainForm = document.getElementById('cfgAdminForm');
-  var saveBtn = document.getElementById('cfgAdminSaveBtn');
-  if (mainForm && saveBtn) {
-    mainForm.addEventListener('submit', function () {
-      saveBtn.disabled = true;
-      saveBtn.classList.add('is-loading');
-      var label = saveBtn.querySelector('.cfg-save-label');
-      if (label) label.textContent = 'Guardando...';
-    });
-  }
-
-  // ── Modo mantenimiento (toggle instantáneo + feedback visual) ──
-  var mantenimiento = document.getElementById('id_modo_mantenimiento');
-  var maintBadge = document.getElementById('mantenimientoBadge');
-  var maintBanner = document.getElementById('mantenimientoBanner');
-
-  function syncMaintenanceUI(activo) {
-    if (maintBadge) {
-      maintBadge.textContent = activo ? 'Activo' : 'Inactivo';
-      maintBadge.className = 'cfg-badge ' + (activo ? 'cfg-badge-warn' : 'cfg-badge-offline');
-    }
-    if (maintBanner) {
-      maintBanner.style.display = activo ? 'flex' : 'none';
-    }
-  }
-
-  if (mantenimiento) {
-    mantenimiento.addEventListener('change', function () {
-      var url = mantenimiento.dataset.url;
-      var deseado = mantenimiento.checked;
-      mantenimiento.disabled = true;
-      post(url, { activar: deseado ? 'on' : '' })
-        .then(function (res) {
-          if (res.data && res.data.status === 'ok') {
-            mantenimiento.checked = !!res.data.modo_mantenimiento;
-            syncMaintenanceUI(mantenimiento.checked);
-            notify(res.data.message || (mantenimiento.checked ? 'Modo mantenimiento activado.' : 'Modo mantenimiento desactivado.'), false);
-          } else {
+    if (mantenimiento) {
+      mantenimiento.addEventListener('change', function () {
+        var url = mantenimiento.dataset.url;
+        var deseado = mantenimiento.checked;
+        mantenimiento.disabled = true;
+        post(url, { activar: deseado ? 'on' : '' })
+          .then(function (res) {
+            if (res.data && res.data.status === 'ok') {
+              mantenimiento.checked = !!res.data.modo_mantenimiento;
+              syncMaintenanceUI(mantenimiento.checked);
+              notify(res.data.message || (mantenimiento.checked ? 'Modo mantenimiento activado.' : 'Modo mantenimiento desactivado.'), false);
+            } else {
+              mantenimiento.checked = !deseado;
+              syncMaintenanceUI(mantenimiento.checked);
+              notify('No se pudo cambiar el modo mantenimiento.', true);
+            }
+          })
+          .catch(function () {
             mantenimiento.checked = !deseado;
             syncMaintenanceUI(mantenimiento.checked);
-            notify('No se pudo cambiar el modo mantenimiento.', true);
-          }
-        })
-        .catch(function () {
-          mantenimiento.checked = !deseado;
-          syncMaintenanceUI(mantenimiento.checked);
-          notify('Error de conexión al actualizar modo mantenimiento.', true);
-        })
-        .finally(function () { mantenimiento.disabled = false; });
-    });
-  }
-
-  // ── Backup manual ──
-  var btnBackup = document.getElementById('btnBackupManual');
-  if (btnBackup) {
-    btnBackup.addEventListener('click', function () {
-      btnBackup.disabled = true;
-      var original = btnBackup.textContent;
-      btnBackup.textContent = 'Ejecutando...';
-      post(btnBackup.dataset.url, {})
-        .then(function (res) {
-          if (res.data && res.data.status === 'ok') {
-            var label = document.getElementById('ultimoBackupLabel');
-            if (label) label.textContent = res.data.ultimo_backup_rel;
-            notify(res.data.message || 'Backup ejecutado correctamente.', false);
-          }
-        })
-        .finally(function () {
-          btnBackup.disabled = false;
-          btnBackup.textContent = original;
-        });
-    });
-  }
-
-  // ── Renderizado de filas de Administradores Activos ──
-  function buildAdminRowHtml(a) {
-    var estado = a.en_linea
-      ? '<span class="cfg-badge cfg-badge-online"><span class="cfg-status-dot online"></span>En línea</span>'
-      : '<span class="cfg-badge cfg-badge-offline"><span class="cfg-status-dot offline"></span>Inactivo</span>';
-    var acciones;
-    if (a.es_superuser) {
-      acciones = '<span class="cfg-action-protected" title="Un superusuario no puede ser revocado">—</span>';
-    } else if (a.es_actual) {
-      acciones = '<span class="cfg-action-protected" title="No puedes revocar tu propia cuenta">Sesión actual</span>';
-    } else {
-      acciones = '<button type="button" class="cfg-icon-btn cfg-revoke-btn" data-url="/admin-config/revocar/' + a.id + '/" title="Revocar administrador">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
-    }
-    var subUser = '@' + escapeHtml(a.username) + (a.es_actual ? ' (Tú)' : '');
-    var fechaSub = a.ultimo_acceso_fecha
-      ? '<span class="cfg-access-date">' + escapeHtml(a.ultimo_acceso_fecha) + '</span>'
-      : '';
-    return '<td><div class="cfg-admin-name-cell"><span class="cfg-admin-fullname">' + escapeHtml(a.nombre) + '</span>' +
-      '<span class="cfg-admin-username">' + subUser + '</span></div></td>' +
-      '<td>' + escapeHtml(a.rol_label) + '</td>' +
-      '<td><div class="cfg-access-cell"><span class="cfg-access-rel">' + escapeHtml(a.ultimo_acceso) + '</span>' + fechaSub + '</div></td>' +
-      '<td>' + estado + '</td>' +
-      '<td class="cfg-col-acciones">' + acciones + '</td>';
-  }
-
-  function addOrUpdateAdminRow(a) {
-    var empty = document.getElementById('adminsEmptyRow');
-    if (empty) empty.remove();
-    var tbody = document.getElementById('adminsTbody');
-    if (!tbody) return;
-    var existing = tbody.querySelector('tr[data-user-id="' + a.id + '"]');
-    if (existing) {
-      existing.innerHTML = buildAdminRowHtml(a);
-    } else {
-      var tr = document.createElement('tr');
-      tr.setAttribute('data-user-id', a.id);
-      tr.innerHTML = buildAdminRowHtml(a);
-      tbody.appendChild(tr);
-    }
-  }
-
-  function refreshAdminsTable(showFeedback) {
-    var section = document.getElementById('adminsSection');
-    var tbody = document.getElementById('adminsTbody');
-    if (!section || !tbody || !section.dataset.statusUrl) return;
-    var btnRefresh = document.getElementById('btnRefreshAdmins');
-    if (btnRefresh && showFeedback) btnRefresh.disabled = true;
-    fetch(section.dataset.statusUrl, {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data && data.status === 'ok' && Array.isArray(data.administradores)) {
-          tbody.innerHTML = '';
-          if (data.administradores.length === 0) {
-            tbody.innerHTML = '<tr id="adminsEmptyRow"><td colspan="5" class="cfg-table-empty">No hay administradores registrados.</td></tr>';
-          } else {
-            data.administradores.forEach(function (a) { addOrUpdateAdminRow(a); });
-          }
-          if (showFeedback) notify('Estado de administradores actualizado.', false);
-        }
-      })
-      .catch(function () {})
-      .finally(function () {
-        if (btnRefresh && showFeedback) btnRefresh.disabled = false;
+            notify('Error de conexión al actualizar modo mantenimiento.', true);
+          })
+          .finally(function () { mantenimiento.disabled = false; });
       });
-  }
+    }
 
-  var btnRefreshAdmins = document.getElementById('btnRefreshAdmins');
-  if (btnRefreshAdmins) {
-    btnRefreshAdmins.addEventListener('click', function () {
-      refreshAdminsTable(true);
-    });
-  }
-  // Refresco periódico cada 25 segundos para mantener "En línea" y "Última Conexión" al día
-  setInterval(function () { refreshAdminsTable(false); }, 25000);
+    // ── Backup manual ──
+    var btnBackup = document.getElementById('btnBackupManual');
+    if (btnBackup) {
+      btnBackup.addEventListener('click', function () {
+        btnBackup.disabled = true;
+        var original = btnBackup.textContent;
+        btnBackup.textContent = 'Ejecutando...';
+        post(btnBackup.dataset.url, {})
+          .then(function (res) {
+            if (res.data && res.data.status === 'ok') {
+              var label = document.getElementById('ultimoBackupLabel');
+              if (label) label.textContent = res.data.ultimo_backup_rel;
+              notify(res.data.message || 'Backup ejecutado correctamente.', false);
+            }
+          })
+          .finally(function () {
+            btnBackup.disabled = false;
+            btnBackup.textContent = original;
+          });
+      });
+    }
 
-  // ── Revocar admin ──
-  var tbody = document.getElementById('adminsTbody');
-  if (tbody) {
-    tbody.addEventListener('click', function (e) {
-      var btn = e.target.closest('.cfg-revoke-btn');
-      if (!btn) return;
-      if (!confirm('¿Quitar el rol de administrador a este usuario? Volverá a ser ciudadano.')) return;
-      btn.disabled = true;
-      post(btn.dataset.url, {})
-        .then(function (res) {
-          if (res.data && res.data.status === 'ok') {
-            var row = btn.closest('tr');
-            if (row) row.remove();
-            notify(res.data.message || 'Rol de administrador revocado.', false);
-          } else {
-            alert((res.data && res.data.message) || 'No se pudo revocar.');
-            btn.disabled = false;
+    // ── Renderizado de filas de Administradores Activos ──
+    function buildAdminRowHtml(a) {
+      var estado = a.en_linea
+        ? '<span class="cfg-badge cfg-badge-online"><span class="cfg-status-dot online"></span>En línea</span>'
+        : '<span class="cfg-badge cfg-badge-offline"><span class="cfg-status-dot offline"></span>Inactivo</span>';
+      var acciones;
+      if (a.es_superuser) {
+        acciones = '<span class="cfg-action-protected" title="Un superusuario no puede ser revocado">—</span>';
+      } else if (a.es_actual) {
+        acciones = '<span class="cfg-action-protected" title="No puedes revocar tu propia cuenta">Sesión actual</span>';
+      } else {
+        acciones = '<button type="button" class="cfg-icon-btn cfg-revoke-btn" data-url="/admin-config/revocar/' + a.id + '/" title="Revocar administrador">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+      }
+      var subUser = '@' + escapeHtml(a.username) + (a.es_actual ? ' (Tú)' : '');
+      var fechaSub = a.ultimo_acceso_fecha
+        ? '<span class="cfg-access-date">' + escapeHtml(a.ultimo_acceso_fecha) + '</span>'
+        : '';
+      return '<td><div class="cfg-admin-name-cell"><span class="cfg-admin-fullname">' + escapeHtml(a.nombre) + '</span>' +
+        '<span class="cfg-admin-username">' + subUser + '</span></div></td>' +
+        '<td>' + escapeHtml(a.rol_label) + '</td>' +
+        '<td><div class="cfg-access-cell"><span class="cfg-access-rel">' + escapeHtml(a.ultimo_acceso) + '</span>' + fechaSub + '</div></td>' +
+        '<td>' + estado + '</td>' +
+        '<td class="cfg-col-acciones">' + acciones + '</td>';
+    }
+
+    function addOrUpdateAdminRow(a) {
+      var empty = document.getElementById('adminsEmptyRow');
+      if (empty) empty.remove();
+      var tbody = document.getElementById('adminsTbody');
+      if (!tbody) return;
+      var existing = tbody.querySelector('tr[data-user-id="' + a.id + '"]');
+      if (existing) {
+        existing.innerHTML = buildAdminRowHtml(a);
+      } else {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-user-id', a.id);
+        tr.innerHTML = buildAdminRowHtml(a);
+        tbody.appendChild(tr);
+      }
+    }
+
+    function refreshAdminsTable(showFeedback) {
+      var section = document.getElementById('adminsSection');
+      var tbody = document.getElementById('adminsTbody');
+      if (!section || !tbody || !section.dataset.statusUrl) return;
+      var btnRefresh = document.getElementById('btnRefreshAdmins');
+      if (btnRefresh && showFeedback) btnRefresh.disabled = true;
+      fetch(section.dataset.statusUrl, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.status === 'ok' && Array.isArray(data.administradores)) {
+            tbody.innerHTML = '';
+            if (data.administradores.length === 0) {
+              tbody.innerHTML = '<tr id="adminsEmptyRow"><td colspan="5" class="cfg-table-empty">No hay administradores registrados.</td></tr>';
+            } else {
+              data.administradores.forEach(function (a) { addOrUpdateAdminRow(a); });
+            }
+            if (showFeedback) notify('Estado de administradores actualizado.', false);
           }
         })
-        .catch(function () { btn.disabled = false; });
-    });
-  }
+        .catch(function () { })
+        .finally(function () {
+          if (btnRefresh && showFeedback) btnRefresh.disabled = false;
+        });
+    }
 
-  // ── Modal Nuevo Admin ──
-  var modal = document.getElementById('nuevoAdminModal');
-  var btnOpen = document.getElementById('btnNuevoAdmin');
-  var btnClose = document.getElementById('closeNuevoAdmin');
-  function openModal() { if (modal) modal.classList.add('active'); }
-  function closeModal() { if (modal) modal.classList.remove('active'); }
-  if (btnOpen) btnOpen.addEventListener('click', openModal);
-  if (btnClose) btnClose.addEventListener('click', closeModal);
-  if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    var btnRefreshAdmins = document.getElementById('btnRefreshAdmins');
+    if (btnRefreshAdmins) {
+      btnRefreshAdmins.addEventListener('click', function () {
+        refreshAdminsTable(true);
+      });
+    }
+    // Refresco periódico cada 25 segundos para mantener "En línea" y "Última Conexión" al día
+    setInterval(function () { refreshAdminsTable(false); }, 25000);
 
-  // Tabs del modal
-  document.querySelectorAll('.cfg-modal-tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      document.querySelectorAll('.cfg-modal-tab').forEach(function (t) { t.classList.remove('active'); });
-      document.querySelectorAll('.cfg-modal-pane').forEach(function (p) { p.classList.remove('active'); });
-      tab.classList.add('active');
-      var pane = document.getElementById(tab.dataset.tab === 'crear' ? 'paneCrear' : 'panePromover');
-      if (pane) pane.classList.add('active');
-    });
-  });
+    // ── Revocar admin ──
+    var tbody = document.getElementById('adminsTbody');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var btn = e.target.closest('.cfg-revoke-btn');
+        if (!btn) return;
+        if (!confirm('¿Quitar el rol de administrador a este usuario? Volverá a ser ciudadano.')) return;
+        btn.disabled = true;
+        post(btn.dataset.url, {})
+          .then(function (res) {
+            if (res.data && res.data.status === 'ok') {
+              var row = btn.closest('tr');
+              if (row) row.remove();
+              notify(res.data.message || 'Rol de administrador revocado.', false);
+            } else {
+              alert((res.data && res.data.message) || 'No se pudo revocar.');
+              btn.disabled = false;
+            }
+          })
+          .catch(function () { btn.disabled = false; });
+      });
+    }
 
-  // Crear nuevo admin
-  var submitCrear = document.getElementById('submitCrearAdmin');
-  if (submitCrear) {
-    submitCrear.addEventListener('click', function () {
-      var errEl = document.getElementById('crearError');
-      errEl.textContent = '';
-      submitCrear.disabled = true;
-      post(submitCrear.dataset.url, {
-        username: document.getElementById('na_username').value,
-        email: document.getElementById('na_email').value,
-        password: document.getElementById('na_password').value,
-      }).then(function (res) {
-        if (res.data && res.data.status === 'ok') {
-          addOrUpdateAdminRow(res.data.admin);
-          document.getElementById('na_username').value = '';
-          document.getElementById('na_email').value = '';
-          document.getElementById('na_password').value = '';
-          closeModal();
-          notify(res.data.message || 'Administrador creado correctamente.', false);
-        } else {
-          errEl.textContent = (res.data && res.data.message) || 'No se pudo crear.';
-        }
-      }).catch(function () { errEl.textContent = 'Error de conexión.'; })
-        .finally(function () { submitCrear.disabled = false; });
-    });
-  }
+    // ── Modal Nuevo Admin ──
+    var modal = document.getElementById('nuevoAdminModal');
+    var btnOpen = document.getElementById('btnNuevoAdmin');
+    var btnClose = document.getElementById('closeNuevoAdmin');
+    function openModal() { if (modal) modal.classList.add('active'); }
+    function closeModal() { if (modal) modal.classList.remove('active'); }
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
-  // Promover ciudadano
-  var submitPromover = document.getElementById('submitPromover');
-  if (submitPromover) {
-    submitPromover.addEventListener('click', function () {
-      var errEl = document.getElementById('promoverError');
-      errEl.textContent = '';
-      submitPromover.disabled = true;
-      post(submitPromover.dataset.url, {
-        identificador: document.getElementById('pr_identificador').value,
-      }).then(function (res) {
-        if (res.data && res.data.status === 'ok') {
-          addOrUpdateAdminRow(res.data.admin);
-          document.getElementById('pr_identificador').value = '';
-          closeModal();
-          notify(res.data.message || 'Ciudadano promovido a administrador.', false);
-        } else {
-          errEl.textContent = (res.data && res.data.message) || 'No se pudo promover.';
-        }
-      }).catch(function () { errEl.textContent = 'Error de conexión.'; })
-        .finally(function () { submitPromover.disabled = false; });
+    // Tabs del modal
+    document.querySelectorAll('.cfg-modal-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.cfg-modal-tab').forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.cfg-modal-pane').forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        var pane = document.getElementById(tab.dataset.tab === 'crear' ? 'paneCrear' : 'panePromover');
+        if (pane) pane.classList.add('active');
+      });
     });
-  }
-})();
+
+    // Crear nuevo admin
+    var submitCrear = document.getElementById('submitCrearAdmin');
+    if (submitCrear) {
+      submitCrear.addEventListener('click', function () {
+        var errEl = document.getElementById('crearError');
+        errEl.textContent = '';
+        submitCrear.disabled = true;
+        post(submitCrear.dataset.url, {
+          username: document.getElementById('na_username').value,
+          email: document.getElementById('na_email').value,
+          password: document.getElementById('na_password').value,
+        }).then(function (res) {
+          if (res.data && res.data.status === 'ok') {
+            addOrUpdateAdminRow(res.data.admin);
+            document.getElementById('na_username').value = '';
+            document.getElementById('na_email').value = '';
+            document.getElementById('na_password').value = '';
+            closeModal();
+            notify(res.data.message || 'Administrador creado correctamente.', false);
+          } else {
+            errEl.textContent = (res.data && res.data.message) || 'No se pudo crear.';
+          }
+        }).catch(function () { errEl.textContent = 'Error de conexión.'; })
+          .finally(function () { submitCrear.disabled = false; });
+      });
+    }
+
+    // Promover ciudadano
+    var submitPromover = document.getElementById('submitPromover');
+    if (submitPromover) {
+      submitPromover.addEventListener('click', function () {
+        var errEl = document.getElementById('promoverError');
+        errEl.textContent = '';
+        submitPromover.disabled = true;
+        post(submitPromover.dataset.url, {
+          identificador: document.getElementById('pr_identificador').value,
+        }).then(function (res) {
+          if (res.data && res.data.status === 'ok') {
+            addOrUpdateAdminRow(res.data.admin);
+            document.getElementById('pr_identificador').value = '';
+            closeModal();
+            notify(res.data.message || 'Ciudadano promovido a administrador.', false);
+          } else {
+            errEl.textContent = (res.data && res.data.message) || 'No se pudo promover.';
+          }
+        }).catch(function () { errEl.textContent = 'Error de conexión.'; })
+          .finally(function () { submitPromover.disabled = false; });
+      });
+    }
+  })();
 </script>
 {% endblock %}
