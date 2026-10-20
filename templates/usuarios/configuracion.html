@@ -152,7 +152,71 @@
       </label>
     </div>
   </section>
+
+  <!-- ===== Zona de Peligro: Eliminar Cuenta ===== -->
+  <section class="cfg-card cfg-card-danger">
+    <h2 class="cfg-card-title cfg-card-title-danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      Zona de Peligro
+    </h2>
+
+    <div class="cfg-danger-row">
+      <div class="cfg-toggle-text">
+        <span class="cfg-toggle-title">Eliminar mi cuenta permanentemente</span>
+        <span class="cfg-toggle-desc">
+          Esta acción es irreversible. Se eliminarán de forma definitiva tu perfil, tus reportes ciudadanos, comentarios y preferencias del sistema.
+        </span>
+      </div>
+      <button type="button" class="cfg-danger-btn" id="btnOpenDeleteAccountModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+        Eliminar Cuenta
+      </button>
+    </div>
+  </section>
 </form>
+
+<!-- ===== Modal de Confirmación para Eliminar Cuenta ===== -->
+<div class="cfg-modal-backdrop" id="deleteAccountModal" role="dialog" aria-modal="true" aria-labelledby="deleteAccountModalTitle">
+  <div class="cfg-modal cfg-modal-danger">
+    <div class="cfg-modal-header">
+      <h3 id="deleteAccountModalTitle">¿Eliminar tu cuenta definitivamente?</h3>
+      <button type="button" class="cfg-modal-close" id="closeDeleteAccountModal" aria-label="Cerrar">&times;</button>
+    </div>
+
+    <form method="POST" action="{% url 'eliminar_cuenta' %}" id="deleteAccountForm">
+      {% csrf_token %}
+      <p class="cfg-danger-modal-text">
+        Estás a punto de eliminar tu cuenta <strong>@{{ request.user.username }}</strong>. Esta operación no se puede deshacer y perderás todo tu historial y nivel de confianza en UrbanReport.
+      </p>
+
+      <div class="cfg-field" style="margin-top: 0.85rem;">
+        <label for="deleteAccountConfirmInput" class="cfg-label">
+          Para confirmar, escribe <strong>ELIMINAR</strong> en mayúsculas<span class="cfg-req">*</span>
+        </label>
+        <input type="text" name="confirmacion" id="deleteAccountConfirmInput" class="cfg-input"
+               placeholder="Escribe ELIMINAR" autocomplete="off" required>
+      </div>
+
+      <p class="cfg-modal-error" id="deleteAccountError"></p>
+
+      <div class="cfg-modal-actions">
+        <button type="button" class="cfg-mini-btn" id="cancelDeleteAccountBtn">Cancelar</button>
+        <button type="submit" class="cfg-danger-btn cfg-danger-btn-solid" id="submitDeleteAccountBtn" disabled>
+          Sí, eliminar mi cuenta
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -168,6 +232,60 @@
         btn.classList.add('is-loading');
         var label = btn.querySelector('.cfg-save-label');
         if (label) label.textContent = 'Guardando...';
+      });
+    }
+
+    // Modal de eliminación de cuenta
+    var modal = document.getElementById('deleteAccountModal');
+    var btnOpen = document.getElementById('btnOpenDeleteAccountModal');
+    var btnClose = document.getElementById('closeDeleteAccountModal');
+    var btnCancel = document.getElementById('cancelDeleteAccountBtn');
+    var inputConfirm = document.getElementById('deleteAccountConfirmInput');
+    var btnSubmit = document.getElementById('submitDeleteAccountBtn');
+    var errEl = document.getElementById('deleteAccountError');
+    var deleteForm = document.getElementById('deleteAccountForm');
+
+    function openDeleteModal() {
+      if (!modal) return;
+      modal.classList.add('active');
+      if (inputConfirm) {
+        inputConfirm.value = '';
+        inputConfirm.focus();
+      }
+      if (btnSubmit) btnSubmit.disabled = true;
+      if (errEl) errEl.textContent = '';
+    }
+
+    function closeDeleteModal() {
+      if (modal) modal.classList.remove('active');
+    }
+
+    if (btnOpen) btnOpen.addEventListener('click', openDeleteModal);
+    if (btnClose) btnClose.addEventListener('click', closeDeleteModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeDeleteModal);
+    if (modal) {
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeDeleteModal();
+      });
+    }
+
+    if (inputConfirm && btnSubmit) {
+      inputConfirm.addEventListener('input', function () {
+        var valido = inputConfirm.value.trim() === 'ELIMINAR';
+        btnSubmit.disabled = !valido;
+        if (errEl) errEl.textContent = '';
+      });
+    }
+
+    if (deleteForm && btnSubmit) {
+      deleteForm.addEventListener('submit', function (e) {
+        if (!inputConfirm || inputConfirm.value.trim() !== 'ELIMINAR') {
+          e.preventDefault();
+          if (errEl) errEl.textContent = 'Debes escribir exactamente «ELIMINAR» para continuar.';
+          return;
+        }
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Eliminando cuenta...';
       });
     }
   })();

@@ -199,48 +199,114 @@
   // ── Búsqueda en el mini-mapa (Enter o botón "Ir" en móvil) ──
   const miniMapSearchBtn = document.getElementById('miniMapSearchBtn');
 
-  function ejecutarBusquedaMiniMapa() {
+  function normalizarDireccionMedellin(raw) {
+    let s = String(raw || '').trim();
+    if (!s) return '';
+    return s
+      .replace(/\b(cll|cl)\.?\s*(?=\d)/gi, 'Calle ')
+      .replace(/\b(cra|cr|kr|kra)\.?\s*(?=\d)/gi, 'Carrera ')
+      .replace(/\b(dg|diag)\.?\s*(?=\d)/gi, 'Diagonal ')
+      .replace(/\b(tv|trv|transv)\.?\s*(?=\d)/gi, 'Transversal ')
+      .replace(/\b(cq|circ)\.?\s*(?=\d)/gi, 'Circular ')
+      .replace(/\b(av|avda)\.?\s+/gi, 'Avenida ')
+      .replace(/\b(no\.?|nro\.?|num\.?)\s*(?=\d)/gi, '# ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function ejecutarBusquedaMiniMapa() {
     if (!miniMapSearch) return;
-    const query = miniMapSearch.value.toLowerCase().trim();
+    const rawQuery = miniMapSearch.value.trim();
+    const query = rawQuery.toLowerCase();
     if (!query) return;
 
-    // Comprobar lugares conocidos de Medellín
-    if (MEDELLIN_BARRIOS[query]) {
+    // 1. Coincidencia exacta en lugares conocidos de Medellín
+    if (Object.prototype.hasOwnProperty.call(MEDELLIN_BARRIOS, query)) {
       const coords = MEDELLIN_BARRIOS[query];
-      setMiniMapLocation(coords[0], coords[1]);
+      if (setMiniMapLocation(coords[0], coords[1]) && ubicacionInput) {
+        ubicacionInput.value = rawQuery;
+      }
       return;
     }
 
-    // Búsqueda parcial en lugares de Medellín
-    for (const [key, coords] of Object.entries(MEDELLIN_BARRIOS)) {
-      if (query.includes(key) || key.includes(query)) {
-        setMiniMapLocation(coords[0], coords[1]);
-        return;
+    const normalized = normalizarDireccionMedellin(rawQuery);
+    const hasCity = /medell[ií]n/i.test(normalized);
+    const fullSingleLine = hasCity ? normalized : (normalized + ', Medellín, Antioquia, Colombia');
+    const searchExtent = [
+      MEDELLIN_BOUNDS.lngMin,
+      MEDELLIN_BOUNDS.latMin,
+      MEDELLIN_BOUNDS.lngMax,
+      MEDELLIN_BOUNDS.latMax,
+    ].join(',');
+
+    // 2. Geocodificación precisa con ArcGIS World Geocoder acotado a Medellín
+    try {
+      const arcgisUrl =
+        'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates' +
+        '?SingleLine=' + encodeURIComponent(fullSingleLine) +
+        '&countryCode=COL' +
+        '&searchExtent=' + encodeURIComponent(searchExtent) +
+        '&location=' + encodeURIComponent(MEDELLIN_LNG + ',' + MEDELLIN_LAT) +
+        '&outFields=Match_addr,Addr_type,StAddr,Nbrhd,PlaceName' +
+        '&maxLocations=5&f=pjson';
+
+      const res = await fetch(arcgisUrl);
+      if (res.ok) {
+        const data = await res.json();
+        const candidates = (data && Array.isArray(data.candidates)) ? data.candidates : [];
+        const genericTypes = new Set(['Locality', 'City', 'SubAdmin', 'Admin', 'AdministrativeArea', 'Postal']);
+
+        for (const cand of candidates) {
+          if (!cand || !cand.location) continue;
+          const lat = parseFloat(cand.location.y);
+          const lng = parseFloat(cand.location.x);
+          if (!estaEnMedellin(lat, lng)) continue;
+
+          const attrs = cand.attributes || {};
+          const addrType = attrs.Addr_type || '';
+          if (genericTypes.has(addrType) && !/^medell[ií]n$/i.test(rawQuery)) continue;
+          if ((cand.score || 0) < 75) continue;
+
+          const label =
+            attrs.PlaceName ||
+            attrs.StAddr ||
+            (cand.address ? String(cand.address).split(',')[0].trim() : rawQuery);
+
+          if (setMiniMapLocation(lat, lng) && ubicacionInput) {
+            ubicacionInput.value = attrs.Nbrhd ? (label + ', ' + attrs.Nbrhd) : label;
+          }
+          return;
+        }
       }
+    } catch (err) {
+      console.warn('ArcGIS mini-map fallback a Nominatim:', err);
     }
 
-    // Geocodificación OSM Nominatim acotada al bounding box de Medellín.
+    // 3. Fallback: Geocodificación OSM Nominatim acotada al bounding box de Medellín
     const viewbox = [
       MEDELLIN_BOUNDS.lngMin, MEDELLIN_BOUNDS.latMax,
       MEDELLIN_BOUNDS.lngMax, MEDELLIN_BOUNDS.latMin
     ].join(',');
     const nominatimUrl = 'https://nominatim.openstreetmap.org/search?format=json&bounded=1&viewbox=' +
       encodeURIComponent(viewbox) + '&q=' +
-      encodeURIComponent(query + ', Medellin, Colombia');
+      encodeURIComponent(fullSingleLine);
 
     fetch(nominatimUrl)
       .then(res => res.json())
       .then(data => {
         if (data && data.length > 0) {
-          const item = data[0];
-          const lat = parseFloat(item.lat);
-          const lng = parseFloat(item.lon);
-          if (setMiniMapLocation(lat, lng) && ubicacionInput) {
-            ubicacionInput.value = item.display_name.split(',')[0];
+          for (const item of data) {
+            const lat = parseFloat(item.lat);
+            const lng = parseFloat(item.lon);
+            if (!estaEnMedellin(lat, lng)) continue;
+            if (item.type === 'administrative' && !/^medell[ií]n$/i.test(rawQuery)) continue;
+            if (setMiniMapLocation(lat, lng) && ubicacionInput) {
+              ubicacionInput.value = item.display_name.split(',')[0];
+            }
+            return;
           }
-        } else {
-          showToast('No se encontró la dirección dentro de Medellín.');
         }
+        showToast('No se encontró la dirección dentro de Medellín.');
       })
       .catch(() => {
         showToast('No se pudo buscar la dirección.');
@@ -424,6 +490,18 @@
         if (miniMarker) miniMarker.setLatLng([curLat, curLng]);
       }
     }, 200);
+  };
+
+  window.openRadicarModalAt = function (lat, lng, ubicacionNombre) {
+    const numLat = parseFloat(lat);
+    const numLng = parseFloat(lng);
+    if (!isNaN(numLat) && !isNaN(numLng) && estaEnMedellin(numLat, numLng)) {
+      if (ubicacionInput && ubicacionNombre) {
+        ubicacionInput.value = ubicacionNombre;
+      }
+      updateCoordinates(numLat, numLng);
+    }
+    window.openRadicarModal();
   };
 
   window.closeRadicarModal = function () {

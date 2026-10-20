@@ -179,6 +179,12 @@ class ConfiguracionSistema(models.Model):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
 
+    @classmethod
+    def esta_en_mantenimiento(cls):
+        """Consulta ligera (1 sola lectura sin INSERT) para verificar si el modo mantenimiento está activo."""
+        return cls.objects.filter(pk=1, modo_mantenimiento=True).exists()
+
+
 
 class Seguimiento(models.Model):
     """Relación dirigida: 'seguidor' sigue a 'seguido'."""

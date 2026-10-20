@@ -190,6 +190,46 @@ class ApiTest(BaseUrbanReportTest):
         d = self._json(reverse('cambiar_estado_incidencia_ajax', args=[self.pubs[1].id]), 'post', {'estado': 'RESUELTA'})
         self.assertTrue(d['es_resuelta'])
 
+    def test_admin_declina_reporte_con_motivo_y_notifica_al_autor(self):
+        target_pub = self.pubs[1]
+        url = reverse('cambiar_estado_incidencia_ajax', args=[target_pub.id])
+
+        # Un ciudadano no puede declinar
+        self.client.force_login(self.ciudadano)
+        self._json(url, 'post', {'estado': 'DECLINADO', 'motivo': 'DUPLICADO'}, status=403)
+
+        # El administrador declina con motivo predeterminado + observación
+        self.client.force_login(self.admin)
+        d = self._json(url, 'post', {
+            'estado': 'DECLINADO',
+            'motivo': 'DUPLICADO',
+            'detalle': 'Ya existe el radicado #1 en atención',
+        }, status=200)
+        self.assertEqual(d['estado'], 'DECLINADO')
+        self.assertTrue(d['es_declinada'])
+        self.assertIn('Reporte duplicado', d['motivo_declinacion'])
+        self.assertIn('Ya existe el radicado #1', d['motivo_declinacion'])
+
+        target_pub.refresh_from_db()
+        self.assertEqual(target_pub.estado_incidencia, Publicacion.EstadoIncidencia.DECLINADO)
+        self.assertIn('Reporte duplicado', target_pub.motivo_declinacion)
+
+        # Verificar que el dueño del reporte recibió la notificación con el motivo
+        notif = Notificacion.objects.filter(
+            destinatario=self.ciudadano,
+            publicacion=target_pub,
+            tipo=Notificacion.Tipo.CAMBIO_ESTADO,
+        ).order_by('-id').first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Declinado', notif.extra)
+        self.assertIn('Reporte duplicado', notif.extra)
+
+        # Si el admin reabre a EN_PROCESO, se limpia el motivo de declinación
+        d_reopen = self._json(url, 'post', {'estado': 'EN_PROCESO'}, status=200)
+        self.assertEqual(d_reopen['estado'], 'EN_PROCESO')
+        target_pub.refresh_from_db()
+        self.assertEqual(target_pub.motivo_declinacion, '')
+
     def test_seguridad_censurar_comentario_solo_admin(self):
         """Un ciudadano (incluso autor) no puede censurar comentarios (403); un admin sí puede (200)."""
         comentario = Comentario.objects.filter(publicacion=self.pubs[0]).first()
@@ -249,15 +289,16 @@ class ApiTest(BaseUrbanReportTest):
 
         # Coordenadas válidas en Medellín (El Poblado) -> aceptado (200)
         d = self._json(url, 'post', {
-            'titulo': 'Bache en El Poblado',
-            'categoria': 'REDES',
-            'contenido': 'Caja de telecomunicaciones sin tapa',
+            'titulo': 'Fuga de agua en El Poblado',
+            'categoria': 'ACUEDUCTO',
+            'contenido': 'Tubería rota sobre la vía principal',
             'ubicacion': 'Calle 10, El Poblado',
             'latitud': '6.2090000',
             'longitud': '-75.5700000',
             'ubicacion_fijada': '1',
         }, status=200)
-        self.assertEqual(d['incidente']['categoria'], 'REDES')
+        self.assertEqual(d['incidente']['categoria'], 'ACUEDUCTO')
+        self.assertEqual(d['incidente']['categoria_display'], 'Acueducto y alcantarillado')
 
         # Sanitización: rechaza archivo corrupto y redimensiona imagen > 1600px
         with self.assertRaises(ImagenInvalida):
@@ -595,6 +636,108 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.client.force_login(self.ciudadano)
         html = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertNotIn('Calle Secreta 999', html)
+
+
+class ComentariosConImagenTest(BaseUrbanReportTest):
+    """Pruebas de creación, validación y censura de comentarios y respuestas con imágenes."""
+
+    def setUp(self):
+        self.client.force_login(self.otro)
+
+    @staticmethod
+    def _crear_png_prueba( nombre='evidencia.png'):
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = BytesIO()
+        img = Image.new('RGB', (64, 64), color=(30, 144, 255))
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return SimpleUploadedFile(nombre, buf.read(), content_type='image/png')
+
+    def test_comentario_con_texto_e_imagen(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        r = self.client.post(url, {
+            'texto': 'Adjunto evidencia del estado actual',
+            'imagen': self._crear_png_prueba(),
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(data['comentario']['imagen_url'])
+        com = Comentario.objects.get(id=data['comentario']['id'])
+        self.assertTrue(bool(com.imagen))
+        if com.imagen:
+            com.imagen.delete(save=False)
+
+    def test_comentario_solo_imagen_sin_texto(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        r = self.client.post(url, {
+            'texto': '',
+            'imagen': self._crear_png_prueba('solo_foto.png'),
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['comentario']['texto'], '')
+        self.assertTrue(data['comentario']['imagen_url'])
+        com = Comentario.objects.get(id=data['comentario']['id'])
+        notif = Notificacion.objects.filter(comentario=com).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Imagen adjunta', notif.extra)
+        if com.imagen:
+            com.imagen.delete(save=False)
+
+    def test_respuesta_anidada_con_imagen(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        r = self.client.post(url, {
+            'texto': 'Respuesta con foto',
+            'padre_id': self.comentario.id,
+            'imagen': self._crear_png_prueba('respuesta.png'),
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['comentario']['padre_id'], self.comentario.id)
+        self.assertTrue(data['comentario']['imagen_url'])
+        com = Comentario.objects.get(id=data['comentario']['id'])
+        if com.imagen:
+            com.imagen.delete(save=False)
+
+    def test_comentario_vacio_sin_imagen_se_rechaza(self):
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        r = self.client.post(url, {'texto': '   '})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['status'], 'error')
+
+    def test_comentario_con_archivo_invalido_se_rechaza(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        url = reverse('agregar_comentario_ajax', args=[self.pub.id])
+        archivo_falso = SimpleUploadedFile('malicioso.png', b'no es una imagen real', content_type='image/png')
+        r = self.client.post(url, {'texto': 'Intento inválido', 'imagen': archivo_falso})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['status'], 'error')
+
+    def test_comentario_con_imagen_censurado_renderiza_escudo(self):
+        com = Comentario.objects.create(
+            publicacion=self.pub,
+            autor=self.otro,
+            autor_nombre=self.otro.username,
+            texto='Foto censurada',
+            imagen=self._crear_png_prueba('censurada.png'),
+            censurado=True,
+        )
+        try:
+            r = self.client.get(reverse('detalle_publicacion', args=[self.pub.id]))
+            self.assertEqual(r.status_code, 200)
+            html = r.content.decode()
+            self.assertIn(f'id="comment-media-{com.id}"', html)
+            self.assertIn('censor-comment-shield', html)
+        finally:
+            if com.imagen:
+                com.imagen.delete(save=False)
 
 
 class RendimientoTest(TestCase):

@@ -24,6 +24,7 @@
     var mapa = {
       'Redes eléctricas y telecomunicaciones': 'Redes y Telecom.',
       'Aseo y basuras': 'Aseo y Basuras',
+      'Acueducto y alcantarillado': 'Acueducto y Alcant.',
       'Infraestructura': 'Infraestruct.',
     };
     return mapa[label] || label;

@@ -26,6 +26,21 @@
     </div>
   </div>
 
+  <!-- Declined Report Banner (Shown if status is DECLINADO) -->
+  <div class="post-declined-banner {% if post.estado_incidencia != 'DECLINADO' %}d-none{% endif %}" id="declined-banner-{{ post.id }}">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+      <span>
+        <strong>Reporte declinado:</strong>
+        <span class="declined-reason-inline">{% if post.motivo_declinacion %}{{ post.motivo_declinacion }}{% else %}No procede según revisión administrativa.{% endif %}</span>
+      </span>
+    </div>
+  </div>
+
   <!-- Author Header -->
   <div class="post-author-row"
     style="display: flex; align-items: flex-start; justify-content: space-between; width: 100%;">
@@ -72,6 +87,14 @@
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         Resuelto
+      </span>
+      {% elif post.estado_incidencia == 'DECLINADO' %}
+      <span class="incident-status-pill pill-declined" id="incident-pill-{{ post.id }}" title="Incidencia Declinada{% if post.motivo_declinacion %}: {{ post.motivo_declinacion }}{% endif %}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        Declinado
       </span>
       {% elif post.estado_incidencia == 'EN_PROCESO' %}
       <span class="incident-status-pill pill-review" id="incident-pill-{{ post.id }}" title="Incidencia en Revisión">
@@ -239,7 +262,8 @@
             </svg>
             <span>Marcar como Resuelta</span>
           </button>
-          {% else %}
+          {% endif %}
+          {% if post.estado_incidencia == 'RESUELTA' or post.estado_incidencia == 'DECLINADO' %}
           <button type="button" class="post-menu-item text-warning btn-action-change-status"
             data-post-id="{{ post.id }}" data-estado="EN_PROCESO" title="Reabrir incidencia a En Proceso">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -247,6 +271,18 @@
               <polyline points="12 6 12 12 16 14" />
             </svg>
             <span>Reabrir a En Proceso</span>
+          </button>
+          {% endif %}
+          {% if post.estado_incidencia != 'DECLINADO' %}
+          <button type="button" class="post-menu-item text-danger btn-action-decline-post"
+            data-post-id="{{ post.id }}" data-author="{{ post.nombre_autor }}"
+            data-titulo="{{ post.titulo|default:post.contenido|truncatechars:60 }}" title="Declinar este reporte con motivo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <span>Declinar reporte</span>
           </button>
           {% endif %}
 
@@ -301,10 +337,18 @@
   <!-- Comments and Replies Thread Section -->
   <div class="post-comments-section" id="comments-section-{{ post.id }}">
     <!-- Form to Add New Root Comment -->
-    <form class="new-comment-form" data-post-id="{{ post.id }}">
+    <form class="new-comment-form" data-post-id="{{ post.id }}" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="new-comment-bar">
-        <input type="text" class="new-comment-input" placeholder="Escribe un comentario..." required autocomplete="off">
+        <input type="text" class="new-comment-input" placeholder="Escribe un comentario..." autocomplete="off">
+        <label class="comment-attach-btn" title="Adjuntar imagen (PNG o JPG)">
+          <input type="file" name="imagen" class="comment-image-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </label>
         <button type="submit" class="new-comment-btn" title="Publicar comentario">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="22" y1="2" x2="11" y2="13" />
@@ -312,6 +356,11 @@
           </svg>
           <span class="new-comment-btn-text">Comentar</span>
         </button>
+      </div>
+      <div class="comment-image-preview d-none">
+        <img src="" alt="Vista previa" class="comment-preview-thumb">
+        <span class="comment-preview-name"></span>
+        <button type="button" class="comment-preview-remove" title="Quitar imagen">&times;</button>
       </div>
     </form>
 
@@ -339,7 +388,11 @@
           <div class="comment-author-wrap">
             {% if com.autor %}<a class="comment-author-link" href="{% if com.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' com.autor.username %}{% endif %}" title="Ver perfil de {{ com.nombre_autor }}">{% endif %}
             <span class="presence-wrap">
+              {% if com.autor and com.autor.avatar %}
+              <img src="{{ com.autor.avatar.url }}" alt="{{ com.nombre_autor }}" class="comment-avatar-circle comment-avatar-img" loading="lazy" decoding="async">
+              {% else %}
               <div class="comment-avatar-circle">{{ com.nombre_autor|slice:":2"|upper }}</div>
+              {% endif %}
               {% if com.autor and com.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
             </span>
             <span class="comment-author-name">{{ com.nombre_autor }}</span>
@@ -348,13 +401,33 @@
           <span class="comment-timestamp">{{ com.tiempo_relativo }}</span>
         </div>
 
-        <p class="comment-body-text {% if com.censurado %}is-censored-text{% endif %}" id="comment-text-{{ com.id }}">
+        <p class="comment-body-text {% if com.censurado %}is-censored-text{% elif not com.texto %}d-none{% endif %}" id="comment-text-{{ com.id }}">
           {% if com.censurado %}
           <span class="censored-comment-badge">⚠️ <em>Comentario censurado por moderación.</em></span>
           {% else %}
           {{ com.texto }}
           {% endif %}
         </p>
+
+        {% if com.imagen %}
+        <div class="comment-media-container {% if com.censurado or post.censurado %}is-censored-media{% else %}is-expandable-media{% endif %}"
+             id="comment-media-{{ com.id }}"
+             {% if not com.censurado and not post.censurado %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
+          <img src="{{ com.imagen.url }}" alt="Imagen de comentario" class="comment-media-img post-media-img" loading="lazy" decoding="async">
+          {% if com.censurado or post.censurado %}
+          <div class="censor-media-shield censor-comment-shield">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <div class="censor-media-shield-text">
+              <strong>Imagen censurada</strong>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
 
         <!-- Comment Actions: acciones principales visibles + menú de 3 puntos -->
         <div class="comment-actions-bar">
@@ -468,7 +541,11 @@
               <div class="comment-author-wrap">
                 {% if rep.autor %}<a class="comment-author-link" href="{% if rep.autor == user %}{% url 'perfil' %}{% else %}{% url 'perfil_usuario' rep.autor.username %}{% endif %}" title="Ver perfil de {{ rep.nombre_autor }}">{% endif %}
                 <span class="presence-wrap">
+                  {% if rep.autor and rep.autor.avatar %}
+                  <img src="{{ rep.autor.avatar.url }}" alt="{{ rep.nombre_autor }}" class="comment-avatar-circle comment-avatar-img" style="width:22px; height:22px;" loading="lazy" decoding="async">
+                  {% else %}
                   <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.nombre_autor|slice:":2"|upper }}</div>
+                  {% endif %}
                   {% if rep.autor and rep.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
                 </span>
                 <span class="comment-author-name" style="font-size:0.82rem;">{{ rep.nombre_autor }}</span>
@@ -477,7 +554,7 @@
               <span class="comment-timestamp">{{ rep.tiempo_relativo }}</span>
             </div>
 
-            <p class="comment-body-text {% if rep.censurado %}is-censored-text{% endif %}"
+            <p class="comment-body-text {% if rep.censurado %}is-censored-text{% elif not rep.texto %}d-none{% endif %}"
               id="comment-text-{{ rep.id }}" style="font-size:0.84rem;">
               {% if rep.censurado %}
               <span class="censored-comment-badge">⚠️ <em>Comentario censurado por moderación.</em></span>
@@ -485,6 +562,26 @@
               {{ rep.texto }}
               {% endif %}
             </p>
+
+            {% if rep.imagen %}
+            <div class="comment-media-container {% if rep.censurado or post.censurado %}is-censored-media{% else %}is-expandable-media{% endif %}"
+                 id="comment-media-{{ rep.id }}"
+                 {% if not rep.censurado and not post.censurado %}title="Haz clic para ampliar la imagen" role="button" tabindex="0"{% endif %}>
+              <img src="{{ rep.imagen.url }}" alt="Imagen de respuesta" class="comment-media-img post-media-img" loading="lazy" decoding="async">
+              {% if rep.censurado or post.censurado %}
+              <div class="censor-media-shield censor-comment-shield">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div class="censor-media-shield-text">
+                  <strong>Imagen censurada</strong>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
 
             <!-- Reply: acciones principales + menú de 3 puntos -->
             <div class="comment-actions-bar">

@@ -7,9 +7,11 @@ urlpatterns = [
     path('completar-perfil/', views.completar_perfil_view, name='completar_perfil'),
     path('perfil/', views.perfil_view, name='perfil'),
     path('perfil/configuracion/', views.configuracion_view, name='configuracion'),
+    path('perfil/eliminar-cuenta/', views.eliminar_cuenta_view, name='eliminar_cuenta'),
     # ── Configuración exclusiva del administrador ──
     path('perfil/configuracion-admin/', views.configuracion_admin_view, name='configuracion_admin'),
     path('admin-config/mantenimiento/', views.toggle_modo_mantenimiento_ajax, name='toggle_modo_mantenimiento'),
+    path('admin-config/estado-admins/', views.estado_administradores_ajax, name='estado_administradores'),
     path('admin-config/backup/', views.ejecutar_backup_ajax, name='ejecutar_backup'),
     path('admin-config/nuevo-admin/', views.crear_admin_ajax, name='crear_admin'),
     path('admin-config/promover/', views.promover_ciudadano_ajax, name='promover_ciudadano'),

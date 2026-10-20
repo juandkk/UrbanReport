@@ -144,7 +144,7 @@
           <span class="stats-activity-title">{{ post.titulo|default:post.contenido|truncatechars:60 }}</span>
           <span class="stats-activity-meta">
             <span class="stats-activity-badge stats-badge-{{ post.estado_incidencia|lower }}">
-              {% if post.estado_incidencia == 'REPORTADO' %}Reportado{% elif post.estado_incidencia == 'EN_PROCESO' %}En revisión{% else %}Resuelto{% endif %}
+              {% if post.estado_incidencia == 'REPORTADO' %}Reportado{% elif post.estado_incidencia == 'EN_PROCESO' %}En revisión{% elif post.estado_incidencia == 'DECLINADO' %}Declinado{% else %}Resuelto{% endif %}
             </span>
             ID: #{{ post.id }}
           </span>

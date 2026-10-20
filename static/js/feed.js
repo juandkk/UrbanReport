@@ -287,6 +287,14 @@ document.addEventListener('DOMContentLoaded', () => {
                    class="new-comment-input inline-reply-input" 
                    placeholder="Responder a ${author}..." 
                    autocomplete="off">
+            <label class="comment-attach-btn" title="Adjuntar imagen (PNG o JPG)">
+              <input type="file" name="imagen" class="comment-image-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </label>
             <button type="button" class="new-comment-btn inline-reply-submit-btn" title="Publicar respuesta">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="22" y1="2" x2="11" y2="13" />
@@ -294,6 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
               </svg>
               <span>Responder</span>
             </button>
+          </div>
+          <div class="comment-image-preview d-none">
+            <img src="" alt="Vista previa" class="comment-preview-thumb">
+            <span class="comment-preview-name"></span>
+            <button type="button" class="comment-preview-remove" title="Quitar imagen">&times;</button>
           </div>
         </div>
       `;
@@ -330,6 +343,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── Previsualización y limpieza de imagen adjunta en comentarios y respuestas ──
+  function clearCommentImageSelection(scopeEl) {
+    if (!scopeEl) return;
+    const fileInput = scopeEl.querySelector('.comment-image-input');
+    const preview = scopeEl.querySelector('.comment-image-preview');
+    const thumb = scopeEl.querySelector('.comment-preview-thumb');
+    const nameEl = scopeEl.querySelector('.comment-preview-name');
+    const attachBtn = scopeEl.querySelector('.comment-attach-btn');
+    if (fileInput) fileInput.value = '';
+    if (thumb) thumb.src = '';
+    if (nameEl) nameEl.textContent = '';
+    if (preview) preview.classList.add('d-none');
+    if (attachBtn) attachBtn.classList.remove('has-file');
+  }
+
+  document.addEventListener('change', (e) => {
+    const fileInput = e.target.closest('.comment-image-input');
+    if (!fileInput) return;
+    const scopeEl = fileInput.closest('.new-comment-form, .inline-reply-container');
+    if (!scopeEl) return;
+
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      clearCommentImageSelection(scopeEl);
+      return;
+    }
+
+    const nombre = (file.name || '').toLowerCase();
+    const extOk = /\.(png|jpe?g)$/.test(nombre);
+    const mimeOk = ['image/png', 'image/jpeg'].includes(file.type);
+    if (!extOk || !mimeOk) {
+      showToast('Formato no permitido. Solo se aceptan imágenes PNG o JPG.', true);
+      clearCommentImageSelection(scopeEl);
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('La imagen supera el tamaño máximo permitido (8 MB).', true);
+      clearCommentImageSelection(scopeEl);
+      return;
+    }
+
+    const preview = scopeEl.querySelector('.comment-image-preview');
+    const thumb = scopeEl.querySelector('.comment-preview-thumb');
+    const nameEl = scopeEl.querySelector('.comment-preview-name');
+    const attachBtn = scopeEl.querySelector('.comment-attach-btn');
+
+    if (nameEl) nameEl.textContent = file.name;
+    if (preview) preview.classList.remove('d-none');
+    if (attachBtn) attachBtn.classList.add('has-file');
+
+    if (thumb) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        thumb.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.comment-preview-remove');
+    if (!removeBtn) return;
+    e.preventDefault();
+    const scopeEl = removeBtn.closest('.new-comment-form, .inline-reply-container');
+    clearCommentImageSelection(scopeEl);
+  });
+
   // Cerrar todas las barras de respuesta inline
   function closeAllInlineReplyBoxes() {
     document.querySelectorAll('.inline-reply-container').forEach(el => el.remove());
@@ -355,16 +436,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const postId = container.dataset.postId;
     const padreId = container.dataset.commentId;
     const input = container.querySelector('.inline-reply-input');
+    const fileInput = container.querySelector('.comment-image-input');
     const submitBtn = container.querySelector('.inline-reply-submit-btn');
     const texto = input ? input.value.trim() : '';
+    const imagenFile = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
 
-    if (!postId || !padreId || !texto) return;
+    if (!postId || !padreId || (!texto && !imagenFile)) return;
     if (submitBtn) submitBtn.disabled = true;
 
     try {
       const formData = new FormData();
       formData.append('texto', texto);
       formData.append('padre_id', padreId);
+      if (imagenFile) {
+        formData.append('imagen', imagenFile);
+      }
 
       const res = await fetch(`/feed/comentar/${postId}/`, {
         method: 'POST',
@@ -375,22 +461,23 @@ document.addEventListener('DOMContentLoaded', () => {
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Error al publicar respuesta');
-      const data = await res.json();
-
-      if (data.status === 'ok') {
-        container.remove();
-
-        const repliesThread = document.getElementById(`replies-for-${padreId}`);
-        if (repliesThread) {
-          const rep = data.comentario;
-          const newReplyHtml = createReplyHtml(rep, postId);
-          repliesThread.insertAdjacentHTML('beforeend', newReplyHtml);
-        }
-
-        updatePostCommentCount(postId, data.total_comentarios);
-        showToast('Respuesta publicada');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.status !== 'ok') {
+        showToast(data.message || 'Error al publicar respuesta', true);
+        return;
       }
+
+      container.remove();
+
+      const repliesThread = document.getElementById(`replies-for-${padreId}`);
+      if (repliesThread) {
+        const rep = data.comentario;
+        const newReplyHtml = createReplyHtml(rep, postId);
+        repliesThread.insertAdjacentHTML('beforeend', newReplyHtml);
+      }
+
+      updatePostCommentCount(postId, data.total_comentarios);
+      showToast('Respuesta publicada');
     } catch (err) {
       console.error('Error al responder comentario:', err);
       showToast('Error al publicar respuesta', true);
@@ -407,8 +494,10 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const postId = form.dataset.postId;
     const input = form.querySelector('.new-comment-input');
+    const fileInput = form.querySelector('.comment-image-input');
     const texto = input ? input.value.trim() : '';
-    if (!postId || !texto) return;
+    const imagenFile = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (!postId || (!texto && !imagenFile)) return;
 
     const btn = form.querySelector('.new-comment-btn');
     if (btn) btn.disabled = true;
@@ -416,6 +505,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const formData = new FormData();
       formData.append('texto', texto);
+      if (imagenFile) {
+        formData.append('imagen', imagenFile);
+      }
 
       const res = await fetch(`/feed/comentar/${postId}/`, {
         method: 'POST',
@@ -426,22 +518,24 @@ document.addEventListener('DOMContentLoaded', () => {
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Error al publicar comentario');
-      const data = await res.json();
-
-      if (data.status === 'ok') {
-        input.value = '';
-
-        const list = document.getElementById(`comments-list-${postId}`);
-        if (list) {
-          const c = data.comentario;
-          const newCommentHtml = createCommentHtml(c, postId);
-          list.insertAdjacentHTML('beforeend', newCommentHtml);
-        }
-
-        updatePostCommentCount(postId, data.total_comentarios);
-        showToast('Comentario agregado');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.status !== 'ok') {
+        showToast(data.message || 'No se pudo enviar el comentario', true);
+        return;
       }
+
+      if (input) input.value = '';
+      clearCommentImageSelection(form);
+
+      const list = document.getElementById(`comments-list-${postId}`);
+      if (list) {
+        const c = data.comentario;
+        const newCommentHtml = createCommentHtml(c, postId);
+        list.insertAdjacentHTML('beforeend', newCommentHtml);
+      }
+
+      updatePostCommentCount(postId, data.total_comentarios);
+      showToast('Comentario agregado');
     } catch (err) {
       console.error('Error al agregar comentario:', err);
       showToast('No se pudo enviar el comentario', true);
@@ -843,20 +937,58 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.status === 'ok') {
         const textEl = document.getElementById(`comment-text-${commentId}`);
+        const mediaEl = document.getElementById(`comment-media-${commentId}`);
         const label = censorBtn.querySelector('.com-censor-btn-text');
 
         if (data.censurado) {
           if (textEl) {
-            textEl.dataset.originalText = textEl.textContent.trim();
+            if (textEl.dataset.originalText === undefined) {
+              textEl.dataset.originalText = textEl.textContent.trim();
+            }
             textEl.innerHTML = '<span class="censored-comment-badge">⚠️ <em>Comentario censurado por moderación.</em></span>';
+            textEl.classList.remove('d-none');
             textEl.classList.add('is-censored-text');
+          }
+          if (mediaEl) {
+            mediaEl.classList.remove('is-expandable-media');
+            mediaEl.classList.add('is-censored-media');
+            mediaEl.removeAttribute('role');
+            mediaEl.removeAttribute('tabindex');
+            mediaEl.removeAttribute('title');
+            if (!mediaEl.querySelector('.censor-media-shield')) {
+              const shield = document.createElement('div');
+              shield.className = 'censor-media-shield censor-comment-shield';
+              shield.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div class="censor-media-shield-text">
+                  <strong>Imagen censurada</strong>
+                </div>
+              `;
+              mediaEl.appendChild(shield);
+            }
           }
           if (label) label.textContent = 'Descensurar';
         } else {
           if (textEl) {
-            const original = textEl.dataset.originalText || 'Comentario restaurado.';
+            const original = textEl.dataset.originalText !== undefined ? textEl.dataset.originalText : '';
             textEl.textContent = original;
             textEl.classList.remove('is-censored-text');
+            if (!original && mediaEl) {
+              textEl.classList.add('d-none');
+            }
+          }
+          if (mediaEl) {
+            mediaEl.classList.remove('is-censored-media');
+            mediaEl.classList.add('is-expandable-media');
+            mediaEl.setAttribute('role', 'button');
+            mediaEl.setAttribute('tabindex', '0');
+            mediaEl.setAttribute('title', 'Haz clic para ampliar la imagen');
+            const shield = mediaEl.querySelector('.censor-media-shield');
+            if (shield) shield.remove();
           }
           if (label) label.textContent = 'Censurar';
         }
@@ -1083,18 +1215,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeAuthor = escapeHtml(c.autor_nombre);
     const safeTime = escapeHtml(c.tiempo);
     const safeText = escapeHtml(c.texto);
+    const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
+    const avatarHtml = c.avatar_url
+      ? `<img src="${escapeHtml(c.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" loading="lazy" decoding="async">`
+      : `<div class="comment-avatar-circle">${safeInitials}</div>`;
+    const mediaHtml = c.imagen_url
+      ? `<div class="comment-media-container is-expandable-media" id="comment-media-${c.id}" title="Haz clic para ampliar la imagen" role="button" tabindex="0">
+           <img src="${escapeHtml(c.imagen_url)}" alt="Imagen de comentario" class="comment-media-img post-media-img" loading="lazy" decoding="async">
+         </div>`
+      : '';
     return `
       <div class="comment-card" id="comment-card-${c.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle">${safeInitials}</div>
+              ${avatarHtml}
               <span class="comment-author-name">${safeAuthor}</span>
             </a>
           </div>
           <span class="comment-timestamp">${safeTime}</span>
         </div>
-        <p class="comment-body-text" id="comment-text-${c.id}">${safeText}</p>
+        <p class="${textClass}" id="comment-text-${c.id}">${safeText}</p>
+        ${mediaHtml}
         <div class="comment-actions-bar">
           <button type="button" class="comment-act-btn comment-like-btn" data-comment-id="${c.id}" data-type="LIKE" title="Me gusta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1148,18 +1290,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeAuthor = escapeHtml(rep.autor_nombre);
     const safeTime = escapeHtml(rep.tiempo);
     const safeText = escapeHtml(rep.texto);
+    const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
+    const avatarHtml = rep.avatar_url
+      ? `<img src="${escapeHtml(rep.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" style="width:22px; height:22px;" loading="lazy" decoding="async">`
+      : `<div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${safeInitials}</div>`;
+    const mediaHtml = rep.imagen_url
+      ? `<div class="comment-media-container is-expandable-media" id="comment-media-${rep.id}" title="Haz clic para ampliar la imagen" role="button" tabindex="0">
+           <img src="${escapeHtml(rep.imagen_url)}" alt="Imagen de respuesta" class="comment-media-img post-media-img" loading="lazy" decoding="async">
+         </div>`
+      : '';
     return `
       <div class="reply-card" id="comment-card-${rep.id}" style="animation: fadeInDown 0.22s ease;">
         <div class="comment-header">
           <div class="comment-author-wrap">
             <a class="comment-author-link" href="/perfil/" title="Ver mi perfil">
-              <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">${safeInitials}</div>
+              ${avatarHtml}
               <span class="comment-author-name" style="font-size:0.82rem;">${safeAuthor}</span>
             </a>
           </div>
           <span class="comment-timestamp">${safeTime}</span>
         </div>
-        <p class="comment-body-text" id="comment-text-${rep.id}" style="font-size:0.84rem;">${safeText}</p>
+        <p class="${textClass}" id="comment-text-${rep.id}" style="font-size:0.84rem;">${safeText}</p>
+        ${mediaHtml}
         <div class="comment-actions-bar">
           <button type="button" class="comment-act-btn comment-like-btn" data-comment-id="${rep.id}" data-type="LIKE" title="Me gusta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1385,6 +1537,120 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error de conexión al cambiar estado', true);
     }
   });
+
+  // ── Declinar Reporte de Incidencia con Motivo Predeterminado (Administrador) ──
+  const declineReportModal = document.getElementById('declineReportModal');
+  const declineReportForm = document.getElementById('declineReportForm');
+  const declineReportPostId = document.getElementById('declineReportPostId');
+  const declineReportTitle = document.getElementById('declineReportTitle');
+  const declineReportAuthor = document.getElementById('declineReportAuthor');
+  const declineReportDetalle = document.getElementById('declineReportDetalle');
+  const closeDeclineReportModalBtn = document.getElementById('closeDeclineReportModalBtn');
+  const cancelDeclineReportBtn = document.getElementById('cancelDeclineReportBtn');
+
+  function closeDeclineReportModal() {
+    if (declineReportModal) {
+      declineReportModal.classList.remove('active');
+    }
+  }
+
+  if (closeDeclineReportModalBtn) closeDeclineReportModalBtn.addEventListener('click', closeDeclineReportModal);
+  if (cancelDeclineReportBtn) cancelDeclineReportBtn.addEventListener('click', closeDeclineReportModal);
+  if (declineReportModal) {
+    declineReportModal.addEventListener('click', (e) => {
+      if (e.target === declineReportModal) closeDeclineReportModal();
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-action-decline-post');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const postId = btn.dataset.postId;
+    if (!postId || !declineReportModal) return;
+
+    document.querySelectorAll('.post-menu-dropdown.show').forEach(d => d.classList.remove('show'));
+
+    if (declineReportPostId) declineReportPostId.value = postId;
+    if (declineReportTitle) declineReportTitle.textContent = `#REP-${postId}`;
+    if (declineReportAuthor) declineReportAuthor.textContent = btn.dataset.author || 'Ciudadano';
+    if (declineReportDetalle) declineReportDetalle.value = '';
+    const defaultRadio = declineReportModal.querySelector('input[name="declineMotivo"][value="DUPLICADO"]');
+    if (defaultRadio) defaultRadio.checked = true;
+
+    declineReportModal.classList.add('active');
+  });
+
+  if (declineReportForm) {
+    declineReportForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const postId = declineReportPostId ? declineReportPostId.value : '';
+      if (!postId) return;
+
+      const selectedRadio = declineReportForm.querySelector('input[name="declineMotivo"]:checked');
+      const motivo = selectedRadio ? selectedRadio.value : 'NO_PROCEDE';
+      const detalle = declineReportDetalle ? declineReportDetalle.value.trim() : '';
+
+      const submitBtn = document.getElementById('confirmDeclineReportBtn');
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        const formData = new FormData();
+        formData.append('estado', 'DECLINADO');
+        formData.append('motivo', motivo);
+        if (detalle) formData.append('detalle', detalle);
+
+        const res = await fetch(`/feed/publicacion/${postId}/cambiar-estado/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          closeDeclineReportModal();
+          showToast(data.message || 'Reporte declinado y ciudadano notificado');
+
+          try {
+            const chan = new BroadcastChannel('urbanreport_realtime_incidents');
+            chan.postMessage({
+              type: 'CAMBIO_ESTADO',
+              id: data.id,
+              estado: data.estado,
+              es_resuelta: data.es_resuelta,
+              actividad: data.actividad,
+            });
+          } catch (_) {}
+
+          const cardRes = await fetch(`/feed/api/post-card/${postId}/`);
+          if (cardRes.ok) {
+            const cardData = await cardRes.json();
+            const existingCard = document.getElementById(`post-card-${postId}`);
+            if (existingCard) {
+              const temp = document.createElement('div');
+              temp.innerHTML = cardData.html.trim();
+              if (temp.firstElementChild) {
+                existingCard.replaceWith(temp.firstElementChild);
+              }
+            }
+          }
+          refreshActivityFromServer();
+        } else {
+          showToast((data && data.message) || 'No se pudo declinar el reporte', true);
+        }
+      } catch (err) {
+        console.error('Error al declinar reporte:', err);
+        showToast('Error de conexión al declinar el reporte', true);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
 
   // ── Conexión en Tiempo Real via BroadcastChannel ──
   const feedRealtimeChannel = (typeof BroadcastChannel !== 'undefined') ?
@@ -2357,8 +2623,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Si el usuario hace clic sobre controles interactivos ajenos a la foto, ignorar
     if (e.target.closest('button, input, textarea, a, .post-menu-wrapper, .post-actions, .new-comment-form')) return;
 
-    const mediaContainer = e.target.closest('.post-media-container');
-    const mediaImg = e.target.closest('.post-media-img');
+    const mediaContainer = e.target.closest('.post-media-container, .comment-media-container');
+    const mediaImg = e.target.closest('.post-media-img, .comment-media-img');
     if (!mediaContainer && !mediaImg) return;
 
     // BLOQUEO DE SEGURIDAD: Si la publicación o la imagen están censuradas, PROHIBIDO ampliar
@@ -2385,11 +2651,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Si está en el feed principal (dentro de .post-clickable), no interceptamos:
-    // dejamos que el manejador existente lleve al usuario a detalles y comentarios
+    // Si es la imagen de una publicación en el feed principal (dentro de .post-clickable),
+    // dejamos que el manejador existente lleve al usuario a detalles y comentarios.
+    // (Las imágenes de comentarios están fuera de .post-clickable y siempre se pueden ampliar).
     if (e.target.closest('.post-clickable')) return;
 
-    // Si está en detalles y comentarios, ampliamos la imagen
+    // Ampliar la imagen en el visor
     const targetImg = mediaImg || (mediaContainer ? mediaContainer.querySelector('img') : null);
     if (!targetImg || !targetImg.src) return;
 

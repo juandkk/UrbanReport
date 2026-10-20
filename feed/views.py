@@ -25,13 +25,13 @@ from .moderacion import contiene_lenguaje_inapropiado, MENSAJE_RECHAZO
 from usuarios.models import Usuario
 
 
-def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=None, categoria=None, extra=''):
+def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=None, categoria=None, extra='', permitir_auto=False):
     """
     Crea una notificación para 'destinatario' generada por 'actor'.
-    No hace nada si el actor es el mismo destinatario (no te notificas a ti mismo)
+    No hace nada si el actor es el mismo destinatario (salvo permitir_auto=True)
     o si no hay destinatario válido.
     """
-    if destinatario is None or actor is None or destinatario == actor:
+    if destinatario is None or actor is None or (destinatario == actor and not permitir_auto):
         return None
 
     if categoria is None:
@@ -135,6 +135,7 @@ def api_incidentes_mapa(request):
             'imagen_url': inc.imagen.url if inc.imagen else inc.imagen_url,
             'censurado': inc.censurado,
             'motivo_censura': inc.motivo_censura or '',
+            'motivo_declinacion': inc.motivo_declinacion or '',
         })
 
     return JsonResponse({'incidentes': data})
@@ -361,10 +362,13 @@ def _actividad_desde_publicacion(pub):
     pueda reconciliar y, si la publicación se elimina, retirarla de la cola.
     """
     es_resuelta = pub.estado_incidencia == Publicacion.EstadoIncidencia.RESUELTA
+    es_declinada = pub.estado_incidencia == Publicacion.EstadoIncidencia.DECLINADO
     tipo = 'resuelta' if es_resuelta else 'incidente'
 
     if es_resuelta:
         titulo = f"Incidencia #{pub.id} marcada como Resuelta."
+    elif es_declinada:
+        titulo = f"Incidencia #{pub.id} declinada."
     else:
         categoria = pub.get_categoria_display() if hasattr(pub, 'get_categoria_display') else pub.categoria
         detalle = (pub.titulo or pub.contenido or '').strip()[:40] or 'Incidencia urbana'
@@ -418,6 +422,7 @@ _CATEGORIA_HASHTAG = {
     Publicacion.Categoria.INFRAESTRUCTURA: '#Infraestructura',
     Publicacion.Categoria.REDES: '#RedesYServicios',
     Publicacion.Categoria.ASEO: '#AseoYResiduos',
+    Publicacion.Categoria.ACUEDUCTO: '#AcueductoYAlcantarillado',
     Publicacion.Categoria.OTROS: '#Otros',
 }
 
@@ -429,6 +434,7 @@ _CATEGORIA_SECCION = {
     Publicacion.Categoria.INFRAESTRUCTURA: 'INFRAESTRUCTURA',
     Publicacion.Categoria.REDES: 'SERVICIOS',
     Publicacion.Categoria.ASEO: 'AMBIENTE',
+    Publicacion.Categoria.ACUEDUCTO: 'SERVICIOS',
     Publicacion.Categoria.OTROS: 'GENERAL',
 }
 
@@ -776,17 +782,26 @@ def toggle_repost_ajax(request, publicacion_id):
 @login_required
 @require_POST
 def agregar_comentario_ajax(request, publicacion_id):
-    """Crea un comentario en la publicación o una respuesta anidada si se especifica padre_id."""
+    """Crea un comentario en la publicación o una respuesta anidada si se especifica padre_id, con imagen opcional."""
     publicacion = get_object_or_404(Publicacion, id=publicacion_id)
     texto = request.POST.get('texto', '').strip()
     padre_id = request.POST.get('padre_id')
+    imagen = request.FILES.get('imagen')
 
-    if not texto:
+    if not texto and imagen is None:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
 
     # ── Moderación de lenguaje ──
-    if contiene_lenguaje_inapropiado(texto):
+    if texto and contiene_lenguaje_inapropiado(texto):
         return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
+
+    # ── Validación y sanitización de imagen adjunta (si la hay) ──
+    imagen_limpia = None
+    if imagen is not None:
+        try:
+            imagen_limpia = sanitizar_imagen(imagen)
+        except ImagenInvalida as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     padre = None
     if padre_id:
@@ -800,11 +815,12 @@ def agregar_comentario_ajax(request, publicacion_id):
         padre=padre,
         autor=autor,
         autor_nombre=autor_nombre,
-        texto=texto
+        texto=texto,
+        imagen=imagen_limpia,
     )
 
     # Notificar: si es respuesta, al autor del comentario padre; si no, al autor de la publicación
-    fragmento = texto[:80]
+    fragmento = texto[:80] if texto else '📷 Imagen adjunta'
     if padre and padre.autor:
         crear_notificacion(
             destinatario=padre.autor, actor=autor,
@@ -824,7 +840,9 @@ def agregar_comentario_ajax(request, publicacion_id):
             'id': comentario.id,
             'autor_nombre': comentario.nombre_autor,
             'initials': initials,
+            'avatar_url': autor.avatar.url if getattr(autor, 'avatar', None) else None,
             'texto': comentario.texto,
+            'imagen_url': comentario.imagen.url if comentario.imagen else None,
             'tiempo': 'Hace un momento',
             'padre_id': comentario.padre_id,
             'likes': 0,
@@ -1158,7 +1176,7 @@ def _calcular_estadisticas_panel():
 
     # --- Cola de atención prioritaria: activas, por más votos y antigüedad ---
     cola = list(
-        qs.exclude(estado_incidencia=Estado.RESUELTA)
+        qs.exclude(estado_incidencia__in=[Estado.RESUELTA, Estado.DECLINADO])
           .select_related('autor')
           .order_by('-likes', 'fecha_creacion')[:6]
     )
@@ -1435,6 +1453,7 @@ def incidentes_view(request):
         'total_resultados': total_resultados,
         'categorias': Cat.choices,
         'estados': Estado.choices,
+        'motivos_declinacion': Publicacion.MotivoDeclinacion.choices,
         'filtros': {
             'q': q,
             'categoria': f_categoria,
@@ -1717,11 +1736,11 @@ def editar_comentario_ajax(request, comentario_id):
         return JsonResponse({'status': 'error', 'message': 'No tienes permiso para editar este comentario.'}, status=403)
 
     texto = request.POST.get('texto', '').strip()
-    if not texto:
+    if not texto and not comentario.imagen:
         return JsonResponse({'status': 'error', 'message': 'El comentario no puede estar vacío.'}, status=400)
 
     # ── Moderación de lenguaje ──
-    if contiene_lenguaje_inapropiado(texto):
+    if texto and contiene_lenguaje_inapropiado(texto):
         return JsonResponse({'status': 'error', 'message': MENSAJE_RECHAZO}, status=400)
 
     comentario.texto = texto
@@ -1757,7 +1776,7 @@ def eliminar_comentario_ajax(request, comentario_id):
 @login_required
 @require_POST
 def cambiar_estado_incidencia_ajax(request, publicacion_id):
-    """Permite cambiar el estado de una incidencia (ej. marcar como RESUELTA)."""
+    """Permite cambiar el estado de una incidencia (ej. marcar como RESUELTA o DECLINADO con motivo)."""
     if not _es_admin(request.user):
         return JsonResponse({'status': 'error', 'message': 'No tienes permisos para cambiar el estado.'}, status=403)
 
@@ -1766,25 +1785,52 @@ def cambiar_estado_incidencia_ajax(request, publicacion_id):
     if nuevo_estado not in [c[0] for c in Publicacion.EstadoIncidencia.choices]:
         return JsonResponse({'status': 'error', 'message': 'Estado no válido.'}, status=400)
 
-    publicacion.estado_incidencia = nuevo_estado
-    publicacion.save(update_fields=['estado_incidencia'])
+    if nuevo_estado == Publicacion.EstadoIncidencia.DECLINADO:
+        motivo_raw = (request.POST.get('motivo') or '').strip()
+        detalle = (request.POST.get('detalle') or '').strip()
+        catalogo = dict(Publicacion.MotivoDeclinacion.choices)
+        motivo_base = catalogo.get(
+            motivo_raw.upper(),
+            motivo_raw or Publicacion.MotivoDeclinacion.NO_PROCEDE.label,
+        )
+        if detalle:
+            motivo_final = f"{motivo_base} — {detalle}"
+        else:
+            motivo_final = str(motivo_base)
+        publicacion.estado_incidencia = nuevo_estado
+        publicacion.motivo_declinacion = motivo_final[:255]
+        publicacion.save(update_fields=['estado_incidencia', 'motivo_declinacion'])
 
-    # Notificar al autor del reporte que su incidencia cambió de estado
-    crear_notificacion(
-        destinatario=publicacion.autor, actor=request.user,
-        tipo=Notificacion.Tipo.CAMBIO_ESTADO, publicacion=publicacion,
-        extra=publicacion.get_estado_incidencia_display(),
-    )
+        extra_notif = f"Declinado — Motivo: {publicacion.motivo_declinacion}"[:255]
+        crear_notificacion(
+            destinatario=publicacion.autor, actor=request.user,
+            tipo=Notificacion.Tipo.CAMBIO_ESTADO, publicacion=publicacion,
+            extra=extra_notif, permitir_auto=True,
+        )
+        mensaje_respuesta = f"Incidencia #{publicacion.id} declinada ({publicacion.motivo_declinacion}). Se notificó al ciudadano."
+    else:
+        publicacion.estado_incidencia = nuevo_estado
+        publicacion.motivo_declinacion = ''
+        publicacion.save(update_fields=['estado_incidencia', 'motivo_declinacion'])
+
+        crear_notificacion(
+            destinatario=publicacion.autor, actor=request.user,
+            tipo=Notificacion.Tipo.CAMBIO_ESTADO, publicacion=publicacion,
+            extra=publicacion.get_estado_incidencia_display(),
+        )
+        mensaje_respuesta = f'Incidencia #{publicacion.id} marcada como {publicacion.get_estado_incidencia_display()}.'
 
     # La actividad se deriva directamente de la publicación (tiempo real y sincronizada)
     actividad = _actividad_desde_publicacion(publicacion)
 
     return JsonResponse({
         'status': 'ok',
-        'message': f'Incidencia #{publicacion.id} marcada como {publicacion.get_estado_incidencia_display()}.',
+        'message': mensaje_respuesta,
         'id': publicacion.id,
         'estado': publicacion.estado_incidencia,
+        'motivo_declinacion': publicacion.motivo_declinacion,
         'es_resuelta': publicacion.estado_incidencia == Publicacion.EstadoIncidencia.RESUELTA,
+        'es_declinada': publicacion.estado_incidencia == Publicacion.EstadoIncidencia.DECLINADO,
         'actividad': {
             'id': actividad['id'],
             'publicacion_id': actividad['publicacion_id'],
