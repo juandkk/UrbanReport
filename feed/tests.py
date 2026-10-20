@@ -519,16 +519,16 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         """esta_en_linea(): activo dentro de la ventana, inactivo fuera; sin registro = inactivo."""
         from datetime import timedelta
         # Activo: actividad hace 30 segundos (dentro de la ventana de 60s)
-        self.ciudadano.ultima_actividad = self.ahora - timedelta(seconds=30)
-        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.ciudadano.last_login = self.ahora - timedelta(seconds=30)
+        self.ciudadano.save(update_fields=['last_login'])
         self.assertTrue(self.ciudadano.esta_en_linea())
         # Inactivo: actividad hace 5 minutos (fuera de la ventana de 60s)
-        self.ciudadano.ultima_actividad = self.ahora - timedelta(minutes=5)
-        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.ciudadano.last_login = self.ahora - timedelta(minutes=5)
+        self.ciudadano.save(update_fields=['last_login'])
         self.assertFalse(self.ciudadano.esta_en_linea())
         # Sin registro
-        self.ciudadano.ultima_actividad = None
-        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.ciudadano.last_login = None
+        self.ciudadano.save(update_fields=['last_login'])
         self.assertFalse(self.ciudadano.esta_en_linea())
 
     def test_busqueda_ciudadanos_por_nombre_y_correo(self):
@@ -560,7 +560,7 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         from datetime import timedelta
         self.client.force_login(self.ciudadano)
         # En línea
-        Usuario.objects.filter(pk=self.otro.pk).update(ultima_actividad=self.ahora - timedelta(seconds=10))
+        Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(seconds=10))
         r = self.client.get(reverse('api_estado_presencia', args=['otro']))
         self.assertEqual(r.status_code, 200)
         d = r.json()
@@ -568,7 +568,7 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         # No debe exponer datos sensibles: solo status y en_linea
         self.assertEqual(set(d.keys()), {'status', 'en_linea'})
         # Fuera de línea
-        Usuario.objects.filter(pk=self.otro.pk).update(ultima_actividad=self.ahora - timedelta(minutes=10))
+        Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(minutes=10))
         d = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
         self.assertFalse(d['en_linea'])
         # Requiere autenticación
@@ -577,15 +577,19 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
 
     def test_heartbeat_marca_actividad_y_requiere_login(self):
         """El heartbeat actualiza la actividad del propio usuario; exige sesión y POST."""
+        from datetime import timedelta
         # Sin sesión -> redirige a login (no 200)
         self.assertNotEqual(self.client.post(reverse('api_heartbeat')).status_code, 200)
-        # Autenticado -> 200 y actualiza ultima_actividad
-        Usuario.objects.filter(pk=self.ciudadano.pk).update(ultima_actividad=None)
+        # Autenticado -> 200 y actualiza last_login
         self.client.force_login(self.ciudadano)
+        # Forzar last_login antiguo DESPUÉS del login para comprobar que el heartbeat lo refresca.
+        viejo = self.ahora - timedelta(hours=3)
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(last_login=viejo)
         r = self.client.post(reverse('api_heartbeat'))
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()['status'], 'ok')
-        self.assertIsNotNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+        refrescado = Usuario.objects.get(pk=self.ciudadano.pk).last_login
+        self.assertGreater(refrescado, viejo)
         # El heartbeat no acepta GET
         self.assertEqual(self.client.get(reverse('api_heartbeat')).status_code, 405)
 
@@ -599,33 +603,50 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(hours=1), self.ahora), 'Hace 1 h')
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(days=4), self.ahora), 'Hace 4 d')
         # Usuario sin actividad -> 'Sin registro' en la tabla, sin fecha absoluta.
-        self.ciudadano.ultima_actividad = None
-        self.ciudadano.save(update_fields=['ultima_actividad'])
+        self.ciudadano.last_login = None
+        self.ciudadano.save(update_fields=['last_login'])
         fila = next(c for c in _listar_ciudadanos_presencia() if c['username'] == 'ciudadano')
         self.assertEqual(fila['ultima_rel'], 'Sin registro')
         self.assertEqual(fila['ultima_abs'], '')
 
     def test_middleware_actualiza_actividad(self):
-        """Una solicitud autenticada registra ultima_actividad del usuario."""
-        self.assertIsNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+        """Una solicitud autenticada refresca last_login del usuario (throttle 30s)."""
+        from datetime import timedelta
         self.client.force_login(self.ciudadano)
+        # Dejar last_login antiguo para que el middleware deba refrescarlo.
+        viejo = self.ahora - timedelta(hours=3)
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(last_login=viejo)
         self.client.get(reverse('feed_comunitario'))
-        self.assertIsNotNone(Usuario.objects.get(pk=self.ciudadano.pk).ultima_actividad)
+        self.assertGreater(Usuario.objects.get(pk=self.ciudadano.pk).last_login, viejo)
 
     def test_indicador_presencia_en_feed_por_estado(self):
         """El círculo verde aparece si el autor está en línea y desaparece si no."""
         from datetime import timedelta
+        # Espectador dedicado SIN contenido en el feed: así el refresco de last_login
+        # que hace el middleware sobre quien visita no introduce un dot propio
+        # (no es autor de ninguna publicación/comentario).
+        espectador = Usuario.objects.create_user(
+            username='espectador', email='esp@t.co', password='x',
+            rol=Usuario.Rol.ADMINISTRADOR, **PERFIL_COMPLETO,
+        )
+        self.client.force_login(espectador)
+
+        def poner_todos_inactivos():
+            # Todos los usuarios con contenido quedan fuera de la ventana de presencia.
+            Usuario.objects.exclude(pk=espectador.pk).update(
+                last_login=self.ahora - timedelta(hours=2)
+            )
+
         # Autor del post (ciudadano) EN LÍNEA -> aparece el dot.
-        self.ciudadano.ultima_actividad = self.ahora - timedelta(seconds=30)
-        self.ciudadano.save(update_fields=['ultima_actividad'])
-        self.client.force_login(self.admin)  # quien ve el feed no afecta el dot del autor
+        poner_todos_inactivos()
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(
+            last_login=self.ahora - timedelta(seconds=30)
+        )
         html = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertIn('presence-dot', html)
-        # Autor INACTIVO -> no aparece.
-        self.ciudadano.ultima_actividad = self.ahora - timedelta(hours=2)
-        self.ciudadano.save(update_fields=['ultima_actividad'])
-        # El admin tampoco debe tener actividad reciente para esta comprobación.
-        Usuario.objects.filter(pk=self.admin.pk).update(ultima_actividad=self.ahora - timedelta(hours=2))
+
+        # Nadie con contenido en línea -> no aparece ningún dot.
+        poner_todos_inactivos()
         html2 = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertNotIn('presence-dot', html2)
 
@@ -755,9 +776,9 @@ class RendimientoTest(TestCase):
 
     def _contar(self, url, user=None):
         self.client.force_login(user or self.u)
-        # Petición de "calentamiento": deja que ActividadUsuarioMiddleware registre
-        # la actividad y quede throttled (vía la sesión), para que la medición real
-        # no incluya esa escritura puntual O(1) y siga detectando cualquier N+1.
+        # Petición de "calentamiento": deja que el middleware refresque last_login
+        # y quede throttled, para que la medición real no incluya esa escritura
+        # puntual O(1) y siga detectando cualquier N+1.
         self.client.get(url)
         with CaptureQueriesContext(connection) as ctx:
             r = self.client.get(url)

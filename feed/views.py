@@ -1250,7 +1250,7 @@ def _listar_ciudadanos_presencia(busqueda=''):
         .filter(rol=Usuario.Rol.CIUDADANO, is_staff=False, is_superuser=False)
         .only(
             'id', 'first_name', 'last_name', 'username',
-            'direccion', 'barrio_vereda', 'numero_finca', 'ultima_actividad',
+            'direccion', 'barrio_vereda', 'numero_finca', 'last_login',
         )
     )
 
@@ -1263,15 +1263,15 @@ def _listar_ciudadanos_presencia(busqueda=''):
             | Q(last_name__icontains=busqueda)
         )
 
-    ciudadanos = ciudadanos.order_by(F('ultima_actividad').desc(nulls_last=True), 'username')
+    ciudadanos = ciudadanos.order_by(F('last_login').desc(nulls_last=True), 'username')
 
     filas = []
     for u in ciudadanos:
         nombre = f"{u.first_name} {u.last_name}".strip() or u.username
-        en_linea = bool(u.ultima_actividad and (ahora - u.ultima_actividad).total_seconds() <= ventana)
-        if u.ultima_actividad:
-            ultima_rel = _tiempo_relativo(u.ultima_actividad)
-            ultima_abs = timezone.localtime(u.ultima_actividad).strftime('%d/%m/%Y %H:%M')
+        en_linea = bool(u.last_login and (ahora - u.last_login).total_seconds() <= ventana)
+        if u.last_login:
+            ultima_rel = _tiempo_relativo(u.last_login)
+            ultima_abs = timezone.localtime(u.last_login).strftime('%d/%m/%Y %H:%M')
         else:
             ultima_rel = 'Sin registro'
             ultima_abs = ''
@@ -1346,7 +1346,7 @@ def api_estado_presencia(request, username):
     """
     from django.shortcuts import get_object_or_404
     usuario = get_object_or_404(
-        Usuario.objects.only('id', 'ultima_actividad'), username=username
+        Usuario.objects.only('id', 'last_login'), username=username
     )
     return JsonResponse({
         'status': 'ok',
@@ -1360,7 +1360,7 @@ def api_heartbeat(request):
     """
     "Latido" de presencia: el navegador lo llama periódicamente (cada ~25s)
     mientras el usuario tiene la página abierta. Marca al usuario autenticado
-    como activo actualizando su `ultima_actividad`.
+    como activo actualizando su `last_login`.
 
     Disponible para CUALQUIER usuario autenticado (ciudadano o admin), porque
     cada quien solo actualiza SU PROPIA marca (request.user). No expone datos de
@@ -1368,10 +1368,7 @@ def api_heartbeat(request):
     estado real en tiempo casi real, sin depender de que el usuario navegue.
     """
     ahora = timezone.now()
-    Usuario.objects.filter(pk=request.user.pk).update(ultima_actividad=ahora)
-    # Sincronizar la marca de la sesión que usa el middleware para su throttle,
-    # evitando una escritura doble inmediata en la siguiente petición.
-    request.session['_ultima_actividad_ts'] = ahora.timestamp()
+    Usuario.objects.filter(pk=request.user.pk).update(last_login=ahora)
     return JsonResponse({'status': 'ok'})
 
 

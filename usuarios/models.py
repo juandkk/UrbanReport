@@ -20,13 +20,6 @@ class Usuario(AbstractUser):
     codigo_postal = models.CharField('Código postal', max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
-    # ── Presencia / actividad ──
-    # Marca de la última solicitud autenticada del usuario. La actualiza
-    # ActividadUsuarioMiddleware de forma eficiente (como máximo una vez por minuto).
-    # Permite estimar quién está "en línea" (actividad reciente), sin guardar
-    # información sensible. Es NULL si el usuario nunca ha tenido actividad registrada.
-    ultima_actividad = models.DateTimeField('Última actividad', blank=True, null=True)
-
     # ── Preferencias de notificaciones (Configuración del perfil) ──
     # True  = el usuario recibe las notificaciones correspondientes (interruptor "apagado"
     #         en la UI, es decir, NO suspendidas).
@@ -69,20 +62,22 @@ class Usuario(AbstractUser):
     def esta_en_linea(self, ahora=None):
         """
         Estima si el usuario está "en línea": tuvo actividad autenticada dentro de
-        la ventana reciente (por defecto 5 minutos, configurable con el ajuste
-        PRESENCIA_VENTANA_SEGUNDOS). En una app web la presencia es una estimación
-        basada en actividad reciente, no una garantía de que tenga la página abierta.
+        la ventana reciente (configurable con el ajuste PRESENCIA_VENTANA_SEGUNDOS).
+        Usa `last_login`, que el middleware refresca en cada solicitud autenticada
+        (con throttle) y que el heartbeat del navegador mantiene al día mientras la
+        página está abierta. En una app web la presencia es una estimación basada en
+        actividad reciente, no una garantía de que el usuario tenga la página abierta.
 
         El parámetro `ahora` permite reutilizar un único timestamp al evaluar muchos
         usuarios en lote (evita llamar a timezone.now() por fila).
         """
-        if not self.ultima_actividad:
+        if not self.last_login:
             return False
         from django.conf import settings
         from django.utils import timezone
         ventana = getattr(settings, 'PRESENCIA_VENTANA_SEGUNDOS', 300)
         ahora = ahora or timezone.now()
-        return (ahora - self.ultima_actividad).total_seconds() <= ventana
+        return (ahora - self.last_login).total_seconds() <= ventana
 
     @property
     def total_seguidores(self):

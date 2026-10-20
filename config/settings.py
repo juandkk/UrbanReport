@@ -105,10 +105,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Requerido por allauth para procesar la respuesta de los proveedores
     'allauth.account.middleware.AccountMiddleware',
-    # Obliga a los usuarios con perfil incompleto (p. ej. SSO) a completarlo
+    # Control de acceso/actividad: refresca last_login (presencia), aplica modo
+    # mantenimiento y exige completar el perfil cuando corresponde.
     'usuarios.middleware.CompletarPerfilMiddleware',
-    # Registra la última actividad del usuario (presencia "en línea"), throttled
-    'usuarios.middleware.ActividadUsuarioMiddleware',
 ]
 
 # Ventana (en segundos) para considerar a un usuario "en línea" según su última
