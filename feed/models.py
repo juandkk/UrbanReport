@@ -350,6 +350,7 @@ class Notificacion(models.Model):
         CAMBIO_ESTADO = 'CAMBIO_ESTADO', 'Tu reporte cambió de estado'
         SEGUIDOR = 'SEGUIDOR', 'Comenzó a seguirte'
         REPORTE_CONTENIDO = 'REPORTE_CONTENIDO', 'Reportó contenido para moderación'
+        MENCION = 'MENCION', 'Te mencionó'
 
     # Categoría para el filtro de la vista: publicaciones, reportes o social
     class Categoria(models.TextChoices):

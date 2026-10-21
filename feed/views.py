@@ -67,6 +67,60 @@ def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=N
     )
 
 
+_MENCION_RE = re.compile(r'(?<![\w@])@([A-Za-z0-9_]+(?:[.\-][A-Za-z0-9_]+)*)')
+
+
+def extraer_usernames_mencionados(texto):
+    """Extrae usernames únicos (sin '@') mencionados como @username en un texto."""
+    if not texto:
+        return []
+    vistos = set()
+    resultado = []
+    for uname in _MENCION_RE.findall(str(texto)):
+        clave = uname.lower()
+        if clave not in vistos:
+            vistos.add(clave)
+            resultado.append(uname)
+    return resultado
+
+
+def notificar_menciones(actor, texto, publicacion=None, comentario=None, excluir_ids=None):
+    """
+    Busca usuarios reales mencionados con @username en `texto` y les crea una
+    notificación de tipo MENCION (categoría PUBLICACION).
+    No notifica al propio autor ni duplica notificaciones a usuarios en `excluir_ids`.
+    """
+    if not actor or not texto:
+        return 0
+    usernames = extraer_usernames_mencionados(texto)
+    if not usernames:
+        return 0
+
+    excluir = set(excluir_ids or ())
+    if getattr(actor, 'id', None):
+        excluir.add(actor.id)
+
+    q_users = Q()
+    for u in usernames[:15]:
+        q_users |= Q(username__iexact=u)
+
+    mencionados = Usuario.objects.filter(q_users).exclude(id__in=excluir).distinct()
+    extracto = re.sub(r'\s+', ' ', str(texto)).strip()[:80]
+    creadas = 0
+    for destinatario in mencionados:
+        notif = crear_notificacion(
+            destinatario=destinatario,
+            actor=actor,
+            tipo=Notificacion.Tipo.MENCION,
+            publicacion=publicacion,
+            comentario=comentario,
+            extra=extracto,
+        )
+        if notif is not None:
+            creadas += 1
+    return creadas
+
+
 def notificar_admins_reporte(actor, motivo_display, publicacion=None, comentario=None):
     """
     Notifica a TODOS los administradores que un usuario reportó contenido, para que
@@ -330,6 +384,7 @@ def radicar_incidencia_ajax(request):
         imagen=imagen_limpia,
         estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO
     )
+    notificar_menciones(actor=user, texto=f'{titulo} {contenido}', publicacion=publicacion)
 
     return JsonResponse({
         'status': 'ok',
@@ -517,16 +572,24 @@ def api_trending_topics(request):
 
 def _anotar_interacciones_usuario(publicaciones, user):
     """
-    Anota en lote (O(1) consultas) las reacciones (LIKE/DISLIKE) y reposteos del
-    usuario autenticado sobre una lista de publicaciones y todos sus comentarios
-    y respuestas anidadas.
+    Anota en lote (O(1) consultas) las reacciones (LIKE/DISLIKE), reposteos y la
+    visibilidad del punto verde de actividad (solo entre seguidores mutuos y cuando
+    ambos tienen `mostrar_estado_actividad=True`) sobre una lista de publicaciones
+    y todos sus comentarios y respuestas anidadas.
     """
     if not publicaciones:
         return
 
+    from usuarios.models import Seguimiento
+
     user_post_reactions = {}
     user_comment_reactions = {}
     user_reposts = set()
+    mutuos_ids = set()
+    ahora_presencia = timezone.now()
+    viewer_muestra = bool(
+        user and user.is_authenticated and getattr(user, 'mostrar_estado_actividad', True)
+    )
 
     if user and user.is_authenticated:
         for r in ReaccionPublicacion.objects.filter(usuario=user, publicacion__in=publicaciones):
@@ -544,13 +607,33 @@ def _anotar_interacciones_usuario(publicaciones, user):
             for r in ReaccionComentario.objects.filter(usuario=user, comentario_id__in=all_comment_ids):
                 user_comment_reactions[r.comentario_id] = r.tipo
 
+        # 1 sola consulta constante O(1) para obtener los IDs con seguimiento mutuo
+        mutuos_ids = set(
+            Seguimiento.objects.filter(
+                seguidor=user,
+                seguido__in=Seguimiento.objects.filter(seguido=user).values('seguidor_id'),
+            ).values_list('seguido_id', flat=True)
+        )
+
+    def _presencia_visible(autor):
+        if not viewer_muestra or not autor:
+            return False
+        if not getattr(autor, 'mostrar_estado_actividad', True):
+            return False
+        if autor.id != user.id and autor.id not in mutuos_ids:
+            return False
+        return autor.esta_en_linea(ahora=ahora_presencia)
+
     for p in publicaciones:
         p.user_reaction = user_post_reactions.get(p.id)
         p.user_reposteo = p.id in user_reposts
+        p.mostrar_presencia_autor = _presencia_visible(p.autor)
         for c in p.comentarios.all():
             c.user_reaction = user_comment_reactions.get(c.id)
+            c.mostrar_presencia_autor = _presencia_visible(c.autor)
             for rep in c.respuestas.all():
                 rep.user_reaction = user_comment_reactions.get(rep.id)
+                rep.mostrar_presencia_autor = _presencia_visible(rep.autor)
 
 
 @login_required
@@ -620,7 +703,7 @@ def feed_comunitario_view(request):
             user = request.user
             autor_nombre = f"{user.first_name} {user.last_name}".strip() or user.username
 
-            Publicacion.objects.create(
+            nueva_pub = Publicacion.objects.create(
                 autor=user,
                 autor_nombre=autor_nombre,
                 titulo=titulo,
@@ -629,6 +712,7 @@ def feed_comunitario_view(request):
                 imagen=imagen_limpia,
                 estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO
             )
+            notificar_menciones(actor=user, texto=f'{titulo} {contenido}', publicacion=nueva_pub)
             return redirect('feed_comunitario')
 
     context = {
@@ -821,15 +905,26 @@ def agregar_comentario_ajax(request, publicacion_id):
 
     # Notificar: si es respuesta, al autor del comentario padre; si no, al autor de la publicación
     fragmento = texto[:80] if texto else '📷 Imagen adjunta'
+    ya_notificados = set()
     if padre and padre.autor:
         crear_notificacion(
             destinatario=padre.autor, actor=autor,
             tipo=Notificacion.Tipo.RESPUESTA, publicacion=publicacion, comentario=comentario, extra=fragmento,
         )
+        ya_notificados.add(padre.autor_id)
     else:
         crear_notificacion(
             destinatario=publicacion.autor, actor=autor,
             tipo=Notificacion.Tipo.COMENTARIO, publicacion=publicacion, comentario=comentario, extra=fragmento,
+        )
+        if publicacion.autor_id:
+            ya_notificados.add(publicacion.autor_id)
+
+    if texto:
+        notificar_menciones(
+            actor=autor, texto=texto,
+            publicacion=publicacion, comentario=comentario,
+            excluir_ids=ya_notificados,
         )
 
     initials = "".join([part[0].upper() for part in autor_nombre.split()[:2]]) or "UR"
@@ -1409,21 +1504,49 @@ def editar_ciudadano_panel_ajax(request, user_id):
 def api_estado_presencia(request, username):
     """
     Devuelve SOLO el estado de presencia (en línea / fuera de línea) de un usuario
-    concreto, para refrescar el círculo verde del perfil sin recargar.
-
-    Expone únicamente el booleano `en_linea` —exactamente la misma información que
-    ya muestra públicamente el círculo— y nada más (ni dirección, ni última
-    conexión, ni otros datos sensibles). Disponible para cualquier usuario
-    autenticado, igual que el propio indicador.
+    concreto para refrescar el círculo verde del perfil sin recargar, respetando
+    estrictamente las reglas de privacidad (solo visible entre seguidores mutuos
+    y cuando ambos tienen `mostrar_estado_actividad=True`).
     """
     from django.shortcuts import get_object_or_404
     usuario = get_object_or_404(
-        Usuario.objects.only('id', 'last_login'), username=username
+        Usuario.objects.only('id', 'last_login', 'mostrar_estado_actividad'),
+        username=username,
     )
     return JsonResponse({
         'status': 'ok',
-        'en_linea': usuario.esta_en_linea(),
+        'en_linea': usuario.puede_ver_mi_presencia(request.user),
     })
+
+
+@login_required
+@require_GET
+def api_sugerir_menciones(request):
+    """
+    Sugiere usuarios activos por @username (o nombre) para autocompletar menciones
+    en publicaciones y comentarios.
+    """
+    q = (request.GET.get('q') or '').strip().lstrip('@')
+    qs = Usuario.objects.filter(is_active=True).only(
+        'id', 'username', 'first_name', 'last_name', 'avatar'
+    )
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q)
+            | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+        )
+    qs = qs.order_by('username')[:6]
+    usuarios = []
+    for u in qs:
+        nombre = f"{u.first_name} {u.last_name}".strip() or u.username
+        usuarios.append({
+            'username': u.username,
+            'nombre': nombre,
+            'iniciales': (nombre[:2].upper() or 'UR'),
+            'avatar_url': u.avatar.url if getattr(u, 'avatar', None) else None,
+        })
+    return JsonResponse({'status': 'ok', 'usuarios': usuarios})
 
 
 @login_required

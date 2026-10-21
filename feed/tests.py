@@ -613,16 +613,49 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertTrue(all('ciudadano' in c['username'].lower()
                             or 'ciudadano' in c['nombre'].lower() for c in d['ciudadanos']))
 
-    def test_estado_presencia_por_usuario(self):
-        """El endpoint de presencia individual devuelve solo el booleano en_linea."""
+    def test_estado_presencia_por_usuario_exige_seguimiento_mutuo_y_preferencia_activa(self):
+        """
+        El punto verde solo es visible entre personas que se siguen mutuamente
+        y cuando ambas tienen `mostrar_estado_actividad=True` (estilo Instagram/Facebook).
+        """
         from datetime import timedelta
+        from usuarios.models import Seguimiento
         self.client.force_login(self.ciudadano)
         Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(seconds=10))
+
+        Seguimiento.objects.filter(
+            seguidor__in=[self.ciudadano, self.otro],
+            seguido__in=[self.ciudadano, self.otro],
+        ).delete()
+
+        # 1. Sin seguimiento mutuo -> en_linea es False aunque esté activo
+        d_sin_seguir = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
+        self.assertFalse(d_sin_seguir['en_linea'])
+
+        # 2. Seguimiento en una sola dirección -> sigue siendo False
+        Seguimiento.objects.create(seguidor=self.ciudadano, seguido=self.otro)
+        d_unilateral = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
+        self.assertFalse(d_unilateral['en_linea'])
+
+        # 3. Seguimiento mutuo -> ahora SÍ es True
+        Seguimiento.objects.create(seguidor=self.otro, seguido=self.ciudadano)
         r = self.client.get(reverse('api_estado_presencia', args=['otro']))
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertTrue(d['en_linea'])
         self.assertEqual(set(d.keys()), {'status', 'en_linea'})
+
+        # 4. Si el otro usuario desactiva su estado de actividad -> False
+        Usuario.objects.filter(pk=self.otro.pk).update(mostrar_estado_actividad=False)
+        self.assertFalse(self.client.get(reverse('api_estado_presencia', args=['otro'])).json()['en_linea'])
+        Usuario.objects.filter(pk=self.otro.pk).update(mostrar_estado_actividad=True)
+
+        # 5. Reciprocidad: si quien mira desactiva su propio estado de actividad -> tampoco ve el del otro
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(mostrar_estado_actividad=False)
+        self.assertFalse(self.client.get(reverse('api_estado_presencia', args=['otro'])).json()['en_linea'])
+        Usuario.objects.filter(pk=self.ciudadano.pk).update(mostrar_estado_actividad=True)
+
+        # 6. Fuera de línea por tiempo -> False
         Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(minutes=10))
         d = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
         self.assertFalse(d['en_linea'])
@@ -663,8 +696,9 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertGreater(Usuario.objects.get(pk=self.ciudadano.pk).last_login, viejo)
 
     def test_indicador_presencia_en_feed_por_estado(self):
-        """El círculo verde aparece si el autor está en línea y desaparece si no."""
+        """El círculo verde aparece en el feed solo si hay seguimiento mutuo, preferencia activa y está en línea."""
         from datetime import timedelta
+        from usuarios.models import Seguimiento
         espectador = Usuario.objects.create_user(
             username='espectador', email='esp@t.co', password='x',
             rol=Usuario.Rol.ADMINISTRADOR, **PERFIL_COMPLETO,
@@ -680,12 +714,52 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         Usuario.objects.filter(pk=self.ciudadano.pk).update(
             last_login=self.ahora - timedelta(seconds=30)
         )
+        # Sin seguimiento mutuo -> NO aparece el punto verde
+        html_sin_mutuo = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertNotIn('presence-dot', html_sin_mutuo)
+
+        # Con seguimiento mutuo -> SÍ aparece el punto verde
+        Seguimiento.objects.create(seguidor=espectador, seguido=self.ciudadano)
+        Seguimiento.objects.create(seguidor=self.ciudadano, seguido=espectador)
         html = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertIn('presence-dot', html)
 
         poner_todos_inactivos()
         html2 = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertNotIn('presence-dot', html2)
+
+    def test_menciones_en_publicaciones_y_comentarios(self):
+        """Mencionar con @username en publicaciones y comentarios crea enlace al perfil y notifica al usuario."""
+        self.client.force_login(self.ciudadano)
+
+        # 1. Endpoint de autocompletado de menciones
+        r_sug = self.client.get(reverse('api_sugerir_menciones') + '?q=otr')
+        self.assertEqual(r_sug.status_code, 200)
+        sug_data = r_sug.json()
+        self.assertEqual(sug_data['status'], 'ok')
+        self.assertTrue(any(u['username'] == 'otro' for u in sug_data['usuarios']))
+
+        # 2. Mención en comentario notifica al usuario mencionado y se renderiza como enlace
+        tercero = Usuario.objects.create_user(
+            username='carlos_m', email='carlos@t.co', password='x', **PERFIL_COMPLETO
+        )
+        r_com = self.client.post(
+            reverse('agregar_comentario_ajax', args=[self.pub.id]),
+            {'texto': 'Hola @carlos_m revisa este reporte por favor (correo@test.co)'},
+        )
+        self.assertEqual(r_com.status_code, 200)
+        self.assertTrue(
+            Notificacion.objects.filter(
+                destinatario=tercero,
+                actor=self.ciudadano,
+                tipo=Notificacion.Tipo.MENCION,
+            ).exists()
+        )
+
+        # Verificar que en el HTML se renderiza el enlace @carlos_m pero NO @test.co del correo
+        html_det = self.client.get(reverse('detalle_publicacion', args=[self.pub.id])).content.decode()
+        self.assertIn('href="/perfil/carlos_m/"', html_det)
+        self.assertNotIn('href="/perfil/test.co/"', html_det)
 
     def test_direccion_no_se_expone_en_feed(self):
         """La dirección de residencia no debe aparecer en el feed."""

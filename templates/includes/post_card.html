@@ -1,4 +1,5 @@
 {% load static %}
+{% load feed_extras %}
 <article class="post-card {% if post.censurado %}is-censored-card{% endif %}" id="post-card-{{ post.id }}" data-post-id="{{ post.id }}"
   data-estado="{{ post.estado_incidencia }}" data-categoria="{{ post.categoria }}"
   data-censurado="{{ post.censurado|yesno:'true,false' }}"
@@ -56,7 +57,7 @@
           {{ post.nombre_autor|slice:":2"|upper|default:"UR" }}
         </div>
         {% endif %}
-        {% if post.autor and post.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+        {% if post.mostrar_presencia_autor %}<span class="presence-dot" title="En línea"></span>{% endif %}
       </span>
       {% if post.autor %}</a>{% endif %}
 
@@ -122,7 +123,7 @@
     </div>
 
     <!-- Content Text -->
-    <p class="post-text" id="post-content-text-{{ post.id }}">{{ post.contenido }}</p>
+    <p class="post-text" id="post-content-text-{{ post.id }}">{{ post.contenido|renderizar_menciones }}</p>
 
     <!-- Attached Image (if any) -->
     {% if post.imagen %}
@@ -393,7 +394,7 @@
               {% else %}
               <div class="comment-avatar-circle">{{ com.nombre_autor|slice:":2"|upper }}</div>
               {% endif %}
-              {% if com.autor and com.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+              {% if com.mostrar_presencia_autor %}<span class="presence-dot" title="En línea"></span>{% endif %}
             </span>
             <span class="comment-author-name">{{ com.nombre_autor }}</span>
             {% if com.autor %}</a>{% endif %}
@@ -405,7 +406,7 @@
           {% if com.censurado %}
           <span class="censored-comment-badge">⚠️ <em>Comentario censurado por moderación.</em></span>
           {% else %}
-          {{ com.texto }}
+          {{ com.texto|renderizar_menciones }}
           {% endif %}
         </p>
 
@@ -546,7 +547,7 @@
                   {% else %}
                   <div class="comment-avatar-circle" style="width:22px; height:22px; font-size:0.68rem;">{{ rep.nombre_autor|slice:":2"|upper }}</div>
                   {% endif %}
-                  {% if rep.autor and rep.autor.esta_en_linea %}<span class="presence-dot" title="En línea"></span>{% endif %}
+                  {% if rep.mostrar_presencia_autor %}<span class="presence-dot" title="En línea"></span>{% endif %}
                 </span>
                 <span class="comment-author-name" style="font-size:0.82rem;">{{ rep.nombre_autor }}</span>
                 {% if rep.autor %}</a>{% endif %}
@@ -559,7 +560,7 @@
               {% if rep.censurado %}
               <span class="censored-comment-badge">⚠️ <em>Comentario censurado por moderación.</em></span>
               {% else %}
-              {{ rep.texto }}
+              {{ rep.texto|renderizar_menciones }}
               {% endif %}
             </p>
 

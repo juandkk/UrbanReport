@@ -1209,12 +1209,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderMentionsHtml(escapedText) {
+    if (!escapedText) return '';
+    return escapedText.replace(
+      /(?<![\w@])@([A-Za-z0-9_]+(?:[.\-][A-Za-z0-9_]+)*)/g,
+      '<a href="/perfil/$1/" class="user-mention" onclick="event.stopPropagation();" title="Ver perfil de @$1">@$1</a>'
+    );
+  }
+
   // ── Generador de HTML para comentario nuevo ──
   function createCommentHtml(c, postId) {
     const safeInitials = escapeHtml(c.initials || 'UR');
     const safeAuthor = escapeHtml(c.autor_nombre);
     const safeTime = escapeHtml(c.tiempo);
-    const safeText = escapeHtml(c.texto);
+    const safeText = renderMentionsHtml(escapeHtml(c.texto));
     const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
     const avatarHtml = c.avatar_url
       ? `<img src="${escapeHtml(c.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" loading="lazy" decoding="async">`
@@ -1289,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeInitials = escapeHtml(rep.initials || 'UR');
     const safeAuthor = escapeHtml(rep.autor_nombre);
     const safeTime = escapeHtml(rep.tiempo);
-    const safeText = escapeHtml(rep.texto);
+    const safeText = renderMentionsHtml(escapeHtml(rep.texto));
     const textClass = safeText ? 'comment-body-text' : 'comment-body-text d-none';
     const avatarHtml = rep.avatar_url
       ? `<img src="${escapeHtml(rep.avatar_url)}" alt="${safeAuthor}" class="comment-avatar-circle comment-avatar-img" style="width:22px; height:22px;" loading="lazy" decoding="async">`
@@ -2724,5 +2732,146 @@ document.addEventListener('DOMContentLoaded', () => {
       closeLightbox();
     }
   });
+
+  // ── Autocompletado de menciones @username en publicaciones y comentarios ──
+  (function initMentionAutocomplete() {
+    let menuEl = null;
+    let activeInput = null;
+    let mentionStartIdx = -1;
+    let items = [];
+    let selectedIdx = 0;
+    let debounceTimer = null;
+
+    function ensureMenu() {
+      if (!menuEl) {
+        menuEl = document.createElement('div');
+        menuEl.className = 'mention-autocomplete-menu';
+        menuEl.hidden = true;
+        document.body.appendChild(menuEl);
+      }
+      return menuEl;
+    }
+
+    function hideMenu() {
+      if (menuEl) menuEl.hidden = true;
+      activeInput = null;
+      mentionStartIdx = -1;
+      items = [];
+    }
+
+    function selectMention(username) {
+      if (!activeInput || mentionStartIdx < 0) return;
+      const val = activeInput.value || '';
+      const cursor = activeInput.selectionStart || val.length;
+      const before = val.slice(0, mentionStartIdx);
+      const after = val.slice(cursor);
+      const inserted = '@' + username + ' ';
+      activeInput.value = before + inserted + after;
+      const newPos = before.length + inserted.length;
+      activeInput.focus();
+      if (typeof activeInput.setSelectionRange === 'function') {
+        activeInput.setSelectionRange(newPos, newPos);
+      }
+      hideMenu();
+    }
+
+    function renderMenu(usuarios, inputEl) {
+      const menu = ensureMenu();
+      items = usuarios || [];
+      if (!items.length) {
+        hideMenu();
+        return;
+      }
+      selectedIdx = 0;
+      menu.innerHTML = items.map((u, idx) => {
+        const av = u.avatar_url
+          ? `<img src="${escapeHtml(u.avatar_url)}" alt="" class="mention-autocomplete-avatar">`
+          : `<span class="mention-autocomplete-avatar">${escapeHtml(u.iniciales || 'UR')}</span>`;
+        return `<button type="button" class="mention-autocomplete-item ${idx === 0 ? 'is-active' : ''}" data-username="${escapeHtml(u.username)}">
+          ${av}
+          <span class="mention-autocomplete-info">
+            <span class="mention-autocomplete-name">${escapeHtml(u.nombre)}</span>
+            <span class="mention-autocomplete-user">@${escapeHtml(u.username)}</span>
+          </span>
+        </button>`;
+      }).join('');
+
+      const rect = inputEl.getBoundingClientRect();
+      const top = Math.min(window.innerHeight - 220, rect.bottom + 6);
+      const left = Math.min(window.innerWidth - 260, Math.max(8, rect.left));
+      menu.style.top = `${Math.max(8, top)}px`;
+      menu.style.left = `${left}px`;
+      menu.hidden = false;
+    }
+
+    document.addEventListener('click', (e) => {
+      if (menuEl && !menuEl.hidden) {
+        const btn = e.target.closest('.mention-autocomplete-item');
+        if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          selectMention(btn.dataset.username);
+          return;
+        }
+        if (e.target !== activeInput) hideMenu();
+      }
+    });
+
+    document.addEventListener('input', (e) => {
+      const el = e.target;
+      if (!el || !(el.matches('textarea, input.comment-input, input.reply-input, input[name="contenido"]'))) return;
+      const val = el.value || '';
+      const cursor = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+      const textBefore = val.slice(0, cursor);
+      const match = textBefore.match(/(?:^|\s)@([A-Za-z0-9_.\-]{1,30})$/);
+      if (!match) {
+        hideMenu();
+        return;
+      }
+      const query = match[1];
+      activeInput = el;
+      mentionStartIdx = textBefore.lastIndexOf('@' + query);
+
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('/feed/api/menciones/?q=' + encodeURIComponent(query), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data && data.status === 'ok' && activeInput === el) {
+            renderMenu(data.usuarios, el);
+          }
+        } catch (_) {}
+      }, 150);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!menuEl || menuEl.hidden || !items.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx + 1) % items.length;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (items[selectedIdx]) {
+          e.preventDefault();
+          selectMention(items[selectedIdx].username);
+        }
+        return;
+      } else if (e.key === 'Escape') {
+        hideMenu();
+        return;
+      } else {
+        return;
+      }
+      menuEl.querySelectorAll('.mention-autocomplete-item').forEach((btn, idx) => {
+        btn.classList.toggle('is-active', idx === selectedIdx);
+      });
+    });
+  })();
+
 });
 

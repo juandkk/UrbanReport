@@ -72,6 +72,18 @@
         {% for err in form.telefono.errors %}<p class="cfg-error">{{ err }}</p>{% endfor %}
       </div>
     </div>
+
+    <div class="cfg-toggle-row" style="margin-top: 1rem;">
+      <div class="cfg-toggle-text">
+        <span class="cfg-toggle-title">Mostrar estado de actividad (En línea)</span>
+        <span class="cfg-toggle-desc">Permite que las personas con las que te sigues mutuamente vean tu punto verde de actividad. Si lo desactivas, tampoco verás el de los demás.</span>
+      </div>
+      <label class="cfg-switch">
+        <input type="hidden" name="mostrar_estado_actividad_present" value="1">
+        <input type="checkbox" name="mostrar_estado_actividad" id="id_mostrar_estado_actividad" {% if mostrar_estado_actividad %}checked{% endif %}>
+        <span class="cfg-switch-slider"></span>
+      </label>
+    </div>
   </section>
 
   <!-- ===== Residencia ===== -->

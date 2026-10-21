@@ -88,7 +88,7 @@
         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %}
         reportó {% if n.comentario %}un comentario{% else %}una publicación{% endif %} para moderación
         {% else %}
-         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %} {% if n.tipo == 'LIKE' and n.comentario %}le dio Me Gusta a tu comentario{% else %}{{ n.get_tipo_display|lower }}{% endif %}
+         {% if n.actor %}<a href="{% url 'perfil_usuario' n.actor.username %}" class="notif-actor-link">{{ n.nombre_actor }}</a>{% else %}<strong>{{ n.nombre_actor }}</strong>{% endif %} {% if n.tipo == 'LIKE' and n.comentario %}le dio Me Gusta a tu comentario{% elif n.tipo == 'MENCION' and n.comentario %}te mencionó en un comentario{% elif n.tipo == 'MENCION' %}te mencionó en una publicación{% else %}{{ n.get_tipo_display|lower }}{% endif %}
         {% endif %}
       </p>
 

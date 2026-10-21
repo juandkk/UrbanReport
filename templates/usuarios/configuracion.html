@@ -151,6 +151,18 @@
         <span class="cfg-switch-slider"></span>
       </label>
     </div>
+
+    <div class="cfg-toggle-row">
+      <div class="cfg-toggle-text">
+        <span class="cfg-toggle-title">Mostrar estado de actividad (En línea)</span>
+        <span class="cfg-toggle-desc">Permite que las personas con las que te sigues mutuamente vean cuando estás activo. Si lo desactivas, tampoco podrás ver el estado de actividad de los demás.</span>
+      </div>
+      <label class="cfg-switch">
+        <input type="hidden" name="mostrar_estado_actividad_present" value="1">
+        <input type="checkbox" name="mostrar_estado_actividad" id="id_mostrar_estado_actividad" {% if mostrar_estado_actividad %}checked{% endif %}>
+        <span class="cfg-switch-slider"></span>
+      </label>
+    </div>
   </section>
 
   <!-- ===== Zona de Peligro: Eliminar Cuenta ===== -->

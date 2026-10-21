@@ -368,6 +368,7 @@ class ConfiguracionForm(forms.ModelForm):
             'codigo_postal',
             'notif_feed',
             'notif_reportes',
+            'mostrar_estado_actividad',
         ]
         widgets = {
             'email': forms.EmailInput(attrs={'class': 'cfg-input', 'placeholder': 'ejemplo@correo.com'}),
@@ -390,7 +391,7 @@ class ConfiguracionForm(forms.ModelForm):
         self.fields['numero_finca'].required = False
         # notif_* no son obligatorios (checkbox); su ausencia significa False.
         # Pueden no existir en subclases (p. ej. AdminConfiguracionForm los excluye).
-        for campo_notif in ('notif_feed', 'notif_reportes'):
+        for campo_notif in ('notif_feed', 'notif_reportes', 'mostrar_estado_actividad'):
             if campo_notif in self.fields:
                 self.fields[campo_notif].required = False
 
@@ -471,6 +472,7 @@ class AdminConfiguracionForm(ConfiguracionForm):
             'barrio_vereda',
             'numero_finca',
             'codigo_postal',
+            'mostrar_estado_actividad',
         ]
 
     def __init__(self, *args, **kwargs):

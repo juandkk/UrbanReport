@@ -34,6 +34,10 @@ class Usuario(AbstractUser):
         'Notificaciones de reportes',
         default=True,
     )
+    mostrar_estado_actividad = models.BooleanField(
+        'Mostrar estado de actividad',
+        default=True,
+    )
 
     # Usuarios que este usuario sigue (relación dirigida a través de Seguimiento)
     seguidos = models.ManyToManyField(
@@ -94,6 +98,33 @@ class Usuario(AbstractUser):
         if not otro_usuario:
             return False
         return Seguimiento.objects.filter(seguidor=self, seguido=otro_usuario).exists()
+
+    def sigue_mutuamente_con(self, otro_usuario):
+        """True si este usuario y otro_usuario se siguen mutuamente."""
+        if not otro_usuario or not getattr(otro_usuario, 'is_authenticated', False):
+            return False
+        if self.pk == otro_usuario.pk:
+            return True
+        return (
+            Seguimiento.objects.filter(seguidor=self, seguido=otro_usuario).exists()
+            and Seguimiento.objects.filter(seguidor=otro_usuario, seguido=self).exists()
+        )
+
+    def puede_ver_mi_presencia(self, viewer, ahora=None):
+        """
+        Determina si `viewer` puede ver el punto verde ('En línea') de este usuario
+        (estilo Instagram / Facebook):
+          1. Ambos usuarios deben tener `mostrar_estado_actividad=True` (reciprocidad).
+          2. Deben ser la misma persona o seguirse mutuamente.
+          3. Este usuario debe estar actualmente en línea (`esta_en_linea()`).
+        """
+        if not viewer or not getattr(viewer, 'is_authenticated', False):
+            return False
+        if not self.mostrar_estado_actividad or not getattr(viewer, 'mostrar_estado_actividad', True):
+            return False
+        if self.pk != viewer.pk and not self.sigue_mutuamente_con(viewer):
+            return False
+        return self.esta_en_linea(ahora=ahora)
 
     def nivel_confianza(self, total=None, resueltos=None):
         """

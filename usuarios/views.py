@@ -196,11 +196,16 @@ def configuracion_view(request):
         # El checkbox marca "on" cuando está activo; su ausencia significa apagado.
         recibir_feed = request.POST.get('notif_feed') in ('on', '1', 'true', 'True')
         recibir_reportes = request.POST.get('notif_reportes') in ('on', '1', 'true', 'True')
+        if 'mostrar_estado_actividad' in request.POST or 'mostrar_estado_actividad_present' in request.POST:
+            mostrar_act = request.POST.get('mostrar_estado_actividad') in ('on', '1', 'true', 'True')
+        else:
+            mostrar_act = usuario.mostrar_estado_actividad
 
         # Copia mutable del POST con los valores que espera el ModelForm.
         datos = request.POST.copy()
         datos['notif_feed'] = 'on' if recibir_feed else ''
         datos['notif_reportes'] = 'on' if recibir_reportes else ''
+        datos['mostrar_estado_actividad'] = 'on' if mostrar_act else ''
 
         form = ConfiguracionForm(datos, instance=usuario)
         if form.is_valid():
@@ -222,6 +227,7 @@ def configuracion_view(request):
         # Estado de los interruptores: encendido = recibir = valor directo de la preferencia.
         'notif_feed': usuario.notif_feed,
         'notif_reportes': usuario.notif_reportes,
+        'mostrar_estado_actividad': usuario.mostrar_estado_actividad,
         'active_menu': 'perfil',
     }
     return render(request, 'usuarios/configuracion.html', context)
@@ -421,7 +427,13 @@ def configuracion_admin_view(request):
     config = ConfiguracionSistema.obtener()
 
     if request.method == 'POST':
-        form = AdminConfiguracionForm(request.POST, instance=usuario)
+        datos_admin = request.POST.copy()
+        if 'mostrar_estado_actividad' in request.POST or 'mostrar_estado_actividad_present' in request.POST:
+            mostrar_act_adm = request.POST.get('mostrar_estado_actividad') in ('on', '1', 'true', 'True')
+        else:
+            mostrar_act_adm = usuario.mostrar_estado_actividad
+        datos_admin['mostrar_estado_actividad'] = 'on' if mostrar_act_adm else ''
+        form = AdminConfiguracionForm(datos_admin, instance=usuario)
         alerta_form = ParametrosAlertaForm(request.POST, instance=config)
 
         if form.is_valid() and alerta_form.is_valid():
@@ -450,6 +462,7 @@ def configuracion_admin_view(request):
         'ultimo_backup_rel': _tiempo_relativo(config.ultimo_backup),
         'administradores': _listar_administradores(usuario_actual=usuario),
         'nuevo_admin_form': NuevoAdminForm(),
+        'mostrar_estado_actividad': usuario.mostrar_estado_actividad,
         'active_menu': 'perfil',
     }
     return render(request, 'usuarios/configuracion_admin.html', context)
@@ -646,34 +659,8 @@ def perfil_view(request, username=None):
     # Lista que se mostrará según la pestaña
     publicaciones = publicaciones_reposteadas if tab == 'reposteos' else publicaciones_propias
 
-    # Mapear las reacciones y reposteos de QUIEN VE el perfil (para colorear botones)
-    user_post_reactions = {}
-    user_comment_reactions = {}
-    user_reposts = set()
-    if publicaciones:
-        pub_ids = [p.id for p in publicaciones]
-        for r in ReaccionPublicacion.objects.filter(usuario=request.user, publicacion_id__in=pub_ids):
-            user_post_reactions[r.publicacion_id] = r.tipo
-        user_reposts = set(
-            Reposteo.objects.filter(usuario=request.user, publicacion_id__in=pub_ids)
-            .values_list('publicacion_id', flat=True)
-        )
-
-    all_comment_ids = []
-    for p in publicaciones:
-        for c in p.comentarios.all():
-            all_comment_ids.append(c.id)
-    if all_comment_ids:
-        for r in ReaccionComentario.objects.filter(usuario=request.user, comentario_id__in=all_comment_ids):
-            user_comment_reactions[r.comentario_id] = r.tipo
-
-    for p in publicaciones:
-        p.user_reaction = user_post_reactions.get(p.id)
-        p.user_reposteo = p.id in user_reposts
-        for c in p.comentarios.all():
-            c.user_reaction = user_comment_reactions.get(c.id)
-            for rep in c.respuestas.all():
-                rep.user_reaction = user_comment_reactions.get(rep.id)
+    from feed.views import _anotar_interacciones_usuario
+    _anotar_interacciones_usuario(publicaciones, request.user)
 
     # Estadísticas reales (siempre sobre las publicaciones propias, no la pestaña activa)
     total_resueltas = sum(
@@ -687,6 +674,7 @@ def perfil_view(request, username=None):
 
     context = {
         'perfil_usuario': usuario,
+        'mostrar_presencia_perfil': usuario.puede_ver_mi_presencia(request.user),
         'nombre_completo': nombre_completo,
         'confianza': confianza,
         'publicaciones': publicaciones,
