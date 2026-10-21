@@ -1041,6 +1041,33 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 .mobile-nav-toggle svg { width: 22px; height: 22px; }
+.mobile-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background-color: var(--status-danger);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+@keyframes notifBadgePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+  100% { transform: scale(1); }
+}
+
+.badge-pulse {
+  animation: notifBadgePulse 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 2;
+}
 .mobile-nav-overlay {
   display: none;
   position: fixed;

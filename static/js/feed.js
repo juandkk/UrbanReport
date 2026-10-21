@@ -2902,11 +2902,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true);
   })();
 
-  // ── Sincronización de Notificaciones en vivo (Campana y Sidebar) ──
+  // ── Sincronización de Notificaciones en vivo (Campana, Sidebar y Móvil) ──
   (function initNotificacionesLiveBadge() {
     const bellBadge = document.getElementById('notif-bell-badge');
     const sidebarBadge = document.getElementById('sidebarNotifBadge');
-    if (!bellBadge && !sidebarBadge) return;
+    const mobileBadge = document.getElementById('mobileNavBadge');
+    if (!bellBadge && !sidebarBadge && !mobileBadge) return;
+
+    let previousCount = null;
+    let initialSyncDone = false;
 
     function renderBadge(badgeEl, count) {
       if (!badgeEl) return;
@@ -2915,6 +2919,36 @@ document.addEventListener('DOMContentLoaded', () => {
         badgeEl.style.display = 'flex';
       } else {
         badgeEl.style.display = 'none';
+      }
+    }
+
+    function construirMensajeAviso(notif) {
+      if (!notif) return 'Tienes una nueva notificación';
+      const actor = notif.actor_nombre ? notif.actor_nombre.trim() : 'Un usuario';
+      switch (notif.tipo) {
+        case 'MENCION':
+          return notif.comentario_id
+            ? `${actor} te mencionó en un comentario`
+            : `${actor} te mencionó en una publicación`;
+        case 'COMENTARIO':
+          return `${actor} comentó en tu publicación`;
+        case 'RESPUESTA':
+          return `${actor} respondió a tu comentario`;
+        case 'LIKE':
+          return notif.comentario_id
+            ? `A ${actor} le gustó tu comentario`
+            : `A ${actor} le gustó tu publicación`;
+        case 'CAMBIO_ESTADO':
+          if (notif.extra && notif.extra.indexOf('Declinado') !== -1) {
+            return 'Tu reporte fue declinado por un administrador';
+          }
+          return 'Tu reporte cambió de estado';
+        case 'SEGUIDOR':
+          return `${actor} comenzó a seguirte`;
+        case 'REPORTE_CONTENIDO':
+          return 'Nuevo reporte de contenido para moderación';
+        default:
+          return `${actor}: ${notif.mensaje || 'Nueva notificación'}`;
       }
     }
 
@@ -2927,8 +2961,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (data && data.status === 'ok') {
           const count = Number(data.total_no_leidas) || 0;
+
+          // Si llegaron nuevas notificaciones mientras navegaba, avisar con toast y animación
+          if (initialSyncDone && previousCount !== null && count > previousCount) {
+            [sidebarBadge, bellBadge, mobileBadge].forEach((b) => {
+              if (b) {
+                b.classList.remove('badge-pulse');
+                void b.offsetWidth;
+                b.classList.add('badge-pulse');
+              }
+            });
+            if (typeof showToast === 'function') {
+              const msg = construirMensajeAviso(data.ultima_notificacion);
+              showToast(`🔔 ${msg}`);
+            }
+          }
+
+          previousCount = count;
+          initialSyncDone = true;
+
           renderBadge(bellBadge, count);
           renderBadge(sidebarBadge, count);
+          renderBadge(mobileBadge, count);
         }
       } catch (e) {
         // Silencioso ante fallos transitorios

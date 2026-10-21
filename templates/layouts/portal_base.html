@@ -22,6 +22,7 @@
       <line x1="3" y1="12" x2="21" y2="12"/>
       <line x1="3" y1="18" x2="21" y2="18"/>
     </svg>
+    <span class="mobile-nav-badge" id="mobileNavBadge" {% if not total_notificaciones_no_leidas %}style="display:none;"{% endif %}>{% if total_notificaciones_no_leidas > 9 %}9+{% elif total_notificaciones_no_leidas %}{{ total_notificaciones_no_leidas }}{% endif %}</span>
   </button>
   <!-- Fondo oscuro al abrir el menú en móvil -->
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>

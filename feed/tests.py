@@ -814,6 +814,36 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         html_feed = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertIn('id="sidebarNotifBadge"', html_feed)
 
+    def test_sidebar_avisa_otras_notificaciones(self):
+        """El sidebar y la API avisan no solo menciones sino también otras notificaciones (likes, comentarios, estados)."""
+        self.client.force_login(self.ciudadano)
+        
+        # 1. Al inicio, sin notificaciones no leídas
+        r_api = self.client.get(reverse('api_notificaciones_no_leidas'))
+        self.assertEqual(r_api.status_code, 200)
+        self.assertEqual(r_api.json()['total_no_leidas'], 0)
+
+        # 2. Generar otra notificación: un usuario nuevo da LIKE a publicación de self.ciudadano
+        fan = Usuario.objects.create_user(
+            username='fan_1', email='fan@test.co', password='x', **PERFIL_COMPLETO
+        )
+        self.client.force_login(fan)
+        self.client.post(reverse('reaccionar_publicacion_ajax', args=[self.pub.id]), {'tipo': 'LIKE'})
+
+        # 3. self.ciudadano consulta API y verifica que el badge y ultima_notificacion avisan del LIKE
+        self.client.force_login(self.ciudadano)
+        r_api2 = self.client.get(reverse('api_notificaciones_no_leidas'))
+        data = r_api2.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['total_no_leidas'], 1)
+        self.assertIsNotNone(data['ultima_notificacion'])
+        self.assertEqual(data['ultima_notificacion']['tipo'], 'LIKE')
+
+        # 4. En el HTML de cualquier vista (ej. mapa o feed), el badge del sidebar ya se renderiza
+        html_mapa = self.client.get(reverse('mapa')).content.decode()
+        self.assertIn('id="sidebarNotifBadge"', html_mapa)
+        self.assertIn('id="mobileNavBadge"', html_mapa)
+
     def test_direccion_no_se_expone_en_feed(self):
         """La dirección de residencia no debe aparecer en el feed."""
         self.ciudadano.direccion = 'Calle Secreta 999'

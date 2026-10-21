@@ -2398,6 +2398,29 @@ def marcar_notificaciones_leidas_ajax(request):
 
 @login_required
 def api_notificaciones_no_leidas(request):
-    """Devuelve el número de notificaciones no leídas (para el badge de la campana)."""
-    total = Notificacion.objects.filter(destinatario=request.user, leido=False).count()
-    return JsonResponse({'status': 'ok', 'total_no_leidas': total})
+    """
+    Devuelve el número de notificaciones no leídas y datos de la última notificación
+    reciente para que la interfaz pueda avisar en vivo al usuario cuando reciba
+    cualquier notificación (menciones, comentarios, respuestas, likes, cambios de estado, etc.).
+    """
+    qs = Notificacion.objects.filter(destinatario=request.user, leido=False).select_related(
+        'actor', 'publicacion', 'comentario'
+    ).order_by('-fecha_creacion')
+    total = qs.count()
+    ultima = qs.first()
+    ultima_data = None
+    if ultima:
+        ultima_data = {
+            'id': ultima.id,
+            'tipo': ultima.tipo,
+            'actor_nombre': ultima.nombre_actor,
+            'mensaje': ultima.get_tipo_display(),
+            'extra': ultima.extra[:80] if ultima.extra else '',
+            'publicacion_id': ultima.publicacion_id,
+            'comentario_id': ultima.comentario_id,
+        }
+    return JsonResponse({
+        'status': 'ok',
+        'total_no_leidas': total,
+        'ultima_notificacion': ultima_data,
+    })

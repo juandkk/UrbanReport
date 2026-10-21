@@ -24,7 +24,7 @@
 
       <!-- Notification Bell con badge de no leídas -->
       <a href="{% url 'notificaciones' %}" class="header-icon-btn" title="Notificaciones" id="notif-bell">
-        <span class="notif-bell-badge" id="notif-bell-badge" style="display:none;"></span>
+        <span class="notif-bell-badge" id="notif-bell-badge" {% if not total_notificaciones_no_leidas %}style="display:none;"{% endif %}>{% if total_notificaciones_no_leidas > 9 %}9+{% elif total_notificaciones_no_leidas %}{{ total_notificaciones_no_leidas }}{% endif %}</span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -161,40 +161,7 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-  // Badge de notificaciones no leídas en la campana (actualización en vivo)
   document.addEventListener('DOMContentLoaded', function () {
-    var badge = document.getElementById('notif-bell-badge');
-
-    // Consulta el conteo de no leídas y actualiza el badge.
-    function actualizarBadgeNotificaciones() {
-      if (!badge) return;
-      fetch('{% url "api_notificaciones_no_leidas" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.status === 'ok' && data.total_no_leidas > 0) {
-            badge.textContent = data.total_no_leidas > 9 ? '9+' : data.total_no_leidas;
-            badge.style.display = 'flex';
-          } else {
-            // Sin pendientes: ocultar el badge (por si se marcaron como leídas).
-            badge.style.display = 'none';
-          }
-        })
-        .catch(function () {});
-    }
-
-    if (badge) {
-      // Primera consulta inmediata y luego sondeo cada 15s para que las
-      // notificaciones aparezcan "en tiempo real" sin recargar la página.
-      actualizarBadgeNotificaciones();
-      setInterval(function () {
-        if (!document.hidden) actualizarBadgeNotificaciones();
-      }, 15000);
-      // Al volver a enfocar la pestaña, refrescar de inmediato.
-      document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) actualizarBadgeNotificaciones();
-      });
-    }
-
     // Al llegar desde una notificación (#post-card-N o #comment-card-N),
     // desplazar hasta el contenido, abrir comentarios si aplica y resaltarlo.
     var hash = window.location.hash;
