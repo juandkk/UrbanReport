@@ -2742,6 +2742,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedIdx = 0;
     let debounceTimer = null;
 
+    const MENTION_INPUT_SELECTOR = [
+      'textarea',
+      'input.new-comment-input',
+      'input.inline-reply-input',
+      'input.comment-input',
+      'input.reply-input',
+      '#radicarTitulo',
+      '#radicarContenido',
+      '#editPostTitulo',
+      '#editPostContenido',
+      '#editCommentTexto',
+      'input[name="contenido"]',
+      'input[name="titulo"]'
+    ].join(', ');
+
     function ensureMenu() {
       if (!menuEl) {
         menuEl = document.createElement('div');
@@ -2762,7 +2777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function selectMention(username) {
       if (!activeInput || mentionStartIdx < 0) return;
       const val = activeInput.value || '';
-      const cursor = activeInput.selectionStart || val.length;
+      const cursor = typeof activeInput.selectionStart === 'number' ? activeInput.selectionStart : val.length;
       const before = val.slice(0, mentionStartIdx);
       const after = val.slice(cursor);
       const inserted = '@' + username + ' ';
@@ -2773,6 +2788,19 @@ document.addEventListener('DOMContentLoaded', () => {
         activeInput.setSelectionRange(newPos, newPos);
       }
       hideMenu();
+    }
+
+    function positionMenu(inputEl) {
+      if (!menuEl || !inputEl) return;
+      const rect = inputEl.getBoundingClientRect();
+      const menuHeight = menuEl.offsetHeight || 220;
+      let top = rect.bottom + 6;
+      if (top + menuHeight > window.innerHeight - 10 && rect.top > menuHeight + 12) {
+        top = rect.top - menuHeight - 6;
+      }
+      const left = Math.min(window.innerWidth - 270, Math.max(8, rect.left));
+      menuEl.style.top = `${Math.max(8, top)}px`;
+      menuEl.style.left = `${left}px`;
     }
 
     function renderMenu(usuarios, inputEl) {
@@ -2796,15 +2824,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>`;
       }).join('');
 
-      const rect = inputEl.getBoundingClientRect();
-      const top = Math.min(window.innerHeight - 220, rect.bottom + 6);
-      const left = Math.min(window.innerWidth - 260, Math.max(8, rect.left));
-      menu.style.top = `${Math.max(8, top)}px`;
-      menu.style.left = `${left}px`;
       menu.hidden = false;
+      positionMenu(inputEl);
     }
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('mousedown', (e) => {
       if (menuEl && !menuEl.hidden) {
         const btn = e.target.closest('.mention-autocomplete-item');
         if (btn) {
@@ -2817,18 +2841,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    document.addEventListener('input', (e) => {
-      const el = e.target;
-      if (!el || !(el.matches('textarea, input.comment-input, input.reply-input, input[name="contenido"]'))) return;
+    function evaluateInputForMention(el) {
+      if (!el || typeof el.matches !== 'function' || !el.matches(MENTION_INPUT_SELECTOR)) return;
       const val = el.value || '';
       const cursor = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
       const textBefore = val.slice(0, cursor);
-      const match = textBefore.match(/(?:^|\s)@([A-Za-z0-9_.\-]{1,30})$/);
+      // Detecta '@' al inicio o tras espacio/puntuación, seguido de 0 a 30 letras, números o símbolos
+      const match = textBefore.match(/(?:^|[\s([{"'¡¿,;:])@([^\s@]{0,30})$/);
       if (!match) {
         hideMenu();
         return;
       }
-      const query = match[1];
+      const query = match[1] || '';
       activeInput = el;
       mentionStartIdx = textBefore.lastIndexOf('@' + query);
 
@@ -2844,7 +2868,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMenu(data.usuarios, el);
           }
         } catch (_) {}
-      }, 150);
+      }, 90);
+    }
+
+    document.addEventListener('input', (e) => {
+      evaluateInputForMention(e.target);
     });
 
     document.addEventListener('keydown', (e) => {
@@ -2858,6 +2886,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (e.key === 'Enter' || e.key === 'Tab') {
         if (items[selectedIdx]) {
           e.preventDefault();
+          e.stopPropagation();
           selectMention(items[selectedIdx].username);
         }
         return;
@@ -2870,8 +2899,7 @@ document.addEventListener('DOMContentLoaded', () => {
       menuEl.querySelectorAll('.mention-autocomplete-item').forEach((btn, idx) => {
         btn.classList.toggle('is-active', idx === selectedIdx);
       });
-    });
+    }, true);
   })();
 
 });
-

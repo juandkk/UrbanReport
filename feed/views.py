@@ -1524,21 +1524,37 @@ def api_estado_presencia(request, username):
 def api_sugerir_menciones(request):
     """
     Sugiere usuarios activos por @username (o nombre) para autocompletar menciones
-    en publicaciones y comentarios.
+    en publicaciones y comentarios. Funciona al escribir solo '@', '@' + letra o
+    '@' + símbolo (si el símbolo no coincide con ningún username, recomienda
+    usuarios activos para facilitar la mención).
     """
-    q = (request.GET.get('q') or '').strip().lstrip('@')
-    qs = Usuario.objects.filter(is_active=True).only(
+    q_raw = (request.GET.get('q') or '').strip().lstrip('@')
+    q_clean = re.sub(r'[^A-Za-z0-9_.\-\sáéíóúÁÉÍÓÚñÑ]', '', q_raw).strip()
+
+    base_qs = Usuario.objects.filter(is_active=True).only(
         'id', 'username', 'first_name', 'last_name', 'avatar'
     )
-    if q:
-        qs = qs.filter(
-            Q(username__icontains=q)
-            | Q(first_name__icontains=q)
-            | Q(last_name__icontains=q)
+
+    if q_clean:
+        filtrados = list(
+            base_qs.filter(
+                Q(username__icontains=q_clean)
+                | Q(first_name__icontains=q_clean)
+                | Q(last_name__icontains=q_clean)
+            ).order_by('username')[:8]
         )
-    qs = qs.order_by('username')[:6]
+        # Priorizar los que empiezan por el texto buscado
+        q_low = q_clean.lower()
+        filtrados.sort(key=lambda u: (0 if u.username.lower().startswith(q_low) else 1, u.username.lower()))
+        seleccion = filtrados[:6]
+        # Si escribió un símbolo o carácter sin coincidencia exacta, recomendar usuarios activos
+        if not seleccion and q_raw and not q_raw.isalnum():
+            seleccion = list(base_qs.order_by('username')[:6])
+    else:
+        seleccion = list(base_qs.order_by('username')[:6])
+
     usuarios = []
-    for u in qs:
+    for u in seleccion:
         nombre = f"{u.first_name} {u.last_name}".strip() or u.username
         usuarios.append({
             'username': u.username,
