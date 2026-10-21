@@ -12,6 +12,7 @@ urlpatterns = [
     path('ayuda/', views.ayuda_view, name='ayuda'),
     path('ayuda/guia-ciudadano/', views.guia_ciudadano_view, name='guia_ciudadano'),
     path('ayuda/manual-administrador/', views.manual_administrador_view, name='manual_administrador'),
+    path('ayuda/terminos-servicio/', views.terminos_servicio_view, name='terminos_servicio'),
     path('mapa/', views.mapa_view, name='mapa'),
     path('api/incidentes-mapa/', views.api_incidentes_mapa, name='api_incidentes_mapa'),
     path('api/radicar-incidencia/', views.radicar_incidencia_ajax, name='radicar_incidencia_ajax'),

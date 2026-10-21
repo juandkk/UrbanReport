@@ -78,6 +78,17 @@
   </a>
   {% endif %}
 
+  <a href="{% url 'terminos_servicio' %}" class="ayuda-guide-card">
+    <div class="ayuda-guide-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <h2 class="ayuda-guide-title">Términos de Servicio y Calidad</h2>
+    <p class="ayuda-guide-desc">Marco legal colombiano (Ley 1581/2012), modelo de calidad ISO/IEC 25010 e infraestructura Render y Supabase.</p>
+    <span class="ayuda-guide-cta">Ver términos →</span>
+  </a>
+
 </section>
 
 <!-- ===== PREGUNTAS FRECUENTES ===== -->
@@ -134,6 +145,18 @@
       </div>
     </div>
 
+    <div class="ayuda-accordion-item" data-index="4">
+      <button type="button" class="ayuda-accordion-trigger">
+        <span>¿Cómo se protegen mis datos personales y bajo qué normas opera UrbanReport?</span>
+        <svg class="ayuda-accordion-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="ayuda-accordion-body" style="display:none">
+        <p>UrbanReport cumple la legislación colombiana de Protección de Datos Personales (Ley Estatutaria 1581 de 2012, Decreto 1377 de 2013 y Ley 1273 de 2009), aplica las 8 dimensiones del Modelo de Calidad del Producto Software ISO/IEC 25010 y opera sobre infraestructura cifrada en Render (PaaS HTTPS/TLS) y Supabase (PostgreSQL con SSL requerido y almacenamiento S3). Puedes consultar el documento completo en la tarjeta «Términos de Servicio y Calidad».</p>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -166,6 +189,11 @@
       pregunta: '¿Qué tipo de incidentes puedo reportar?',
       respuesta: 'UrbanReport permite reportar problemáticas que afectan a la comunidad, como problemas relacionados con vías, alumbrado, parques e infraestructura. Al crear un reporte debes seleccionar la categoría que corresponda y proporcionar una descripción clara de la situación.',
       keywords: ['tipo','categoria','categorias','que puedo','que reportar','vias','alumbrado','parques','infraestructura','calle','luz','lampara','arboles','alcantarilla','problema','comunidad','urban','urbano','barrio']
+    },
+    {
+      pregunta: '¿Cómo se protegen mis datos personales y bajo qué normas opera UrbanReport?',
+      respuesta: 'UrbanReport se rige por la ley colombiana (Ley 1581 de 2012 de Habeas Data, Ley 1273 de 2009 y Ley 527 de 1999), el estándar internacional de calidad de software ISO/IEC 25010 y los servicios cloud de Render y Supabase. Puedes revisar todos los detalles en la sección Términos de Servicio y Calidad.',
+      keywords: ['terminos','servicio','privacidad','datos','personales','habeas','data','ley','colombia','colombiana','1581','1273','iso','25010','calidad','render','supabase','eliminar','cuenta','arco','legal','condiciones']
     },
   ];
 

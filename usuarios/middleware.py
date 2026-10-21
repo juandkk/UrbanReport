@@ -30,9 +30,9 @@ class CompletarPerfilMiddleware:
     """
 
     # Vistas (por nombre de URL) que NO deben redirigirse a completar_perfil.
-    NOMBRES_PERMITIDOS = {'completar_perfil', 'logout', 'login'}
+    NOMBRES_PERMITIDOS = {'completar_perfil', 'logout', 'login', 'terminos_servicio'}
     # Vistas siempre accesibles durante modo mantenimiento (para poder autenticarse/salir).
-    NOMBRES_MANTENIMIENTO_PERMITIDOS = {'login', 'logout'}
+    NOMBRES_MANTENIMIENTO_PERMITIDOS = {'login', 'logout', 'terminos_servicio'}
     # Prefijos de ruta siempre permitidos (auth social, admin, estáticos, media).
     PREFIJOS_PERMITIDOS = ('/accounts/', '/admin/', '/static/', '/media/')
 

@@ -1145,3 +1145,66 @@ class RendimientoTest(TestCase):
             Seguimiento.objects.create(seguidor=s, seguido=self.u)
         q_6 = len(self._contar(reverse('lista_seguidores', args=[self.u.username])))
         self.assertEqual(q_2, q_6)
+
+
+class TerminosServicioTests(TestCase):
+    """Pruebas para la vista de Términos de Servicio, Ley Colombiana, ISO/IEC 25010, Render y Supabase."""
+
+    def setUp(self):
+        self.user = Usuario.objects.create_user(
+            username='ciudadano_tos',
+            email='tos@test.com',
+            password='Password123',
+            **PERFIL_COMPLETO,
+        )
+
+    def test_terminos_accesible_publicamente_sin_login(self):
+        """Cualquier visitante desde Login/Registro puede consultar los Términos de Servicio."""
+        url = reverse('terminos_servicio')
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context['base_template'], 'layouts/public_doc_base.html')
+        html = res.content.decode('utf-8')
+        self.assertIn('Ley Estatutaria 1581 de 2012', html)
+        self.assertIn('Ley 1273 de 2009', html)
+        self.assertIn('Ley 527 de 1999', html)
+        self.assertIn('ISO/IEC 25010', html)
+        self.assertIn('Adecuación Funcional', html)
+        self.assertIn('Eficiencia de Desempeño', html)
+        self.assertIn('Render', html)
+        self.assertIn('Supabase', html)
+
+    def test_terminos_en_modo_portal_para_usuario_autenticado(self):
+        """Un usuario autenticado con perfil completo ve los Términos integrados en el portal."""
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('terminos_servicio'))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context['base_template'], 'layouts/portal_base.html')
+        self.assertTrue(res.context['mostrar_menu_portal'])
+
+    def test_terminos_accesible_con_perfil_incompleto_y_mantenimiento(self):
+        """Ni el perfil incompleto ni el modo mantenimiento bloquean la lectura de los Términos."""
+        from usuarios.models import ConfiguracionSistema
+        incompleto = Usuario.objects.create_user(
+            username='sso_incompleto',
+            email='incompleto@test.com',
+            password='Password123',
+        )
+        self.client.force_login(incompleto)
+        res1 = self.client.get(reverse('terminos_servicio'))
+        self.assertEqual(res1.status_code, 200)
+
+        cfg = ConfiguracionSistema.obtener()
+        cfg.modo_mantenimiento = True
+        cfg.save()
+        res2 = self.client.get(reverse('terminos_servicio'))
+        self.assertEqual(res2.status_code, 200)
+
+    def test_enlaces_terminos_en_login_y_registro(self):
+        """Las páginas de login y registro enlazan a la ruta real de Términos de Servicio."""
+        url_tos = reverse('terminos_servicio')
+        res_login = self.client.get(reverse('login'))
+        res_reg = self.client.get(reverse('registro'))
+        self.assertContains(res_login, url_tos)
+        self.assertContains(res_reg, url_tos)
+

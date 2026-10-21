@@ -1129,6 +1129,29 @@ def manual_administrador_view(request):
     return render(request, 'feed/manual_administrador.html', {'active_menu': 'ayuda'})
 
 
+def terminos_servicio_view(request):
+    """
+    Términos de Servicio, Política de Tratamiento de Datos Personales (Ley 1581 de 2012),
+    Infraestructura Cloud (Render y Supabase) y Modelo de Calidad ISO/IEC 25010.
+    Accesible tanto públicamente (desde Login/Registro) como dentro del portal (en Ayuda/Configuración).
+    """
+    from usuarios.models import ConfiguracionSistema
+    user = getattr(request, 'user', None)
+    autenticado = bool(user is not None and user.is_authenticated)
+    es_admin = _es_admin(user) if autenticado else False
+    en_mantenimiento = ConfiguracionSistema.esta_en_mantenimiento()
+    perfil_incompleto = user.perfil_incompleto() if (autenticado and not es_admin) else False
+
+    mostrar_menu_portal = autenticado and not perfil_incompleto and (es_admin or not en_mantenimiento)
+    base_template = 'layouts/portal_base.html' if mostrar_menu_portal else 'layouts/public_doc_base.html'
+
+    return render(request, 'feed/terminos_servicio.html', {
+        'active_menu': 'ayuda',
+        'base_template': base_template,
+        'mostrar_menu_portal': mostrar_menu_portal,
+    })
+
+
 def _estadisticas_usuario(usuario, dias=None):
     """
     Calcula las métricas personales de un usuario (RF-020): reportes radicados,

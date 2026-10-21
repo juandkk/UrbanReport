@@ -1,0 +1,311 @@
+{% extends base_template %}
+{% load static %}
+
+{% block title %}Términos de Servicio, Privacidad y Calidad ISO/IEC 25010 | UrbanReport{% endblock %}
+
+{% block right_widgets %}{% endblock %}
+{% block portal_main_class %}portal-main-panel{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/guia.css' %}">
+{% endblock %}
+
+{% block portal_content %}
+<article class="guia tos-article">
+  <header class="guia-header">
+    {% if mostrar_menu_portal %}
+    <a href="{% url 'ayuda' %}" class="guia-back" title="Volver a Ayuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver a Ayuda
+    </a>
+    {% else %}
+    <a href="{% url 'login' %}" class="guia-back" title="Volver al inicio de sesión">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver al inicio
+    </a>
+    {% endif %}
+
+    <div class="tos-badges-row">
+      <span class="tos-badge tos-badge-law">Ley Colombiana (Ley 1581/2012 · Ley 1273/2009 · Ley 527/1999)</span>
+      <span class="tos-badge tos-badge-iso">Calidad Software ISO/IEC 25010</span>
+      <span class="tos-badge tos-badge-cloud">Infraestructura Render &amp; Supabase</span>
+    </div>
+
+    <h1 class="guia-title">Términos de Servicio, Política de Tratamiento de Datos y Modelo de Calidad</h1>
+    <p class="guia-subtitle">
+      Marco jurídico para la República de Colombia, políticas de privacidad (Habeas Data), lineamientos de moderación comunitaria, arquitectura en la nube (Render y Supabase) y compromisos de calidad del producto software bajo la norma internacional <strong>ISO/IEC 25010 (SQuaRE)</strong>.
+    </p>
+    <p class="tos-meta">Última actualización: Octubre de 2026 · Jurisdicción: República de Colombia</p>
+
+    <!-- Índice de navegación rápida -->
+    <nav class="tos-toc" aria-label="Índice de secciones">
+      <a href="#objeto-alcance" class="tos-toc-link">1. Objeto y Alcance</a>
+      <a href="#marco-colombiano" class="tos-toc-link">2. Marco Legal Colombiano</a>
+      <a href="#privacidad-habeas-data" class="tos-toc-link">3. Privacidad y Habeas Data</a>
+      <a href="#reglas-moderacion" class="tos-toc-link">4. Reglas de Uso y Moderación</a>
+      <a href="#infraestructura-cloud" class="tos-toc-link">5. Render y Supabase</a>
+      <a href="#calidad-iso-25010" class="tos-toc-link">6. Modelo ISO/IEC 25010</a>
+      <a href="#derechos-arco" class="tos-toc-link">7. Derechos ARCO y Supresión</a>
+    </nav>
+  </header>
+
+  <!-- SECCIÓN 1 -->
+  <section class="guia-section" id="objeto-alcance">
+    <h2 class="guia-section-title">1. Objeto de la Plataforma y Alcance Funcional</h2>
+    <p>
+      <strong>UrbanReport</strong> es una plataforma digital cívica y comunitaria diseñada para conectar a los ciudadanos con la gestión de su entorno urbano, facilitando la radicación georreferenciada, visibilización, priorización vecinal y seguimiento de problemáticas urbanas.
+    </p>
+    <ul class="guia-list">
+      <li>
+        <strong>Categorías Oficiales de Reporte:</strong> El sistema permite reportar incidentes urbanos clasificados en ocho (8) ámbitos: <em>Vías</em>, <em>Alumbrado</em>, <em>Parques</em>, <em>Infraestructura</em>, <em>Redes eléctricas y telecomunicaciones</em>, <em>Aseo y basuras</em>, <em>Acueducto y alcantarillado</em> y <em>Otros</em>.
+      </li>
+      <li>
+        <strong>Ciclo de Vida de la Incidencia:</strong> Cada reporte atraviesa los estados de <span class="guia-dot guia-dot-gris"></span><strong>Reportado</strong> (pendiente de atención), <span class="guia-dot guia-dot-amarillo"></span><strong>En Proceso</strong> (en revisión técnica o intervención), <span class="guia-dot guia-dot-verde"></span><strong>Resuelta</strong> (atendida satisfactoriamente) o <strong>Declinado</strong> (cuando concurre una causal administrativa justificada: reporte duplicado, fuera de competencia municipal, evidencia insuficiente, ubicación inexacta o incidencia improcedente).
+      </li>
+      <li>
+        <strong>Gestión de Cola Cartográfica en el Mapa:</strong> Para preservar la legibilidad visual y el desempeño del visor geográfico (Leaflet / OpenStreetMap), el mapa base exhibe una cola activa máxima de <strong>20 incidencias Resueltas</strong>, <strong>20 En Revisión</strong> y <strong>20 Pendientes</strong>, excluyendo reportes declinados o censurados. Cualquier ciudadano puede localizar y enfocar incidencias históricas fuera de la cola base utilizando la barra de búsqueda del mapa.
+      </li>
+      <li>
+        <strong>Nivel de Confianza Ciudadano:</strong> UrbanReport calcula de manera transparente e imparcial un indicador de reputación cívica (<em>Nuevo</em>, <em>Bajo</em>, <em>Medio</em> o <em>Alto</em>) basado en la proporción de reportes válidos y resueltos sobre el total radicado por el usuario.
+      </li>
+      <li>
+        <strong>Alcance No Sustitutivo de Emergencias (Línea 123):</strong> De conformidad con la normativa colombiana, UrbanReport es un canal de participación comunitaria y gestión de infraestructura urbana; <strong>no reemplaza a la Línea Única de Emergencias 123</strong>, Policía Nacional, Bomberos ni Defensa Civil ante urgencias médicas, delitos en flagrancia o riesgos inminentes para la vida.
+      </li>
+    </ul>
+  </section>
+
+  <!-- SECCIÓN 2 -->
+  <section class="guia-section" id="marco-colombiano">
+    <h2 class="guia-section-title">2. Marco Jurídico y Normativo Colombiano</h2>
+    <p>
+      El acceso, registro y uso de UrbanReport se rigen íntegramente por la legislación vigente de la <strong>República de Colombia</strong>:
+    </p>
+    <ul class="guia-list">
+      <li>
+        <strong>Constitución Política de Colombia (Artículos 15 y 20):</strong> Garantiza los derechos fundamentales a la intimidad personal y familiar, al buen nombre, al <em>Habeas Data</em> (conocer, actualizar y rectificar las informaciones recogidas en bancos de datos) y a la libertad de expresar y difundir pensamientos e información veraz e imparcial.
+      </li>
+      <li>
+        <strong>Ley Estatutaria 1581 de 2012 y Decreto Reglamentario 1377 de 2013 (compilado en el Decreto Único Reglamentario 1074 de 2015):</strong> Régimen General de Protección de Datos Personales. Regula la recolección, almacenamiento, uso, circulación y supresión de datos personales bajo los principios de legalidad, finalidad, libertad, veracidad, transparencia, acceso y circulación restringida, seguridad y confidencialidad.
+      </li>
+      <li>
+        <strong>Ley 527 de 1999 (Comercio Electrónico y Mensajes de Datos):</strong> Otorga plena validez jurídica, eficacia contractual y fuerza probatoria a los mensajes de datos y a la aceptación electrónica de estos Términos de Servicio al crear una cuenta o autenticarse en UrbanReport.
+      </li>
+      <li>
+        <strong>Ley 1273 de 2009 (Protección de la Información y de los Datos — Código Penal Colombiano):</strong> Tipifica como delitos informáticos el acceso abusivo a un sistema informático (Art. 269A), la obstaculización ilegítima del sistema o red de telecomunicación (Art. 269B), el daño informático (Art. 269D), la violación de datos personales (Art. 269F) y la suplantación de sitios web o identidad (Art. 269G).
+      </li>
+      <li>
+        <strong>Ley 1755 de 2015 (Derecho Fundamental de Petición) y Ley 1437 de 2011 (CPACA):</strong> Enmarca la interacción informativa y el seguimiento de reportes comunitarios frente a las dependencias encargadas del mantenimiento urbano.
+      </li>
+      <li>
+        <strong>Ley 23 de 1982 y Decisión Andina 351 de 1993 (Derechos de Autor):</strong> Protege la propiedad intelectual del software UrbanReport y regula la licencia de uso sobre el material fotográfico y descriptivo aportado por los ciudadanos.
+      </li>
+    </ul>
+  </section>
+
+  <!-- SECCIÓN 3 -->
+  <section class="guia-section" id="privacidad-habeas-data">
+    <h2 class="guia-section-title">3. Política de Privacidad y Tratamiento de Datos Personales (Habeas Data)</h2>
+    <p>
+      En cumplimiento de la <strong>Ley 1581 de 2012</strong>, informamos de forma expresa qué datos recolecta la aplicación, con qué finalidad se tratan y cómo se protegen:
+    </p>
+    <ul class="guia-list">
+      <li>
+        <strong>Datos de Identificación y Contacto:</strong> Nombre completo, nombre de usuario único (<code>@username</code>), correo electrónico terminado en <code>.com</code>, número de teléfono móvil colombiano de diez (10) dígitos y fotografía de perfil (<code>avatar</code>) opcional. Cuando el usuario opta por el inicio de sesión único (SSO) mediante <strong>Google</strong> o <strong>Facebook</strong> (<code>django-allauth</code>), se reciben únicamente el identificador básico y el correo electrónico autorizados ante el proveedor, solicitando posteriormente completar los datos de ubicación local en el formulario de <em>Completar Perfil</em>.
+      </li>
+      <li>
+        <strong>Datos de Ubicación Residencial:</strong> Dirección de residencia, barrio o vereda, número de finca (opcional) y código postal (de 3 a 10 dígitos). Estos datos se emplean para contextualizar territorialmente la gestión comunitaria y habilitar filtros de cercanía; <strong>la dirección residencial exacta y el teléfono del ciudadano no se publican en el feed público</strong>.
+      </li>
+      <li>
+        <strong>Geolocalización de Incidentes Urbanos:</strong> Las coordenadas geográficas (<code>latitud</code> y <code>longitud</code>) y la nomenclatura vial capturadas al radicar un reporte corresponden exclusivamente a la ubicación física del daño o problemática en la vía pública. UrbanReport <strong>no realiza rastreo GPS continuo ni en segundo plano</strong> del dispositivo del usuario.
+      </li>
+      <li>
+        <strong>Estado de Presencia («En línea») con Privacidad Recíproca:</strong> La plataforma actualiza la marca de actividad autenticada mediante un pulso ligero (<em>heartbeat</em> cada 25 segundos mientras la pestaña permanece activa). Siguiendo el principio de privacidad por diseño, el indicador verde de presencia <strong>solo es visible entre ciudadanos que se siguen mutuamente</strong> y únicamente si ambos mantienen activada la preferencia <em>«Mostrar estado de actividad (En línea)»</em> en su Configuración.
+      </li>
+      <li>
+        <strong>Finalidades del Tratamiento:</strong> (i) Autenticar a los usuarios y administrar roles (<code>CIUDADANO</code> y <code>ADMINISTRADOR</code>); (ii) Georreferenciar, visualizar y gestionar reportes urbanos en el Feed y en el Mapa; (iii) Enviar notificaciones internas en tiempo real sobre comentarios, respuestas, reacciones (<em>Me gusta</em>), nuevos seguidores, menciones (<code>@usuario</code>) y cambios de estado de reportes; y (iv) Generar estadísticas agregadas de gestión urbana.
+      </li>
+    </ul>
+  </section>
+
+  <!-- SECCIÓN 4 -->
+  <section class="guia-section" id="reglas-moderacion">
+    <h2 class="guia-section-title">4. Reglas de Conducta Ciudadana, Moderación en Dos Capas y Propiedad Intelectual</h2>
+    <p>
+      Para preservar un entorno cívico respetuoso, veraz y seguro, todo usuario se compromete a cumplir las siguientes normas de convivencia y moderación:
+    </p>
+    <ul class="guia-list">
+      <li>
+        <strong>Veracidad de los Reportes y Prohibición de Abuso:</strong> El usuario garantiza que las incidencias radicadas corresponden a hechos reales verificables. Queda prohibido publicar reportes falsos, spam, publicidad comercial, acoso, injuria o calumnia (conductas sancionables conforme al <strong>Código Penal Colombiano, Ley 599 de 2000</strong>).
+      </li>
+      <li>
+        <strong>Capa 1 — Filtro Preventivo Automatizado de Lenguaje:</strong> UrbanReport incorpora un motor de inspección léxica previa al guardado en base de datos (<code>feed/moderacion.py</code> y validadores de perfil en <code>usuarios/forms.py</code>) que combina <code>better-profanity</code> con un diccionario especializado de español colombiano, normalización de tildes, detección de sustituciones <em>leet speak</em> (ej. <code>3-&gt;e</code>, <code>0-&gt;o</code>) y bloqueo de letras espaciadas. Asimismo, el sistema impide registrar nombres que suplanten roles oficiales (<code>admin</code>, <code>administrador</code>, <code>soporte</code>, <code>urbanreport</code>, <code>oficial</code>).
+      </li>
+      <li>
+        <strong>Capa 2 — Denuncia Comunitaria y Moderación Administrativa:</strong> Cualquier ciudadano puede reportar publicaciones o comentarios por <em>Spam</em>, <em>Contenido ofensivo o acoso</em>, <em>Información falsa o engañosa</em> o <em>Contenido inapropiado</em>. El equipo con rol <strong>Administrador</strong> está facultado para aplicar o levantar censura motivada, declinar incidencias improcedentes o eliminar contenido infractor, notificando al autor.
+      </li>
+      <li>
+        <strong>Licencia sobre Evidencias Fotográficas y Textos:</strong> El ciudadano conserva los derechos morales de autor sobre las fotografías y descripciones que publique, y otorga a UrbanReport una licencia gratuita, no exclusiva y de alcance territorial para reproducirlas dentro de la plataforma, el mapa de incidentes y los informes estadísticos de interés comunitario. El usuario declara no subir material que vulnere derechos de terceros o la intimidad de menores de edad (Art. 7 de la Ley 1581 de 2012).
+      </li>
+    </ul>
+  </section>
+
+  <!-- SECCIÓN 5 -->
+  <section class="guia-section" id="infraestructura-cloud">
+    <h2 class="guia-section-title">5. Infraestructura en la Nube y Subencargados del Tratamiento (Render y Supabase)</h2>
+    <p>
+      En cumplimiento del <strong>Artículo 26 de la Ley 1581 de 2012</strong> sobre transmisión y transferencia internacional de datos, el usuario conoce y autoriza expresamente que la operación tecnológica de UrbanReport se apoya en proveedores de infraestructura en la nube de estándar industrial:
+    </p>
+
+    <div class="tos-cloud-grid">
+      <div class="tos-cloud-card">
+        <div class="tos-cloud-head">
+          <span class="tos-cloud-tag">PaaS · Cómputo Web</span>
+          <h3>Render (Render Services, Inc.)</h3>
+        </div>
+        <p>
+          Plataforma en la nube donde se despliega y ejecuta el servidor de aplicaciones de UrbanReport (<code>Python 3.12</code>, <code>Django</code>, servidor WSGI <code>Gunicorn</code> y distribución optimizada de estáticos con <code>WhiteNoise</code>, según definición de infraestructura <code>render.yaml</code>).
+        </p>
+        <ul class="guia-list">
+          <li><strong>Cifrado en tránsito:</strong> Todas las comunicaciones entre el navegador del usuario y Render se transmiten bajo protocolo seguro <code>HTTPS / TLS</code>.</li>
+          <li><strong>Disponibilidad y Arranque:</strong> El servicio está sujeto a las políticas de disponibilidad de Render, ventanas de mantenimiento controlado (<code>HTTP 503</code>) y posibles ciclos de hibernación o arranque en frío (<em>cold start</em>) propios de la capa de cómputo.</li>
+        </ul>
+      </div>
+
+      <div class="tos-cloud-card">
+        <div class="tos-cloud-head">
+          <span class="tos-cloud-tag">Base de Datos &amp; Storage S3</span>
+          <h3>Supabase (Supabase, Inc.)</h3>
+        </div>
+        <p>
+          Proveedor de persistencia de datos relacionales y almacenamiento de objetos multimedia en la nube:
+        </p>
+        <ul class="guia-list">
+          <li><strong>Supabase PostgreSQL:</strong> Almacena de forma estructurada los perfiles de usuario, publicaciones, comentarios, reacciones, notificaciones y configuraciones, exigiendo conexión cifrada obligatoria (<code>DB_SSLMODE=require</code>) mediante <code>psycopg 3</code>.</li>
+          <li><strong>Supabase Storage (S3):</strong> Custodia en el bucket <code>media</code> las evidencias fotográficas de reportes (<code>publicaciones/</code>), imágenes en comentarios (<code>comentarios/</code>) y fotos de perfil (<code>avatars/</code>) a través de <code>django-storages</code> y <code>boto3</code>, restringiendo la subida a formatos gráficos válidos (PNG, JPG/JPEG, WEBP).</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-top: 12px;">
+      <strong>Servicios Auxiliares Integrados:</strong> (1) <strong>Google OAuth 2.0 y Meta/Facebook OAuth</strong> para autenticación delegada opcional; y (2) <strong>Leaflet, OpenStreetMap, CartoDB y Nominatim</strong> para la renderización de teselas cartográficas y geocodificación abierta de direcciones urbanas.
+    </p>
+  </section>
+
+  <!-- SECCIÓN 6 -->
+  <section class="guia-section" id="calidad-iso-25010">
+    <h2 class="guia-section-title">6. Modelo de Calidad del Producto Software — Norma ISO/IEC 25010 (SQuaRE)</h2>
+    <p>
+      El diseño, construcción, aseguramiento y operación de <strong>UrbanReport</strong> se fundamentan en las ocho (8) características de calidad del producto software definidas por el estándar internacional <strong>ISO/IEC 25010</strong> ( adoptado en Colombia como <strong>NTC-ISO/IEC 25010</strong>):
+    </p>
+
+    <div class="tos-iso-grid">
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">01 · ISO/IEC 25010</span>
+        <h3>Adecuación Funcional</h3>
+        <p class="tos-iso-sub">Completitud · Corrección · Pertinencia funcional</p>
+        <p>
+          Implementa el ciclo completo de participación ciudadana: radicación georreferenciada, gestión de estados, reacciones, hilos de comentarios con imágenes, menciones <code>@usuario</code>, notificaciones en tiempo real, panel estadístico y exportación/importación CSV.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">02 · ISO/IEC 25010</span>
+        <h3>Eficiencia de Desempeño</h3>
+        <p class="tos-iso-sub">Comportamiento temporal · Utilización de recursos · Capacidad</p>
+        <p>
+          Consultas optimizadas en ORM (<code>select_related</code> y <code>prefetch_related</code> para evitar problemas N+1), cola acotada en el mapa base (máximo 20 incidentes por estado activo), cola FIFO de 6 cupos en Actividad Reciente y <em>throttling</em> de escrituras de presencia cada 30 segundos.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">03 · ISO/IEC 25010</span>
+        <h3>Compatibilidad</h3>
+        <p class="tos-iso-sub">Coexistencia · Interoperabilidad</p>
+        <p>
+          Interoperabilidad nativa mediante APIs JSON asíncronas, protocolo OAuth 2.0 (Google y Facebook), protocolo S3 (Supabase Storage), servicios geocodificadores REST (Nominatim / OpenStreetMap) e intercambio tabular en formato estándar CSV UTF-8.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">04 · ISO/IEC 25010</span>
+        <h3>Usabilidad</h3>
+        <p class="tos-iso-sub">Reconocibilidad · Operabilidad · Protección contra errores · Accesibilidad</p>
+        <p>
+          Interfaz oscura de alto contraste, adaptación <em>responsive</em> para móviles y escritorio, autocompletado inteligente al mencionar con <code>@</code>, prevención de errores mediante validaciones en cliente y servidor, y etiquetas de accesibilidad <code>aria-label</code>.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">05 · ISO/IEC 25010</span>
+        <h3>Fiabilidad</h3>
+        <p class="tos-iso-sub">Madurez · Disponibilidad · Tolerancia a fallos · Recuperabilidad</p>
+        <p>
+          Operaciones críticas protegidas con transacciones atómicas (<code>transaction.atomic</code>), <strong>Modo Mantenimiento</strong> conmutable en caliente por los administradores (respuesta controlada <code>HTTP 503</code>) y registro de copias de seguridad (<em>backups</em>) del sistema.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">06 · ISO/IEC 25010</span>
+        <h3>Seguridad</h3>
+        <p class="tos-iso-sub">Confidencialidad · Integridad · No repudio · Autenticidad</p>
+        <p>
+          Contraseñas cifradas con algoritmo PBKDF2-SHA256, protección obligatoria contra CSRF en formularios y peticiones AJAX, conexión PostgreSQL con <code>SSLMODE=require</code> en Supabase, control estricto de acceso por rol y trazabilidad de autoría y moderación.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">07 · ISO/IEC 25010</span>
+        <h3>Mantenibilidad</h3>
+        <p class="tos-iso-sub">Modularidad · Reusabilidad · Analizabilidad · Capacidad de prueba</p>
+        <p>
+          Arquitectura modular desacoplada en Django (módulos <code>usuarios</code>, <code>feed</code> y <code>config</code>), componentes reutilizables de plantillas y moderación, y suite automatizada de pruebas unitarias, de integración y de presupuesto de consultas SQL.
+        </p>
+      </div>
+
+      <div class="tos-iso-card">
+        <span class="tos-iso-num">08 · ISO/IEC 25010</span>
+        <h3>Portabilidad</h3>
+        <p class="tos-iso-sub">Adaptabilidad · Instalabilidad · Reemplazabilidad</p>
+        <p>
+          Despliegue declarativo reproducible mediante Blueprint <code>render.yaml</code> y script de construcción <code>build.sh</code>, configuración 12-Factor basada en variables de entorno y ejecución multiplataforma en navegadores modernos de escritorio y dispositivos móviles.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECCIÓN 7 -->
+  <section class="guia-section" id="derechos-arco">
+    <h2 class="guia-section-title">7. Ejercicio de Derechos ARCO, Autogestión de Privacidad y Eliminación de Cuenta</h2>
+    <p>
+      Conforme al <strong>Artículo 8 de la Ley 1581 de 2012</strong>, todo titular de datos personales en UrbanReport cuenta con herramientas directas de autogestión dentro de la aplicación para ejercer sus derechos:
+    </p>
+    <ul class="guia-list">
+      <li>
+        <strong>Acceso y Consulta:</strong> Desde la sección <strong>Perfil</strong> y <strong>Mis Estadísticas</strong>, el usuario puede consultar en cualquier momento su información registrada, sus publicaciones, reposteos, seguidores y métricas de actividad.
+      </li>
+      <li>
+        <strong>Actualización y Rectificación:</strong> Desde <strong>Configuración</strong>, el ciudadano puede actualizar su nombre completo, correo electrónico, teléfono, dirección residencial, barrio/vereda, código postal y fotografía de perfil.
+      </li>
+      <li>
+        <strong>Control de Notificaciones y Visibilidad:</strong> El usuario puede activar o suspender de forma granular las <em>Notificaciones del Feed</em>, las <em>Notificaciones de Reporte</em> y la visibilidad de su <em>Estado de actividad (En línea)</em>.
+      </li>
+      <li>
+        <strong>Supresión Definitiva y Revocatoria (Derecho de Cancelación):</strong> En la sección <strong>Configuración &rarr; Zona de Peligro («Eliminar mi cuenta permanentemente»)</strong>, el titular puede suprimir su cuenta en cualquier momento ingresando la confirmación explícita <code>ELIMINAR</code>. Esta operación ejecuta el borrado definitivo e irreversible de su perfil, reportes, comentarios, reacciones y preferencias en la base de datos.
+      </li>
+    </ul>
+  </section>
+
+  <div class="guia-footer-note">
+    {% if mostrar_menu_portal %}
+      ¿Deseas gestionar tus datos personales o preferencias de privacidad? Dirígete a <a href="{% url 'configuracion' %}">Configuración de tu cuenta</a> o vuelve al centro de <a href="{% url 'ayuda' %}">Ayuda</a>.
+    {% else %}
+      Al registrarte o iniciar sesión en UrbanReport, declaras haber leído y aceptado estos Términos de Servicio y la Política de Tratamiento de Datos Personales. <a href="{% url 'login' %}">Iniciar Sesión</a> · <a href="{% url 'registro' %}">Crear Cuenta</a>.
+    {% endif %}
+  </div>
+</article>
+{% endblock %}
