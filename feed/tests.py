@@ -739,7 +739,7 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertEqual(sug_data['status'], 'ok')
         self.assertTrue(any(u['username'] == 'otro' for u in sug_data['usuarios']))
 
-        # 2. Mención en comentario notifica al usuario mencionado y se renderiza como enlace
+        # 2. Mención en comentario notifica al usuario mencionado (tercero) con tipo MENCION
         tercero = Usuario.objects.create_user(
             username='carlos_m', email='carlos@t.co', password='x', **PERFIL_COMPLETO
         )
@@ -756,10 +756,63 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
             ).exists()
         )
 
-        # Verificar que en el HTML se renderiza el enlace @carlos_m pero NO @test.co del correo
+        # 3. Mención al autor de la publicación en comentario: debe recibir notificación MENCION
+        # (no solo COMENTARIO genérico)
+        self.client.force_login(tercero)
+        r_com2 = self.client.post(
+            reverse('agregar_comentario_ajax', args=[self.pub.id]),
+            {'texto': f'Oye @{self.ciudadano.username} qué opinas de esto?'},
+        )
+        self.assertEqual(r_com2.status_code, 200)
+        self.assertTrue(
+            Notificacion.objects.filter(
+                destinatario=self.ciudadano,
+                actor=tercero,
+                tipo=Notificacion.Tipo.MENCION,
+            ).exists()
+        )
+
+        # 4. Mención al editar comentario: debe crear notificación MENCION al nuevo usuario nombrado
+        cuarto = Usuario.objects.create_user(
+            username='diana_p', email='diana@t.co', password='x', **PERFIL_COMPLETO
+        )
+        com_id = r_com2.json()['comentario']['id']
+        r_edit_com = self.client.post(
+            reverse('editar_comentario_ajax', args=[com_id]),
+            {'texto': 'Actualizado con mención a @diana_p'},
+        )
+        self.assertEqual(r_edit_com.status_code, 200)
+        self.assertTrue(
+            Notificacion.objects.filter(
+                destinatario=cuarto,
+                actor=tercero,
+                tipo=Notificacion.Tipo.MENCION,
+            ).exists()
+        )
+
+        # 5. Mención al editar publicación: notifica al usuario nombrado
+        self.client.force_login(self.ciudadano)
+        r_edit_pub = self.client.post(
+            reverse('editar_publicacion_ajax', args=[self.pub.id]),
+            {'titulo': 'Incidencia actualizada', 'contenido': 'Mencionando a @diana_p en el reporte', 'categoria': 'VIAS'},
+        )
+        self.assertEqual(r_edit_pub.status_code, 200)
+        self.assertTrue(
+            Notificacion.objects.filter(
+                destinatario=cuarto,
+                actor=self.ciudadano,
+                tipo=Notificacion.Tipo.MENCION,
+            ).exists()
+        )
+
+        # 6. Verificar que en el HTML se renderiza el enlace @carlos_m pero NO @test.co del correo
         html_det = self.client.get(reverse('detalle_publicacion', args=[self.pub.id])).content.decode()
         self.assertIn('href="/perfil/carlos_m/"', html_det)
         self.assertNotIn('href="/perfil/test.co/"', html_det)
+
+        # 7. Sidebar incluye enlace y badge de notificaciones
+        html_feed = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertIn('id="sidebarNotifBadge"', html_feed)
 
     def test_direccion_no_se_expone_en_feed(self):
         """La dirección de residencia no debe aparecer en el feed."""

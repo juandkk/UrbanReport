@@ -67,7 +67,7 @@ def crear_notificacion(destinatario, actor, tipo, publicacion=None, comentario=N
     )
 
 
-_MENCION_RE = re.compile(r'(?<![\w@])@([A-Za-z0-9_]+(?:[.\-][A-Za-z0-9_]+)*)')
+_MENCION_RE = re.compile(r'(?<![\w@])@([\w]+(?:[.\-][\w]+)*)')
 
 
 def extraer_usernames_mencionados(texto):
@@ -89,12 +89,13 @@ def notificar_menciones(actor, texto, publicacion=None, comentario=None, excluir
     Busca usuarios reales mencionados con @username en `texto` y les crea una
     notificación de tipo MENCION (categoría PUBLICACION).
     No notifica al propio autor ni duplica notificaciones a usuarios en `excluir_ids`.
+    Devuelve el conjunto de IDs de los usuarios a quienes se les creó la notificación.
     """
     if not actor or not texto:
-        return 0
+        return set()
     usernames = extraer_usernames_mencionados(texto)
     if not usernames:
-        return 0
+        return set()
 
     excluir = set(excluir_ids or ())
     if getattr(actor, 'id', None):
@@ -106,7 +107,7 @@ def notificar_menciones(actor, texto, publicacion=None, comentario=None, excluir
 
     mencionados = Usuario.objects.filter(q_users).exclude(id__in=excluir).distinct()
     extracto = re.sub(r'\s+', ' ', str(texto)).strip()[:80]
-    creadas = 0
+    notificados_ids = set()
     for destinatario in mencionados:
         notif = crear_notificacion(
             destinatario=destinatario,
@@ -117,8 +118,8 @@ def notificar_menciones(actor, texto, publicacion=None, comentario=None, excluir
             extra=extracto,
         )
         if notif is not None:
-            creadas += 1
-    return creadas
+            notificados_ids.add(destinatario.id)
+    return notificados_ids
 
 
 def notificar_admins_reporte(actor, motivo_display, publicacion=None, comentario=None):
@@ -903,28 +904,40 @@ def agregar_comentario_ajax(request, publicacion_id):
         imagen=imagen_limpia,
     )
 
-    # Notificar: si es respuesta, al autor del comentario padre; si no, al autor de la publicación
-    fragmento = texto[:80] if texto else '📷 Imagen adjunta'
-    ya_notificados = set()
-    if padre and padre.autor:
-        crear_notificacion(
-            destinatario=padre.autor, actor=autor,
-            tipo=Notificacion.Tipo.RESPUESTA, publicacion=publicacion, comentario=comentario, extra=fragmento,
-        )
-        ya_notificados.add(padre.autor_id)
-    else:
-        crear_notificacion(
-            destinatario=publicacion.autor, actor=autor,
-            tipo=Notificacion.Tipo.COMENTARIO, publicacion=publicacion, comentario=comentario, extra=fragmento,
-        )
-        if publicacion.autor_id:
-            ya_notificados.add(publicacion.autor_id)
-
+    # ── Notificaciones ──
+    # 1. Notificar primero a TODOS los usuarios explícitamente nombrados con @username
+    notificados_mencion = set()
     if texto:
-        notificar_menciones(
-            actor=autor, texto=texto,
-            publicacion=publicacion, comentario=comentario,
-            excluir_ids=ya_notificados,
+        notificados_mencion = notificar_menciones(
+            actor=autor,
+            texto=texto,
+            publicacion=publicacion,
+            comentario=comentario,
+        )
+
+    # 2. Si es respuesta a un comentario y el autor del comentario padre NO fue mencionado explícitamente,
+    #    notificarle con tipo RESPUESTA.
+    fragmento = texto[:80] if texto else '📷 Imagen adjunta'
+    if padre and padre.autor:
+        if padre.autor_id not in notificados_mencion:
+            crear_notificacion(
+                destinatario=padre.autor,
+                actor=autor,
+                tipo=Notificacion.Tipo.RESPUESTA,
+                publicacion=publicacion,
+                comentario=comentario,
+                extra=fragmento,
+            )
+    # 3. Si es comentario principal y el autor de la publicación NO fue mencionado explícitamente,
+    #    notificarle con tipo COMENTARIO.
+    elif publicacion.autor and publicacion.autor_id not in notificados_mencion:
+        crear_notificacion(
+            destinatario=publicacion.autor,
+            actor=autor,
+            tipo=Notificacion.Tipo.COMENTARIO,
+            publicacion=publicacion,
+            comentario=comentario,
+            extra=fragmento,
         )
 
     initials = "".join([part[0].upper() for part in autor_nombre.split()[:2]]) or "UR"
@@ -1864,6 +1877,21 @@ def editar_publicacion_ajax(request, publicacion_id):
 
     publicacion.save(update_fields=['titulo', 'contenido', 'categoria'])
 
+    # Notificar a nuevos usuarios mencionados que aún no hayan sido notificados para esta publicación
+    notificados_previos = set(
+        Notificacion.objects.filter(
+            publicacion=publicacion,
+            comentario__isnull=True,
+            tipo=Notificacion.Tipo.MENCION,
+        ).values_list('destinatario_id', flat=True)
+    )
+    notificar_menciones(
+        actor=request.user,
+        texto=f"{titulo} {contenido}".strip(),
+        publicacion=publicacion,
+        excluir_ids=notificados_previos,
+    )
+
     return JsonResponse({
         'status': 'ok',
         'message': '¡Publicación editada exitosamente!',
@@ -1953,6 +1981,21 @@ def editar_comentario_ajax(request, comentario_id):
 
     comentario.texto = texto
     comentario.save(update_fields=['texto'])
+
+    # Notificar a nuevos usuarios mencionados que aún no hayan sido notificados para este comentario
+    notificados_previos = set(
+        Notificacion.objects.filter(
+            comentario=comentario,
+            tipo=Notificacion.Tipo.MENCION,
+        ).values_list('destinatario_id', flat=True)
+    )
+    notificar_menciones(
+        actor=request.user,
+        texto=texto,
+        publicacion=comentario.publicacion,
+        comentario=comentario,
+        excluir_ids=notificados_previos,
+    )
 
     return JsonResponse({
         'status': 'ok',

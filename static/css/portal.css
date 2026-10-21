@@ -91,6 +91,27 @@
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
 }
 
+.sidebar-notif-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--status-danger);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.nav-item-link.active .sidebar-notif-badge {
+  background-color: #ffffff;
+  color: var(--brand-primary);
+}
+
 .nav-item-link svg {
   width: 18px;
   height: 18px;

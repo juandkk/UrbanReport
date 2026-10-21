@@ -6,7 +6,7 @@ from django.utils.timesince import timesince
 
 register = template.Library()
 
-_MENCION_RE = re.compile(r'(?<![\w@])@([A-Za-z0-9_]+(?:[.\-][A-Za-z0-9_]+)*)')
+_MENCION_RE = re.compile(r'(?<![\w@])@([\w]+(?:[.\-][\w]+)*)')
 
 
 @register.filter(name='timesince_spaced')

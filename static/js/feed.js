@@ -652,9 +652,9 @@ document.addEventListener('DOMContentLoaded', () => {
           closeEditPostModal();
 
           const pub = data.publicacion;
-          // Actualizar texto
+          // Actualizar texto con renderizado de menciones
           const contentText = document.getElementById(`post-content-text-${postId}`);
-          if (contentText) contentText.textContent = pub.contenido;
+          if (contentText) contentText.innerHTML = renderMentionsHtml(escapeHtml(pub.contenido));
 
           // Actualizar título y categoría
           const titleRow = document.getElementById(`post-title-row-${postId}`);
@@ -758,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
           closeEditCommentModal();
           const textEl = document.getElementById(`comment-text-${commentId}`);
           if (textEl) {
-            textEl.textContent = data.comentario.texto;
+            textEl.innerHTML = renderMentionsHtml(escapeHtml(data.comentario.texto));
           }
           showToast('¡Comentario editado con éxito!');
         } else {
@@ -2900,6 +2900,48 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.toggle('is-active', idx === selectedIdx);
       });
     }, true);
+  })();
+
+  // ── Sincronización de Notificaciones en vivo (Campana y Sidebar) ──
+  (function initNotificacionesLiveBadge() {
+    const bellBadge = document.getElementById('notif-bell-badge');
+    const sidebarBadge = document.getElementById('sidebarNotifBadge');
+    if (!bellBadge && !sidebarBadge) return;
+
+    function renderBadge(badgeEl, count) {
+      if (!badgeEl) return;
+      if (count > 0) {
+        badgeEl.textContent = count > 9 ? '9+' : String(count);
+        badgeEl.style.display = 'flex';
+      } else {
+        badgeEl.style.display = 'none';
+      }
+    }
+
+    async function actualizarBadgeNotificaciones() {
+      try {
+        const res = await fetch('/api/notificaciones-no-leidas/', {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          const count = Number(data.total_no_leidas) || 0;
+          renderBadge(bellBadge, count);
+          renderBadge(sidebarBadge, count);
+        }
+      } catch (e) {
+        // Silencioso ante fallos transitorios
+      }
+    }
+
+    actualizarBadgeNotificaciones();
+    setInterval(() => {
+      if (!document.hidden) actualizarBadgeNotificaciones();
+    }, 15000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) actualizarBadgeNotificaciones();
+    });
   })();
 
 });
