@@ -153,22 +153,75 @@ def mapa_view(request):
     return render(request, 'feed/mapa.html', context)
 
 
+ESTADOS_MAPA_PERMITIDOS = [
+    Publicacion.EstadoIncidencia.REPORTADO,
+    Publicacion.EstadoIncidencia.EN_PROCESO,
+    Publicacion.EstadoIncidencia.RESUELTA,
+]
+LIMITE_INCIDENCIAS_POR_ESTADO_MAPA = 20
+
+
 @login_required
 def api_incidentes_mapa(request):
-    """JSON API endpoint returning geolocated incidents for the map."""
-    estado = request.GET.get('estado', '')
+    """
+    JSON API endpoint returning geolocated incidents for the map.
 
-    incidentes = (
+    Reglas de visualización del mapa:
+      1. NUNCA devuelve incidencias declinadas ni censuradas.
+      2. Mapa base: muestra como máximo 20 incidencias resueltas, 20 en revisión
+         y 20 pendientes (máximo 60 en total).
+      3. Búsqueda explícita (?q=... o ?incidente_id=...): busca en toda la base de datos
+         (incluso si la incidencia quedó fuera de las 20 más recientes) para que el
+         usuario pueda encontrarla y enfocarla en el mapa.
+    """
+    estado = request.GET.get('estado', '').strip().upper()
+    q = request.GET.get('q', '').strip()
+    incidente_id = request.GET.get('incidente_id', '').strip()
+
+    base_qs = (
         Publicacion.objects.filter(
             latitud__isnull=False,
             longitud__isnull=False,
+            censurado=False,
+            estado_incidencia__in=ESTADOS_MAPA_PERMITIDOS,
         )
         .select_related('autor')
         .annotate(_total_comentarios=Count('comentarios'))
     )
 
-    if estado and estado != 'TODOS':
-        incidentes = incidentes.filter(estado_incidencia=estado)
+    if incidente_id and incidente_id.isdigit():
+        incidentes = list(base_qs.filter(id=int(incidente_id)))
+    elif q:
+        q_filter = Q(titulo__icontains=q) | Q(contenido__icontains=q) | Q(ubicacion__icontains=q)
+        if q.startswith('#') and q[1:].isdigit():
+            q_filter |= Q(id=int(q[1:]))
+        elif q.isdigit():
+            q_filter |= Q(id=int(q))
+
+        qs_busqueda = base_qs.filter(q_filter)
+        if estado and estado in ESTADOS_MAPA_PERMITIDOS:
+            qs_busqueda = qs_busqueda.filter(estado_incidencia=estado)
+        incidentes = list(qs_busqueda.order_by('-fecha_creacion')[:15])
+    else:
+        if estado and estado in ESTADOS_MAPA_PERMITIDOS:
+            incidentes = list(
+                base_qs.filter(estado_incidencia=estado)
+                .order_by('-fecha_creacion')[:LIMITE_INCIDENCIAS_POR_ESTADO_MAPA]
+            )
+        else:
+            pendientes = list(
+                base_qs.filter(estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO)
+                .order_by('-fecha_creacion')[:LIMITE_INCIDENCIAS_POR_ESTADO_MAPA]
+            )
+            en_proceso = list(
+                base_qs.filter(estado_incidencia=Publicacion.EstadoIncidencia.EN_PROCESO)
+                .order_by('-fecha_creacion')[:LIMITE_INCIDENCIAS_POR_ESTADO_MAPA]
+            )
+            resueltas = list(
+                base_qs.filter(estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA)
+                .order_by('-fecha_creacion')[:LIMITE_INCIDENCIAS_POR_ESTADO_MAPA]
+            )
+            incidentes = pendientes + en_proceso + resueltas
 
     data = []
     for inc in incidentes:
@@ -188,9 +241,9 @@ def api_incidentes_mapa(request):
             'comentarios': inc.total_comentarios,
             'tiempo': timesince(inc.fecha_creacion) + ' atrás',
             'imagen_url': inc.imagen.url if inc.imagen else inc.imagen_url,
-            'censurado': inc.censurado,
-            'motivo_censura': inc.motivo_censura or '',
-            'motivo_declinacion': inc.motivo_declinacion or '',
+            'censurado': False,
+            'motivo_censura': '',
+            'motivo_declinacion': '',
         })
 
     return JsonResponse({'incidentes': data})

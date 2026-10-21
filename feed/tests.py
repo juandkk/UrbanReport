@@ -844,6 +844,123 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertIn('id="sidebarNotifBadge"', html_mapa)
         self.assertIn('id="mobileNavBadge"', html_mapa)
 
+    def test_mapa_limite_20_por_estado_y_busqueda(self):
+        """
+        El mapa solo debe mostrar hasta 20 incidencias resueltas, 20 en revisión y 20 pendientes.
+        No debe mostrar declinadas ni censuradas.
+        La búsqueda permite encontrar incidencias específicas que salieron de la cola de 20.
+        """
+        self.client.force_login(self.ciudadano)
+
+        # 1. Crear 25 incidencias de cada estado permitido (75 en total)
+        for i in range(25):
+            Publicacion.objects.create(
+                autor=self.ciudadano,
+                titulo=f'Reportado {i}',
+                contenido=f'Contenido pendiente {i}',
+                categoria='VIAS',
+                latitud=6.24 + (i * 0.001),
+                longitud=-75.58 + (i * 0.001),
+                estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO,
+            )
+            Publicacion.objects.create(
+                autor=self.ciudadano,
+                titulo=f'EnProceso {i}',
+                contenido=f'Contenido en proceso {i}',
+                categoria='VIAS',
+                latitud=6.24 + (i * 0.001),
+                longitud=-75.58 + (i * 0.001),
+                estado_incidencia=Publicacion.EstadoIncidencia.EN_PROCESO,
+            )
+            Publicacion.objects.create(
+                autor=self.ciudadano,
+                titulo=f'Resuelta {i}',
+                contenido=f'Contenido resuelta {i}',
+                categoria='VIAS',
+                latitud=6.24 + (i * 0.001),
+                longitud=-75.58 + (i * 0.001),
+                estado_incidencia=Publicacion.EstadoIncidencia.RESUELTA,
+            )
+
+        # Crear incidencias declinadas y censuradas (no deben salir NUNCA)
+        pub_declinada = Publicacion.objects.create(
+            autor=self.ciudadano,
+            titulo='Incidencia Declinada Especial',
+            contenido='No debe mostrarse',
+            categoria='VIAS',
+            latitud=6.25,
+            longitud=-75.58,
+            estado_incidencia=Publicacion.EstadoIncidencia.DECLINADO,
+        )
+        pub_censurada = Publicacion.objects.create(
+            autor=self.ciudadano,
+            titulo='Incidencia Censurada Especial',
+            contenido='Tampoco debe mostrarse',
+            categoria='VIAS',
+            latitud=6.25,
+            longitud=-75.58,
+            estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO,
+            censurado=True,
+        )
+
+        # Incidencia antigua con texto único que sale de la cola base de 20 (Reportado 0 es la más antigua)
+        inc_antigua = Publicacion.objects.filter(
+            estado_incidencia=Publicacion.EstadoIncidencia.REPORTADO,
+            censurado=False,
+            latitud__isnull=False,
+        ).order_by('fecha_creacion').first()
+        inc_antigua.titulo = 'Bache historico en Guayabal'
+        inc_antigua.save(update_fields=['titulo'])
+
+        # 2. Consultar mapa base (sin búsqueda)
+        r_base = self.client.get(reverse('api_incidentes_mapa'))
+        self.assertEqual(r_base.status_code, 200)
+        base_data = r_base.json()
+        base_ids = [inc['id'] for inc in base_data['incidentes']]
+
+        # Verificar que ni declinada ni censurada están en el mapa base
+        self.assertNotIn(pub_declinada.id, base_ids)
+        self.assertNotIn(pub_censurada.id, base_ids)
+
+        # Contar por cada estado en el mapa base: máximo 20 por estado
+        conteo_reportado = sum(1 for inc in base_data['incidentes'] if inc['estado'] == 'REPORTADO')
+        conteo_en_proceso = sum(1 for inc in base_data['incidentes'] if inc['estado'] == 'EN_PROCESO')
+        conteo_resuelta = sum(1 for inc in base_data['incidentes'] if inc['estado'] == 'RESUELTA')
+
+        self.assertLessEqual(conteo_reportado, 20)
+        self.assertLessEqual(conteo_en_proceso, 20)
+        self.assertLessEqual(conteo_resuelta, 20)
+
+        # La incidencia más antigua salió de la cola base de 20
+        self.assertNotIn(inc_antigua.id, base_ids)
+
+        # 3. Consultar filtro de solo RESUELTA: máx 20
+        r_resueltas = self.client.get(reverse('api_incidentes_mapa') + '?estado=RESUELTA')
+        self.assertEqual(r_resueltas.status_code, 200)
+        resueltas_data = r_resueltas.json()
+        self.assertEqual(len(resueltas_data['incidentes']), 20)
+        self.assertTrue(all(inc['estado'] == 'RESUELTA' for inc in resueltas_data['incidentes']))
+
+        # 4. Búsqueda explícita de la incidencia antigua por texto: la encuentra fuera de la cola de 20
+        r_search = self.client.get(reverse('api_incidentes_mapa') + '?q=Guayabal')
+        self.assertEqual(r_search.status_code, 200)
+        search_ids = [inc['id'] for inc in r_search.json()['incidentes']]
+        self.assertIn(inc_antigua.id, search_ids)
+
+        # 5. Búsqueda directa por ID específico (?incidente_id=)
+        r_id = self.client.get(reverse('api_incidentes_mapa') + f'?incidente_id={inc_antigua.id}')
+        self.assertEqual(r_id.status_code, 200)
+        id_results = r_id.json()['incidentes']
+        self.assertEqual(len(id_results), 1)
+        self.assertEqual(id_results[0]['id'], inc_antigua.id)
+
+        # 6. Intentar buscar incidencia declinada o censurada: NUNCA se devuelven
+        r_search_dec = self.client.get(reverse('api_incidentes_mapa') + '?q=Declinada')
+        self.assertEqual(len(r_search_dec.json()['incidentes']), 0)
+
+        r_search_cen = self.client.get(reverse('api_incidentes_mapa') + '?q=Censurada')
+        self.assertEqual(len(r_search_cen.json()['incidentes']), 0)
+
     def test_direccion_no_se_expone_en_feed(self):
         """La dirección de residencia no debe aparecer en el feed."""
         self.ciudadano.direccion = 'Calle Secreta 999'

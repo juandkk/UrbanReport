@@ -129,6 +129,7 @@
   let markersLayer = L.layerGroup().addTo(map);
   let searchTargetLayer = L.layerGroup().addTo(map);
   const existingMarkersMap = new Map(); // id -> marker
+  let activeFocusedIncidentId = null; // ID de incidencia enfocada por búsqueda fuera de la cola base de 20
 
   // ── Icono para incidencias ──
   function createMarkerIcon(estado) {
@@ -240,6 +241,15 @@
   window.addIncidentToMap = function (inc, focus) {
     if (!inc || !inc.latitud || !inc.longitud) return;
 
+    // El mapa nunca debe mostrar incidencias declinadas ni censuradas
+    if (inc.estado === 'DECLINADO' || inc.censurado) {
+      if (existingMarkersMap.has(inc.id)) {
+        markersLayer.removeLayer(existingMarkersMap.get(inc.id));
+        existingMarkersMap.delete(inc.id);
+      }
+      return;
+    }
+
     const lat = parseFloat(inc.latitud);
     const lng = parseFloat(inc.longitud);
 
@@ -291,7 +301,7 @@
     }
   };
 
-  // ── Fetch incidents from API ──
+  // ── Fetch incidents from API (máx 20 resueltas, 20 en revisión, 20 pendientes) ──
   function loadIncidents(estado) {
     const param = estado && estado !== 'TODOS' ? '?estado=' + estado : '';
     const url = '/feed/api/incidentes-mapa/' + param;
@@ -302,6 +312,17 @@
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.incidentes) return;
+
+        const currentIds = new Set(data.incidentes.map(function (inc) { return inc.id; }));
+
+        // Remover marcadores que ya no forman parte de la cola de 20 por estado
+        // o que pasaron a declinado/censurado (salvo si es la incidencia enfocada actualmente por búsqueda)
+        for (const [id, marker] of existingMarkersMap.entries()) {
+          if (!currentIds.has(id) && id !== activeFocusedIncidentId) {
+            markersLayer.removeLayer(marker);
+            existingMarkersMap.delete(id);
+          }
+        }
 
         data.incidentes.forEach(function (inc) {
           if (existingMarkersMap.has(inc.id)) {
@@ -557,12 +578,48 @@
     if (searchDropdown) searchDropdown.style.display = 'none';
 
     if (isIncident && incidentData) {
+      activeFocusedIncidentId = incidentData.id;
+
+      let marker;
       if (existingMarkersMap.has(incidentData.id)) {
-        const marker = existingMarkersMap.get(incidentData.id);
-        map.flyTo([lat, lng], 16, { duration: 1.2 });
-        setTimeout(() => marker.openPopup(), 1250);
-        return;
+        marker = existingMarkersMap.get(incidentData.id);
+        marker.setLatLng([lat, lng]);
+        marker.setPopupContent(buildPopupHTML(incidentData));
+        marker.setOpacity(1);
+      } else {
+        // La incidencia no estaba visible en el mapa base por haber salido de la cola de 20:
+        // la agregamos especialmente al mapa mientras esté enfocada
+        marker = L.marker([lat, lng], {
+          icon: createMarkerIcon(incidentData.estado),
+        });
+        marker.bindPopup(buildPopupHTML(incidentData), {
+          maxWidth: 290,
+          minWidth: 230,
+          closeButton: true,
+        });
+        marker._incData = incidentData;
+        marker._isSearchedFocus = true;
+        markersLayer.addLayer(marker);
+        existingMarkersMap.set(incidentData.id, marker);
       }
+
+      const pulseCircle = L.circleMarker([lat, lng], {
+        radius: 22,
+        color: '#3b82f6',
+        fillColor: '#60a5fa',
+        fillOpacity: 0.5,
+        weight: 3,
+      }).addTo(map);
+
+      setTimeout(() => {
+        map.removeLayer(pulseCircle);
+      }, 3500);
+
+      map.flyTo([lat, lng], 16, { duration: 1.2 });
+      setTimeout(() => {
+        marker.openPopup();
+      }, 1250);
+      return;
     }
 
     if (!estaEnMedellin(lat, lng)) {
@@ -631,8 +688,8 @@
       return;
     }
 
-    // 2. Búsqueda explícita por ID de incidente (ej. "#15") o coincidencia exacta de título
-    const idMatch = query.match(/^#(\d+)$/);
+    // 2. Búsqueda explícita por ID de incidente (ej. "#15" o "15") o texto
+    const idMatch = query.match(/^#?(\d+)$/);
     let matchedIncident = null;
     markersLayer.eachLayer(function (marker) {
       if (matchedIncident || !marker._incData) return;
@@ -643,6 +700,24 @@
         matchedIncident = inc;
       }
     });
+
+    // Si no está en el mapa base (salió de la cola de 20), consultar al backend
+    if (!matchedIncident) {
+      try {
+        const queryParam = idMatch ? ('?incidente_id=' + idMatch[1]) : ('?q=' + encodeURIComponent(cleanRaw));
+        const res = await fetch('/feed/api/incidentes-mapa/' + queryParam, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.incidentes) && data.incidentes.length > 0) {
+            matchedIncident = data.incidentes[0];
+          }
+        }
+      } catch (err) {
+        console.warn('Error al buscar incidencia remota:', err);
+      }
+    }
 
     if (matchedIncident) {
       goToAddressLocation(
@@ -722,7 +797,8 @@
       }
     });
 
-    // Incidencias locales
+    // Incidencias visibles en memoria
+    const seenIncidentIds = new Set();
     markersLayer.eachLayer(function (marker) {
       if (!marker._incData) return;
       const inc = marker._incData;
@@ -734,9 +810,10 @@
       ).toLowerCase();
 
       if (searchable.includes(normalizedQuery)) {
+        seenIncidentIds.add(inc.id);
         localResults.push({
           name: inc.titulo || inc.ubicacion || ('Incidente #' + inc.id),
-          sub: inc.ubicacion || inc.contenido.substring(0, 45) + '...',
+          sub: inc.ubicacion || (inc.contenido.substring(0, 45) + '...'),
           lat: inc.latitud,
           lng: inc.longitud,
           badge: inc.estado_display || 'Incidencia',
@@ -746,28 +823,51 @@
       }
     });
 
-    renderSearchResults(localResults, cleanRaw, cleanRaw.length >= 3);
+    renderSearchResults(localResults, cleanRaw, cleanRaw.length >= 2);
 
-    // Geocodificación en vivo con debounce para direcciones reales de Medellín
-    if (cleanRaw.length >= 3) {
+    // Búsqueda remota en vivo (geocodificación de direcciones + incidencias fuera de la cola de 20)
+    if (cleanRaw.length >= 2) {
       searchDebounceTimer = setTimeout(async () => {
         const controller = new AbortController();
         searchAbortController = controller;
         try {
-          const remoteResults = await geocodificarEnMedellin(cleanRaw, 5, controller.signal);
+          const [remoteGeo, remoteIncRes] = await Promise.all([
+            geocodificarEnMedellin(cleanRaw, 5, controller.signal).catch(() => []),
+            fetch('/feed/api/incidentes-mapa/?q=' + encodeURIComponent(cleanRaw), {
+              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+              signal: controller.signal,
+            }).then(r => r.ok ? r.json() : null).catch(() => null),
+          ]);
           if (controller.signal.aborted) return;
 
-          // Si el usuario escribe una dirección con nomenclatura vial, priorizar direcciones exactas
+          const remoteIncidents = [];
+          if (remoteIncRes && Array.isArray(remoteIncRes.incidentes)) {
+            remoteIncRes.incidentes.forEach(function (inc) {
+              if (!seenIncidentIds.has(inc.id)) {
+                seenIncidentIds.add(inc.id);
+                remoteIncidents.push({
+                  name: inc.titulo || inc.ubicacion || ('Incidente #' + inc.id),
+                  sub: inc.ubicacion || (inc.contenido.substring(0, 45) + '...'),
+                  lat: inc.latitud,
+                  lng: inc.longitud,
+                  badge: inc.estado_display || 'Incidencia',
+                  isIncident: true,
+                  incidentData: inc,
+                });
+              }
+            });
+          }
+
           const looksLikeStreetAddress = /\b(calle|cll|cl|carrera|cra|cr|kr|diagonal|dg|diag|transversal|tv|trv|circular|cq|avenida|av)\b|\d+\s*#\s*\d+/i.test(cleanRaw);
           const combined = looksLikeStreetAddress
-            ? [...remoteResults, ...localResults]
-            : [...localResults, ...remoteResults];
+            ? [...remoteGeo, ...remoteIncidents, ...localResults]
+            : [...localResults, ...remoteIncidents, ...remoteGeo];
 
           renderSearchResults(combined, cleanRaw, false);
         } catch (err) {
           if (err && err.name === 'AbortError') return;
         }
-      }, 280);
+      }, 260);
     }
   }
 
@@ -859,6 +959,16 @@
       if (searchDropdown) searchDropdown.style.display = 'none';
       this.style.display = 'none';
       searchTargetLayer.clearLayers();
+
+      // Si la incidencia enfocada salió de la cola base de 20, remover su marcador
+      if (activeFocusedIncidentId) {
+        const marker = existingMarkersMap.get(activeFocusedIncidentId);
+        if (marker && marker._isSearchedFocus) {
+          markersLayer.removeLayer(marker);
+          existingMarkersMap.delete(activeFocusedIncidentId);
+        }
+        activeFocusedIncidentId = null;
+      }
 
       markersLayer.eachLayer(function (marker) {
         marker.setOpacity(1);
