@@ -2436,7 +2436,7 @@ def notificaciones_view(request):
         'notificaciones': notificaciones,
         'filtro_activo': filtro,
         'total_no_leidas': Notificacion.objects.filter(destinatario=request.user, leido=False).count(),
-        'active_menu': 'notificaciones',
+        'active_menu': 'feed',
     }
     return render(request, 'feed/notificaciones.html', context)
 

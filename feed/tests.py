@@ -810,9 +810,10 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertIn('href="/perfil/carlos_m/"', html_det)
         self.assertNotIn('href="/perfil/test.co/"', html_det)
 
-        # 7. Sidebar incluye enlace y badge de notificaciones
+        # 7. Sidebar no incluye notificaciones, se visualiza en la campana del feed
         html_feed = self.client.get(reverse('feed_comunitario')).content.decode()
-        self.assertIn('id="sidebarNotifBadge"', html_feed)
+        self.assertIn('id="notif-bell"', html_feed)
+        self.assertNotIn('id="sidebarNotifBadge"', html_feed)
 
     def test_sidebar_avisa_otras_notificaciones(self):
         """El sidebar y la API avisan no solo menciones sino también otras notificaciones (likes, comentarios, estados)."""
@@ -839,10 +840,11 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertIsNotNone(data['ultima_notificacion'])
         self.assertEqual(data['ultima_notificacion']['tipo'], 'LIKE')
 
-        # 4. En el HTML de cualquier vista (ej. mapa o feed), el badge del sidebar ya se renderiza
-        html_mapa = self.client.get(reverse('mapa')).content.decode()
-        self.assertIn('id="sidebarNotifBadge"', html_mapa)
-        self.assertIn('id="mobileNavBadge"', html_mapa)
+        # 4. El badge se renderiza en la campana del feed y móvil; el sidebar ya no contiene notificaciones
+        html_feed = self.client.get(reverse('feed_comunitario')).content.decode()
+        self.assertIn('id="notif-bell-badge"', html_feed)
+        self.assertIn('id="mobileNavBadge"', html_feed)
+        self.assertNotIn('id="sidebarNotifBadge"', html_feed)
 
     def test_mapa_limite_20_por_estado_y_busqueda(self):
         """

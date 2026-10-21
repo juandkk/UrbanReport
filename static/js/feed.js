@@ -2902,12 +2902,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true);
   })();
 
-  // ── Sincronización de Notificaciones en vivo (Campana, Sidebar y Móvil) ──
+  // ── Sincronización de Notificaciones en vivo (Campana del Feed y Móvil) ──
   (function initNotificacionesLiveBadge() {
     const bellBadge = document.getElementById('notif-bell-badge');
-    const sidebarBadge = document.getElementById('sidebarNotifBadge');
     const mobileBadge = document.getElementById('mobileNavBadge');
-    if (!bellBadge && !sidebarBadge && !mobileBadge) return;
+    if (!bellBadge && !mobileBadge) return;
 
     let previousCount = null;
     let initialSyncDone = false;
@@ -2964,7 +2963,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Si llegaron nuevas notificaciones mientras navegaba, avisar con toast y animación
           if (initialSyncDone && previousCount !== null && count > previousCount) {
-            [sidebarBadge, bellBadge, mobileBadge].forEach((b) => {
+            [bellBadge, mobileBadge].forEach((b) => {
               if (b) {
                 b.classList.remove('badge-pulse');
                 void b.offsetWidth;
@@ -2981,7 +2980,6 @@ document.addEventListener('DOMContentLoaded', () => {
           initialSyncDone = true;
 
           renderBadge(bellBadge, count);
-          renderBadge(sidebarBadge, count);
           renderBadge(mobileBadge, count);
         }
       } catch (e) {
