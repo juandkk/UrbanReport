@@ -517,6 +517,7 @@
 
 .new-comment-input {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   color: #ffffff;
@@ -1230,6 +1231,7 @@
 
 .new-comment-input {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
@@ -4929,6 +4931,50 @@
   .cfg-input,
   .report-textarea {
     font-size: 16px;
+  }
+
+  /* Barra de comentar compacta en móvil: oculta la palabra "Comentar" / "Responder"
+     y deja solo el SVG del avión en un botón circular estilizado para no desbordar el recuadro */
+  .new-comment-bar {
+    padding: 3px 5px 3px 12px;
+    gap: 6px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .new-comment-input {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .new-comment-btn-text {
+    display: none !important;
+  }
+
+  .new-comment-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    gap: 0 !important;
+    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .new-comment-btn svg {
+    width: 14px;
+    height: 14px;
+    margin-left: -1px;
+    margin-top: 1px;
+  }
+
+  .comment-attach-btn {
+    flex-shrink: 0;
+    padding: 4px;
   }
 
   /* Vista Mi Perfil más compacta en móvil */

@@ -295,12 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <polyline points="21 15 16 10 5 21" />
               </svg>
             </label>
-            <button type="button" class="new-comment-btn inline-reply-submit-btn" title="Publicar respuesta">
+            <button type="button" class="new-comment-btn inline-reply-submit-btn" title="Publicar respuesta" aria-label="Responder">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
-              <span>Responder</span>
+              <span class="new-comment-btn-text">Responder</span>
             </button>
           </div>
           <div class="comment-image-preview d-none">
