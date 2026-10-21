@@ -1228,29 +1228,68 @@ def _tiempo_relativo(dt, ahora=None):
     return f'Hace {dias} d'
 
 
+def _solo_superusuario(view_func):
+    """
+    Decorator que restringe el acceso exclusivamente a superusuarios (is_superuser=True).
+    Tanto ciudadanos como administradores normales reciben un 403.
+    """
+    from functools import wraps
+    from django.http import HttpResponseForbidden
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if not request.user.is_superuser:
+            return HttpResponseForbidden(
+                '<h2>403 — Acceso denegado</h2>'
+                '<p>Esta funcionalidad es exclusiva para superusuarios.</p>'
+            )
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+def _serializar_ciudadano_panel(u):
+    """
+    Serializa un ciudadano para el módulo de "Ciudadanos registrados" del Panel
+    (exclusivo para superusuarios). Por seguridad y privacidad NO incluye estado
+    de actividad en línea ni fecha/hora de última sesión.
+    """
+    nombre_completo = f"{u.first_name} {u.last_name}".strip()
+    nombre = nombre_completo or u.username
+    direccion_raw = (u.direccion or '').strip()
+    return {
+        'id': u.id,
+        'nombre': nombre,
+        'nombre_completo': nombre_completo,
+        'first_name': (u.first_name or '').strip(),
+        'last_name': (u.last_name or '').strip(),
+        'username': u.username,
+        'email': u.email,
+        'direccion': direccion_raw or 'No registrada',
+        'direccion_raw': direccion_raw,
+        'barrio_vereda': (u.barrio_vereda or '').strip(),
+        'numero_finca': (u.numero_finca or '').strip(),
+    }
+
+
 def _listar_ciudadanos_presencia(busqueda=''):
     """
-    Construye la lista de CIUDADANOS para la tabla "Ciudadanos activos" del Panel.
+    Construye la lista de CIUDADANOS registrados para el módulo exclusivo de
+    superusuarios en el Panel.
 
-    Devuelve datos reales (no de ejemplo) y de forma eficiente: una sola consulta,
-    sin N+1. Cada fila trae nombre, usuario, dirección real (o "No registrada"),
-    última conexión en formato relativo + fecha/hora, y si está en línea.
-
-    Si `busqueda` tiene texto, filtra por nombre de perfil (nombre/apellido o
-    nombre de usuario) o por correo electrónico.
-
-    Solo se incluyen usuarios con rol CIUDADANO (los administradores tienen su
-    propia tabla en Configuración). Ordenados por actividad más reciente.
+    Por seguridad y privacidad del usuario NO expone ni calcula si el ciudadano
+    está en línea ni su última sesión; únicamente devuelve sus datos de registro
+    (nombre, usuario, correo y dirección/barrio/finca) en una sola consulta sin N+1.
     """
-    ahora = timezone.now()
-    ventana = getattr(settings, 'PRESENCIA_VENTANA_SEGUNDOS', 300)
-
     ciudadanos = (
         Usuario.objects
         .filter(rol=Usuario.Rol.CIUDADANO, is_staff=False, is_superuser=False)
         .only(
-            'id', 'first_name', 'last_name', 'username',
-            'direccion', 'barrio_vereda', 'numero_finca', 'last_login',
+            'id', 'first_name', 'last_name', 'username', 'email',
+            'direccion', 'barrio_vereda', 'numero_finca',
         )
     )
 
@@ -1263,29 +1302,8 @@ def _listar_ciudadanos_presencia(busqueda=''):
             | Q(last_name__icontains=busqueda)
         )
 
-    ciudadanos = ciudadanos.order_by(F('last_login').desc(nulls_last=True), 'username')
-
-    filas = []
-    for u in ciudadanos:
-        nombre = f"{u.first_name} {u.last_name}".strip() or u.username
-        en_linea = bool(u.last_login and (ahora - u.last_login).total_seconds() <= ventana)
-        if u.last_login:
-            ultima_rel = _tiempo_relativo(u.last_login)
-            ultima_abs = timezone.localtime(u.last_login).strftime('%d/%m/%Y %H:%M')
-        else:
-            ultima_rel = 'Sin registro'
-            ultima_abs = ''
-        filas.append({
-            'nombre': nombre,
-            'username': u.username,
-            'direccion': (u.direccion or '').strip() or 'No registrada',
-            'barrio_vereda': (u.barrio_vereda or '').strip(),
-            'numero_finca': (u.numero_finca or '').strip(),
-            'ultima_rel': ultima_rel,
-            'ultima_abs': ultima_abs,
-            'en_linea': en_linea,
-        })
-    return filas
+    ciudadanos = ciudadanos.order_by('username')
+    return [_serializar_ciudadano_panel(u) for u in ciudadanos]
 
 
 @login_required
@@ -1293,42 +1311,96 @@ def _listar_ciudadanos_presencia(busqueda=''):
 def panel_administrador_view(request):
     """
     Panel de Control Municipal (RF-005, Fase 1).
-    Vista exclusiva de administradores con KPIs, estadísticas en Chart.js, la
-    cola de atención prioritaria y la tabla de ciudadanos activos/inactivos.
-    Las métricas se calculan de datos reales.
+    Vista exclusiva de administradores con KPIs, estadísticas en Chart.js y la
+    cola de atención prioritaria. El módulo de ciudadanos registrados (con edición
+    de nombre y dirección, sin estado de actividad ni última sesión) solo se
+    carga y muestra para superusuarios (is_superuser=True).
     """
     stats = _calcular_estadisticas_panel()
-    ciudadanos_presencia = _listar_ciudadanos_presencia()
+    es_superusuario = bool(request.user.is_superuser)
+    ciudadanos_presencia = _listar_ciudadanos_presencia() if es_superusuario else []
 
     context = {
         'active_menu': 'panel',
         'stats': stats,
+        'es_superusuario': es_superusuario,
         'ciudadanos_presencia': ciudadanos_presencia,
-        'ciudadanos_en_linea_count': sum(1 for c in ciudadanos_presencia if c['en_linea']),
+        'ciudadanos_total_count': len(ciudadanos_presencia),
     }
     return render(request, 'feed/panel_admin.html', context)
 
 
 @login_required
-@_solo_administrador
+@_solo_superusuario
 @require_GET
 def api_presencia_ciudadanos(request):
     """
-    Endpoint JSON (solo administradores) que devuelve el estado de presencia
-    actualizado de los ciudadanos, para refrescar la tabla del Panel sin recargar
-    toda la página.
+    Endpoint JSON exclusivo para SUPERUSUARIOS (is_superuser=True) que devuelve
+    la lista de ciudadanos registrados (sin estado en línea ni última sesión).
+    Un ciudadano o un administrador normal que llame a esta URL recibe 403.
 
-    La restricción de rol se aplica en el backend con @_solo_administrador: un
-    ciudadano que llame directamente a esta URL recibe 403 y NUNCA ve estos datos.
-
-    Acepta el parámetro GET `q` para filtrar por nombre de perfil o correo.
+    Acepta el parámetro GET `q` para filtrar por nombre de perfil, usuario o correo.
     """
     busqueda = request.GET.get('q', '')
     ciudadanos = _listar_ciudadanos_presencia(busqueda=busqueda)
     return JsonResponse({
         'status': 'ok',
         'ciudadanos': ciudadanos,
-        'en_linea_count': sum(1 for c in ciudadanos if c['en_linea']),
+        'total_count': len(ciudadanos),
+    })
+
+
+@login_required
+@_solo_superusuario
+@require_POST
+def editar_ciudadano_panel_ajax(request, user_id):
+    """
+    Permite a un SUPERUSUARIO editar únicamente el nombre y las direcciones
+    (dirección, barrio/vereda y número de finca) de un ciudadano registrado
+    desde el Panel. No expone ni modifica datos de sesión ni actividad.
+    """
+    from django.core.exceptions import ValidationError
+    from usuarios.forms import validar_nombre_perfil
+
+    ciudadano = get_object_or_404(
+        Usuario,
+        id=user_id,
+        rol=Usuario.Rol.CIUDADANO,
+        is_staff=False,
+        is_superuser=False,
+    )
+
+    nombre_raw = (request.POST.get('nombre') or '').strip()
+    direccion_raw = (request.POST.get('direccion') or '').strip()
+    barrio_raw = (request.POST.get('barrio_vereda') or '').strip()
+    finca_raw = (request.POST.get('numero_finca') or '').strip()
+
+    if not nombre_raw:
+        return JsonResponse({'status': 'error', 'message': 'El nombre no puede estar vacío.'}, status=400)
+
+    try:
+        nombre_limpio = validar_nombre_perfil(nombre_raw)
+    except ValidationError as e:
+        return JsonResponse({'status': 'error', 'message': e.messages[0]}, status=400)
+
+    if not direccion_raw:
+        return JsonResponse({'status': 'error', 'message': 'La dirección es obligatoria.'}, status=400)
+
+    partes = nombre_limpio.split()
+    ciudadano.first_name = partes[0][:150]
+    ciudadano.last_name = ' '.join(partes[1:])[:150] if len(partes) > 1 else ''
+    ciudadano.direccion = direccion_raw[:255]
+    if 'barrio_vereda' in request.POST:
+        ciudadano.barrio_vereda = barrio_raw[:150]
+    if 'numero_finca' in request.POST:
+        ciudadano.numero_finca = finca_raw[:50]
+
+    ciudadano.save(update_fields=['first_name', 'last_name', 'direccion', 'barrio_vereda', 'numero_finca'])
+
+    return JsonResponse({
+        'status': 'ok',
+        'message': f'Datos de «{ciudadano.username}» actualizados correctamente.',
+        'ciudadano': _serializar_ciudadano_panel(ciudadano),
     })
 
 

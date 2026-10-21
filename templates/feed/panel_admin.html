@@ -143,15 +143,20 @@
     </div>
   </section>
 
-  <!-- Ciudadanos activos / inactivos -->
-  <section class="panel-card ciudadanos-card">
+  {% if user.is_superuser %}
+  <!-- Ciudadanos registrados (Exclusivo para Superusuarios - sin estado de actividad ni última sesión) -->
+  <section class="panel-card ciudadanos-card" id="seccionCiudadanosSuperadmin">
     <div class="ciudadanos-head">
-      <h3 class="panel-card-title">Ciudadanos activos</h3>
+      <div class="ciudadanos-title-group">
+        <h3 class="panel-card-title" style="margin-bottom:0;">Ciudadanos registrados</h3>
+        <span class="ciudadanos-superadmin-badge">Solo Superusuarios</span>
+      </div>
       <span class="ciudadanos-online-count">
-        <span class="presence-dot presence-dot-inline"></span>
-        <span id="ciudadanosOnlineCount">{{ ciudadanos_en_linea_count }}</span> en línea
+        <span id="ciudadanosTotalCount">{{ ciudadanos_total_count }}</span> registrado{{ ciudadanos_total_count|pluralize }}
       </span>
     </div>
+
+    <div id="ciudadanosAlert" class="ciudadanos-alert" hidden></div>
 
     <!-- Barra de búsqueda de ciudadanos (por nombre de perfil o correo) -->
     <div class="ciudadanos-search">
@@ -169,16 +174,15 @@
           <tr>
             <th>Nombre</th>
             <th>Dirección</th>
-            <th>Última conexión</th>
-            <th>Estado</th>
+            <th style="text-align:right;">Acciones</th>
           </tr>
         </thead>
         <tbody id="ciudadanosTbody">
           {% for c in ciudadanos_presencia %}
-          <tr>
+          <tr data-user-id="{{ c.id }}">
             <td>
               <div class="cel-nombre">{{ c.nombre }}</div>
-              <div class="cel-sub">@{{ c.username }}</div>
+              <div class="cel-sub">@{{ c.username }}{% if c.email %} · {{ c.email }}{% endif %}</div>
             </td>
             <td>
               <div class="cel-nombre">{{ c.direccion }}</div>
@@ -188,27 +192,72 @@
               <div class="cel-sub">Finca {{ c.numero_finca }}</div>
               {% endif %}
             </td>
-            <td>
-              <div class="cel-nombre">{{ c.ultima_rel }}</div>
-              {% if c.ultima_abs %}<div class="cel-sub">{{ c.ultima_abs }}</div>{% endif %}
-            </td>
-            <td>
-              {% if c.en_linea %}
-              <span class="cfg-badge cfg-badge-online">En línea</span>
-              {% else %}
-              <span class="cfg-badge cfg-badge-offline">Inactivo</span>
-              {% endif %}
+            <td style="text-align:right;">
+              <button type="button"
+                      class="btn-editar-ciudadano"
+                      data-id="{{ c.id }}"
+                      data-username="{{ c.username }}"
+                      data-nombre="{{ c.nombre }}"
+                      data-direccion="{{ c.direccion_raw }}"
+                      data-barrio="{{ c.barrio_vereda }}"
+                      data-finca="{{ c.numero_finca }}">
+                Editar
+              </button>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="4" class="ciudadanos-empty">Aún no hay ciudadanos registrados.</td>
+            <td colspan="3" class="ciudadanos-empty">Aún no hay ciudadanos registrados.</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </section>
+
+  <!-- Modal para editar nombre y direcciones de un ciudadano -->
+  <div id="modalEditarCiudadano" class="ciudadano-modal-backdrop" hidden>
+    <div class="ciudadano-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalEditarCiudadanoTitle">
+      <div class="ciudadano-modal-head">
+        <div>
+          <h4 id="modalEditarCiudadanoTitle" class="ciudadano-modal-title">Editar datos del ciudadano</h4>
+          <p id="modalEditarCiudadanoSub" class="ciudadano-modal-sub"></p>
+        </div>
+        <button type="button" id="btnCerrarModalCiudadano" class="ciudadano-modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="formEditarCiudadano" class="ciudadano-modal-form" novalidate>
+        <input type="hidden" id="editCiudadanoId" name="user_id">
+        <div id="modalCiudadanoError" class="ciudadano-modal-error" hidden></div>
+
+        <div class="ciudadano-field">
+          <label for="editCiudadanoNombre">Nombre completo *</label>
+          <input type="text" id="editCiudadanoNombre" name="nombre" class="ciudadanos-search-input" style="padding-left:12px;" maxlength="250" required>
+        </div>
+
+        <div class="ciudadano-field">
+          <label for="editCiudadanoDireccion">Dirección *</label>
+          <input type="text" id="editCiudadanoDireccion" name="direccion" class="ciudadanos-search-input" style="padding-left:12px;" maxlength="255" placeholder="Ej: Calle 10 # 43A-15" required>
+        </div>
+
+        <div class="ciudadano-field-grid">
+          <div class="ciudadano-field">
+            <label for="editCiudadanoBarrio">Barrio o vereda</label>
+            <input type="text" id="editCiudadanoBarrio" name="barrio_vereda" class="ciudadanos-search-input" style="padding-left:12px;" maxlength="150" placeholder="Ej: El Poblado">
+          </div>
+          <div class="ciudadano-field">
+            <label for="editCiudadanoFinca">Número de finca (opcional)</label>
+            <input type="text" id="editCiudadanoFinca" name="numero_finca" class="ciudadanos-search-input" style="padding-left:12px;" maxlength="50" placeholder="Ej: 12">
+          </div>
+        </div>
+
+        <div class="ciudadano-modal-actions">
+          <button type="button" id="btnCancelarModalCiudadano" class="btn-ciudadano-cancel">Cancelar</button>
+          <button type="submit" id="btnGuardarModalCiudadano" class="btn-ciudadano-save">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {# Datos para Chart.js, pasados de forma segura con json_script #}
@@ -226,15 +275,43 @@
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script defer src="{% static 'js/panel_admin.js' %}"></script>
 
-<!-- Refresco ligero de la tabla de ciudadanos (presencia) sin recargar la página -->
+{% if user.is_superuser %}
+<!-- Búsqueda y edición de ciudadanos registrados (solo Superusuarios) -->
 <script>
 (function () {
   'use strict';
-  var URL = "{% url 'api_presencia_ciudadanos' %}";
+  var URL_LISTA = "{% url 'api_presencia_ciudadanos' %}";
+  var URL_EDITAR_TPL = "{% url 'editar_ciudadano_panel_ajax' 0 %}";
   var tbody = document.getElementById('ciudadanosTbody');
-  var contador = document.getElementById('ciudadanosOnlineCount');
+  var contador = document.getElementById('ciudadanosTotalCount');
   var buscador = document.getElementById('ciudadanosSearch');
+  var alertBox = document.getElementById('ciudadanosAlert');
+
+  var modal = document.getElementById('modalEditarCiudadano');
+  var form = document.getElementById('formEditarCiudadano');
+  var errBox = document.getElementById('modalCiudadanoError');
+  var inputId = document.getElementById('editCiudadanoId');
+  var inputNombre = document.getElementById('editCiudadanoNombre');
+  var inputDir = document.getElementById('editCiudadanoDireccion');
+  var inputBarrio = document.getElementById('editCiudadanoBarrio');
+  var inputFinca = document.getElementById('editCiudadanoFinca');
+  var subLabel = document.getElementById('modalEditarCiudadanoSub');
+  var btnCerrar = document.getElementById('btnCerrarModalCiudadano');
+  var btnCancelar = document.getElementById('btnCancelarModalCiudadano');
+  var btnGuardar = document.getElementById('btnGuardarModalCiudadano');
+
   if (!tbody) return;
+
+  function getCookie(name) {
+    var v = null;
+    if (document.cookie) {
+      document.cookie.split(';').forEach(function (c) {
+        var t = c.trim();
+        if (t.indexOf(name + '=') === 0) v = decodeURIComponent(t.substring(name.length + 1));
+      });
+    }
+    return v;
+  }
 
   function escapeHtml(s) {
     var d = document.createElement('div');
@@ -242,13 +319,11 @@
     return d.innerHTML;
   }
 
-  function filaHtml(c) {
-    var estado = c.en_linea
-      ? '<span class="cfg-badge cfg-badge-online">En línea</span>'
-      : '<span class="cfg-badge cfg-badge-offline">Inactivo</span>';
-    var abs = c.ultima_abs ? '<div class="cel-sub">' + escapeHtml(c.ultima_abs) + '</div>' : '';
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
 
-    // Subtexto de la dirección: barrio/vereda y, si existe, el número de finca.
+  function filaHtml(c) {
     var dirSub = '';
     if (c.barrio_vereda) {
       dirSub = escapeHtml(c.barrio_vereda) +
@@ -257,18 +332,27 @@
       dirSub = 'Finca ' + escapeHtml(c.numero_finca);
     }
     var dirSubHtml = dirSub ? '<div class="cel-sub">' + dirSub + '</div>' : '';
+    var emailPart = c.email ? ' · ' + escapeHtml(c.email) : '';
+    var dirRaw = c.direccion_raw != null ? c.direccion_raw : (c.direccion === 'No registrada' ? '' : c.direccion);
 
-    return '<tr>' +
+    return '<tr data-user-id="' + escapeAttr(c.id) + '">' +
       '<td><div class="cel-nombre">' + escapeHtml(c.nombre) + '</div>' +
-      '<div class="cel-sub">@' + escapeHtml(c.username) + '</div></td>' +
+      '<div class="cel-sub">@' + escapeHtml(c.username) + emailPart + '</div></td>' +
       '<td><div class="cel-nombre">' + escapeHtml(c.direccion) + '</div>' + dirSubHtml + '</td>' +
-      '<td><div class="cel-nombre">' + escapeHtml(c.ultima_rel) + '</div>' + abs + '</td>' +
-      '<td>' + estado + '</td></tr>';
+      '<td style="text-align:right;">' +
+      '<button type="button" class="btn-editar-ciudadano" ' +
+      'data-id="' + escapeAttr(c.id) + '" ' +
+      'data-username="' + escapeAttr(c.username) + '" ' +
+      'data-nombre="' + escapeAttr(c.nombre) + '" ' +
+      'data-direccion="' + escapeAttr(dirRaw) + '" ' +
+      'data-barrio="' + escapeAttr(c.barrio_vereda || '') + '" ' +
+      'data-finca="' + escapeAttr(c.numero_finca || '') + '">Editar</button>' +
+      '</td></tr>';
   }
 
   function refrescar() {
     var q = buscador ? buscador.value.trim() : '';
-    var url = URL + (q ? ('?q=' + encodeURIComponent(q)) : '');
+    var url = URL_LISTA + (q ? ('?q=' + encodeURIComponent(q)) : '');
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
@@ -279,14 +363,15 @@
           var msg = q
             ? 'No se encontraron ciudadanos para «' + escapeHtml(q) + '».'
             : 'Aún no hay ciudadanos registrados.';
-          tbody.innerHTML = '<tr><td colspan="4" class="ciudadanos-empty">' + msg + '</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="3" class="ciudadanos-empty">' + msg + '</td></tr>';
         }
-        if (contador) contador.textContent = data.en_linea_count;
+        if (contador && typeof data.total_count === 'number') {
+          contador.textContent = data.total_count;
+        }
       })
-      .catch(function () { /* silencioso: si falla, se conserva la tabla actual */ });
+      .catch(function () { /* silencioso */ });
   }
 
-  // Búsqueda en vivo con debounce (espera 300 ms tras dejar de escribir).
   if (buscador) {
     var t = null;
     buscador.addEventListener('input', function () {
@@ -295,11 +380,87 @@
     });
   }
 
-  // Refresco automático cada 20 s mientras la pestaña está visible
-  // (estado de presencia casi en tiempo real).
-  setInterval(function () {
-    if (document.visibilityState === 'visible') refrescar();
-  }, 20000);
+  function abrirModal(btn) {
+    if (!modal) return;
+    errBox.hidden = true;
+    errBox.textContent = '';
+    inputId.value = btn.getAttribute('data-id') || '';
+    inputNombre.value = btn.getAttribute('data-nombre') || '';
+    inputDir.value = btn.getAttribute('data-direccion') || '';
+    inputBarrio.value = btn.getAttribute('data-barrio') || '';
+    inputFinca.value = btn.getAttribute('data-finca') || '';
+    subLabel.textContent = '@' + (btn.getAttribute('data-username') || '');
+    modal.hidden = false;
+    inputNombre.focus();
+  }
+
+  function cerrarModal() {
+    if (!modal) return;
+    modal.hidden = true;
+  }
+
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest('.btn-editar-ciudadano');
+    if (btn) abrirModal(btn);
+  });
+
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarModal);
+  if (btnCancelar) btnCancelar.addEventListener('click', cerrarModal);
+  if (modal) {
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) cerrarModal();
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var uid = inputId.value;
+      if (!uid) return;
+      errBox.hidden = true;
+      btnGuardar.disabled = true;
+
+      var url = URL_EDITAR_TPL.replace('/0/', '/' + encodeURIComponent(uid) + '/');
+      var body = new URLSearchParams();
+      body.append('nombre', inputNombre.value.trim());
+      body.append('direccion', inputDir.value.trim());
+      body.append('barrio_vereda', inputBarrio.value.trim());
+      body.append('numero_finca', inputFinca.value.trim());
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: body.toString()
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (!res.ok || res.data.status !== 'ok') {
+            errBox.textContent = (res.data && res.data.message) || 'No se pudieron guardar los cambios.';
+            errBox.hidden = false;
+            return;
+          }
+          cerrarModal();
+          refrescar();
+          if (alertBox) {
+            alertBox.textContent = res.data.message || 'Cambios guardados.';
+            alertBox.hidden = false;
+            setTimeout(function () { alertBox.hidden = true; }, 4000);
+          }
+        })
+        .catch(function () {
+          errBox.textContent = 'Error de red al guardar los cambios.';
+          errBox.hidden = false;
+        })
+        .finally(function () {
+          btnGuardar.disabled = false;
+        });
+    });
+  }
 })();
 </script>
+{% endif %}
 {% endblock %}

@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/notificaciones-no-leidas/', views.api_notificaciones_no_leidas, name='api_notificaciones_no_leidas'),
     path('api/buscar/', views.api_buscar_publicaciones, name='api_buscar_publicaciones'),
     path('api/presencia-ciudadanos/', views.api_presencia_ciudadanos, name='api_presencia_ciudadanos'),
+    path('api/ciudadanos/<int:user_id>/editar/', views.editar_ciudadano_panel_ajax, name='editar_ciudadano_panel_ajax'),
     path('api/heartbeat/', views.api_heartbeat, name='api_heartbeat'),
     path('api/presencia/<str:username>/', views.api_estado_presencia, name='api_estado_presencia'),
 ]

@@ -440,50 +440,117 @@ class ModeracionLenguajeTest(BaseUrbanReportTest):
 
 class PresenciaYCiudadanosTest(BaseUrbanReportTest):
     """
-    Sección "Ciudadanos activos" del Panel + indicador de presencia.
-    Verifica acceso por rol, dirección, cálculo de actividad y privacidad.
+    Módulo "Ciudadanos registrados" del Panel (exclusivo para superusuarios,
+    sin estado de actividad ni última sesión, con edición de nombre y dirección)
+    + indicador de presencia en Feed/Perfil.
     """
 
     def setUp(self):
         from django.utils import timezone
         self.ahora = timezone.now()
+        self.superadmin = Usuario.objects.create_user(
+            username='superadmin_panel', email='superpanel@t.co', password='x',
+            rol=Usuario.Rol.ADMINISTRADOR, is_staff=True, is_superuser=True,
+            **PERFIL_COMPLETO,
+        )
 
-    def test_admin_ve_seccion_ciudadanos_en_panel(self):
-        """El administrador ve la sección 'Ciudadanos activos' dentro del Panel."""
+    def test_solo_superusuario_ve_seccion_ciudadanos_en_panel_sin_actividad(self):
+        """
+        El administrador normal NO ve el módulo de ciudadanos en el Panel.
+        El superusuario SÍ ve 'Ciudadanos registrados', pero SIN última conexión
+        ni estado en línea/inactivo.
+        """
+        # Admin normal (is_superuser=False) -> ve el Panel pero NO la tabla de ciudadanos
         self.client.force_login(self.admin)
-        r = self.client.get(reverse('panel_administrador'))
-        self.assertEqual(r.status_code, 200)
-        html = r.content.decode()
-        self.assertIn('Ciudadanos activos', html)
-        self.assertIn('ciudadanosTbody', html)
-        # La tabla usa usuarios REALES: aparece el ciudadano de prueba.
-        self.assertIn('@ciudadano', html)
+        r_admin = self.client.get(reverse('panel_administrador'))
+        self.assertEqual(r_admin.status_code, 200)
+        html_admin = r_admin.content.decode()
+        self.assertNotIn('ciudadanosTbody', html_admin)
+        self.assertNotIn('Ciudadanos registrados', html_admin)
+
+        # Superusuario (is_superuser=True) -> ve 'Ciudadanos registrados' sin actividad ni última sesión
+        self.client.force_login(self.superadmin)
+        r_super = self.client.get(reverse('panel_administrador'))
+        self.assertEqual(r_super.status_code, 200)
+        html_super = r_super.content.decode()
+        self.assertIn('Ciudadanos registrados', html_super)
+        self.assertIn('ciudadanosTbody', html_super)
+        self.assertIn('@ciudadano', html_super)
+        self.assertNotIn('Última conexión', html_super)
+        self.assertNotIn('En línea', html_super)
+        self.assertNotIn('Inactivo', html_super)
 
     def test_ciudadano_no_accede_al_panel(self):
         """Un ciudadano no puede ver el Panel (403), por tanto tampoco la tabla."""
         self.client.force_login(self.ciudadano)
         self.assertEqual(self.client.get(reverse('panel_administrador')).status_code, 403)
 
-    def test_endpoint_presencia_solo_admin(self):
-        """El endpoint JSON de presencia es exclusivo de administradores."""
-        # Ciudadano -> 403, sin datos
+    def test_endpoint_ciudadanos_solo_superusuario_y_sin_datos_sesion(self):
+        """El endpoint JSON de ciudadanos en el Panel es exclusivo de superusuarios y no expone actividad."""
+        # Ciudadano -> 403
         self.client.force_login(self.ciudadano)
         self.assertEqual(self.client.get(reverse('api_presencia_ciudadanos')).status_code, 403)
-        # Admin -> 200 con datos
+        # Admin normal (no superusuario) -> 403
         self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('api_presencia_ciudadanos')).status_code, 403)
+        # Superusuario -> 200 con datos de registro pero SIN en_linea ni ultima_rel/ultima_abs
+        self.client.force_login(self.superadmin)
         r = self.client.get(reverse('api_presencia_ciudadanos'))
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertEqual(d['status'], 'ok')
-        self.assertTrue(any(c['username'] == 'ciudadano' for c in d['ciudadanos']))
+        self.assertNotIn('en_linea_count', d)
+        fila = next(c for c in d['ciudadanos'] if c['username'] == 'ciudadano')
+        self.assertNotIn('en_linea', fila)
+        self.assertNotIn('ultima_rel', fila)
+        self.assertNotIn('ultima_abs', fila)
+
+    def test_superusuario_edita_nombre_y_direcciones_de_ciudadano(self):
+        """Solo un superusuario puede editar el nombre y las direcciones de un ciudadano registrado."""
+        url = reverse('editar_ciudadano_panel_ajax', args=[self.ciudadano.id])
+
+        # Ciudadano -> 403
+        self.client.force_login(self.ciudadano)
+        self.assertEqual(self.client.post(url, {'nombre': 'Nuevo Nombre', 'direccion': 'Cra 10 #20-30'}).status_code, 403)
+
+        # Admin normal -> 403
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(url, {'nombre': 'Nuevo Nombre', 'direccion': 'Cra 10 #20-30'}).status_code, 403)
+
+        # Superusuario -> 200 y actualiza nombre y direcciones en BD
+        self.client.force_login(self.superadmin)
+        r = self.client.post(url, {
+            'nombre': 'Carlos Andrés Pérez',
+            'direccion': 'Circular 4 # 70-12',
+            'barrio_vereda': 'Laureles',
+            'numero_finca': '45B',
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['ciudadano']['nombre'], 'Carlos Andrés Pérez')
+        self.assertEqual(data['ciudadano']['direccion'], 'Circular 4 # 70-12')
+        self.assertEqual(data['ciudadano']['barrio_vereda'], 'Laureles')
+        self.assertEqual(data['ciudadano']['numero_finca'], '45B')
+
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.first_name, 'Carlos')
+        self.assertEqual(self.ciudadano.last_name, 'Andrés Pérez')
+        self.assertEqual(self.ciudadano.direccion, 'Circular 4 # 70-12')
+        self.assertEqual(self.ciudadano.barrio_vereda, 'Laureles')
+        self.assertEqual(self.ciudadano.numero_finca, '45B')
+
+        # Validación: rechaza dirección vacía o nombre inapropiado
+        r_vacio = self.client.post(url, {'nombre': 'Carlos Pérez', 'direccion': '   '})
+        self.assertEqual(r_vacio.status_code, 400)
+        r_groseria = self.client.post(url, {'nombre': 'malparido', 'direccion': 'Circular 4 # 70-12'})
+        self.assertEqual(r_groseria.status_code, 400)
 
     def test_direccion_real_o_no_registrada(self):
         """La columna Dirección muestra el campo real; si está vacío, 'No registrada'."""
         from feed.views import _listar_ciudadanos_presencia
-        # El ciudadano de prueba tiene direccion en PERFIL_COMPLETO.
         self.ciudadano.direccion = 'Calle 123 # 45-67'
         self.ciudadano.save(update_fields=['direccion'])
-        # Un ciudadano sin dirección:
         sin_dir = Usuario.objects.create_user(
             username='sindir', email='sindir@t.co', password='x', rol=Usuario.Rol.CIUDADANO,
         )
@@ -497,11 +564,9 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
     def test_barrio_y_numero_finca_en_tabla(self):
         """La fila incluye barrio/vereda y número de finca según lo registrado."""
         from feed.views import _listar_ciudadanos_presencia
-        # Con barrio y finca
         self.ciudadano.barrio_vereda = 'Laureles'
         self.ciudadano.numero_finca = '12'
         self.ciudadano.save(update_fields=['barrio_vereda', 'numero_finca'])
-        # Con barrio pero SIN finca
         sin_finca = Usuario.objects.create_user(
             username='sinfinca', email='sf@t.co', password='x', rol=Usuario.Rol.CIUDADANO,
         )
@@ -518,15 +583,12 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
     def test_calculo_actividad_en_linea_e_inactivo(self):
         """esta_en_linea(): activo dentro de la ventana, inactivo fuera; sin registro = inactivo."""
         from datetime import timedelta
-        # Activo: actividad hace 30 segundos (dentro de la ventana de 60s)
         self.ciudadano.last_login = self.ahora - timedelta(seconds=30)
         self.ciudadano.save(update_fields=['last_login'])
         self.assertTrue(self.ciudadano.esta_en_linea())
-        # Inactivo: actividad hace 5 minutos (fuera de la ventana de 60s)
         self.ciudadano.last_login = self.ahora - timedelta(minutes=5)
         self.ciudadano.save(update_fields=['last_login'])
         self.assertFalse(self.ciudadano.esta_en_linea())
-        # Sin registro
         self.ciudadano.last_login = None
         self.ciudadano.save(update_fields=['last_login'])
         self.assertFalse(self.ciudadano.esta_en_linea())
@@ -534,21 +596,17 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
     def test_busqueda_ciudadanos_por_nombre_y_correo(self):
         """El filtro de la tabla encuentra por nombre de perfil, usuario o correo."""
         from feed.views import _listar_ciudadanos_presencia
-        # Por username
         r = _listar_ciudadanos_presencia(busqueda='ciudadano')
         self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
-        # Por correo (el ciudadano tiene email c@test.co)
         r = _listar_ciudadanos_presencia(busqueda='c@test.co')
         self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
-        # Por nombre (first_name 'Ciu')
         r = _listar_ciudadanos_presencia(busqueda='Ciu')
         self.assertTrue(any(c['username'] == 'ciudadano' for c in r))
-        # Búsqueda sin coincidencias -> lista vacía
         self.assertEqual(_listar_ciudadanos_presencia(busqueda='zzzznoexiste'), [])
 
     def test_endpoint_presencia_acepta_busqueda(self):
-        """El endpoint admin filtra por el parámetro q."""
-        self.client.force_login(self.admin)
+        """El endpoint superadmin filtra por el parámetro q."""
+        self.client.force_login(self.superadmin)
         r = self.client.get(reverse('api_presencia_ciudadanos') + '?q=ciudadano')
         self.assertEqual(r.status_code, 200)
         d = r.json()
@@ -559,30 +617,23 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         """El endpoint de presencia individual devuelve solo el booleano en_linea."""
         from datetime import timedelta
         self.client.force_login(self.ciudadano)
-        # En línea
         Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(seconds=10))
         r = self.client.get(reverse('api_estado_presencia', args=['otro']))
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertTrue(d['en_linea'])
-        # No debe exponer datos sensibles: solo status y en_linea
         self.assertEqual(set(d.keys()), {'status', 'en_linea'})
-        # Fuera de línea
         Usuario.objects.filter(pk=self.otro.pk).update(last_login=self.ahora - timedelta(minutes=10))
         d = self.client.get(reverse('api_estado_presencia', args=['otro'])).json()
         self.assertFalse(d['en_linea'])
-        # Requiere autenticación
         self.client.logout()
         self.assertNotEqual(self.client.get(reverse('api_estado_presencia', args=['otro'])).status_code, 200)
 
     def test_heartbeat_marca_actividad_y_requiere_login(self):
         """El heartbeat actualiza la actividad del propio usuario; exige sesión y POST."""
         from datetime import timedelta
-        # Sin sesión -> redirige a login (no 200)
         self.assertNotEqual(self.client.post(reverse('api_heartbeat')).status_code, 200)
-        # Autenticado -> 200 y actualiza last_login
         self.client.force_login(self.ciudadano)
-        # Forzar last_login antiguo DESPUÉS del login para comprobar que el heartbeat lo refresca.
         viejo = self.ahora - timedelta(hours=3)
         Usuario.objects.filter(pk=self.ciudadano.pk).update(last_login=viejo)
         r = self.client.post(reverse('api_heartbeat'))
@@ -590,30 +641,22 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.assertEqual(r.json()['status'], 'ok')
         refrescado = Usuario.objects.get(pk=self.ciudadano.pk).last_login
         self.assertGreater(refrescado, viejo)
-        # El heartbeat no acepta GET
         self.assertEqual(self.client.get(reverse('api_heartbeat')).status_code, 405)
 
     def test_tiempo_relativo_y_sin_registro(self):
         """_tiempo_relativo cubre 'Ahora mismo', minutos/horas/días y 'Sin registro'."""
         from datetime import timedelta
-        from feed.views import _tiempo_relativo, _listar_ciudadanos_presencia
+        from feed.views import _tiempo_relativo
         self.assertEqual(_tiempo_relativo(None), 'Sin registro')
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(seconds=10), self.ahora), 'Ahora mismo')
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(minutes=5), self.ahora), 'Hace 5 min')
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(hours=1), self.ahora), 'Hace 1 h')
         self.assertEqual(_tiempo_relativo(self.ahora - timedelta(days=4), self.ahora), 'Hace 4 d')
-        # Usuario sin actividad -> 'Sin registro' en la tabla, sin fecha absoluta.
-        self.ciudadano.last_login = None
-        self.ciudadano.save(update_fields=['last_login'])
-        fila = next(c for c in _listar_ciudadanos_presencia() if c['username'] == 'ciudadano')
-        self.assertEqual(fila['ultima_rel'], 'Sin registro')
-        self.assertEqual(fila['ultima_abs'], '')
 
     def test_middleware_actualiza_actividad(self):
         """Una solicitud autenticada refresca last_login del usuario (throttle 30s)."""
         from datetime import timedelta
         self.client.force_login(self.ciudadano)
-        # Dejar last_login antiguo para que el middleware deba refrescarlo.
         viejo = self.ahora - timedelta(hours=3)
         Usuario.objects.filter(pk=self.ciudadano.pk).update(last_login=viejo)
         self.client.get(reverse('feed_comunitario'))
@@ -622,9 +665,6 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
     def test_indicador_presencia_en_feed_por_estado(self):
         """El círculo verde aparece si el autor está en línea y desaparece si no."""
         from datetime import timedelta
-        # Espectador dedicado SIN contenido en el feed: así el refresco de last_login
-        # que hace el middleware sobre quien visita no introduce un dot propio
-        # (no es autor de ninguna publicación/comentario).
         espectador = Usuario.objects.create_user(
             username='espectador', email='esp@t.co', password='x',
             rol=Usuario.Rol.ADMINISTRADOR, **PERFIL_COMPLETO,
@@ -632,12 +672,10 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         self.client.force_login(espectador)
 
         def poner_todos_inactivos():
-            # Todos los usuarios con contenido quedan fuera de la ventana de presencia.
             Usuario.objects.exclude(pk=espectador.pk).update(
                 last_login=self.ahora - timedelta(hours=2)
             )
 
-        # Autor del post (ciudadano) EN LÍNEA -> aparece el dot.
         poner_todos_inactivos()
         Usuario.objects.filter(pk=self.ciudadano.pk).update(
             last_login=self.ahora - timedelta(seconds=30)
@@ -645,13 +683,12 @@ class PresenciaYCiudadanosTest(BaseUrbanReportTest):
         html = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertIn('presence-dot', html)
 
-        # Nadie con contenido en línea -> no aparece ningún dot.
         poner_todos_inactivos()
         html2 = self.client.get(reverse('feed_comunitario')).content.decode()
         self.assertNotIn('presence-dot', html2)
 
     def test_direccion_no_se_expone_en_feed(self):
-        """La dirección de residencia no debe aparecer en el feed (solo en la tabla admin)."""
+        """La dirección de residencia no debe aparecer en el feed."""
         self.ciudadano.direccion = 'Calle Secreta 999'
         self.ciudadano.save(update_fields=['direccion'])
         self.client.force_login(self.ciudadano)
