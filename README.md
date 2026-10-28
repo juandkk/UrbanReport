@@ -11,9 +11,12 @@ Si no deseas realizar la instalación del proyecto con todas sus dependencias pu
   
 >[Nota!]
 > Si eres nuestro tester y quieres probar un usuario de administrador y superadmin contáctanos a los siguientes correos:
-> **Solo se va a responder al correo si se envía desde el dominio de UNIMINUTO (@uniminuto.edu.co)**
+>
+> **Solo se va a responder al correo si se envía desde el dominio de UNIMINUTO (@uniminuto.edu.co).**
 > * juan.sanchez-oc@uniminuto.edu.co
 > * juan.cardona-sa@uniminuto.edu.co
+> 
+> Si te muestra una pantalla de carga que dice "Render" no te preocupes! Es nuestro aliado para desplegar la APP, tarda unos pocos segundos para mostrar la interfaz de UrbanReport.
 
 ## Requisitos Previos
 
